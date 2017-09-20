@@ -2,7 +2,7 @@ module MathOptInterfaceMosek
 
 import MathOptInterface
 using Mosek
-using Mosek.Ext
+#using Mosek.Ext
 
 immutable MosekSolver <: MathOptInterface.AbstractSolver
   options
