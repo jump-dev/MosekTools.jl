@@ -22,28 +22,30 @@ blocksize(s::LinkedInts, id :: Int) = s.size[id]
 Base.length(s::LinkedInts) = length(s.next)
 numblocks(s::LinkedInts) = length(s.block)
 
-function Base.string(l::LinkedInts)
-    r = String[]
-    push!(r,"LinkedInts(\n")
-    push!(r,@sprintf("  Number of blocks: %d\n", length(l.block)))
-    push!(r,"  Blocks:\n")
-
-    for i in 1:length(l.block)
-        if l.block[i] > 0
-            idxs = getindexes(l,i)            
-            push!(r,@sprintf("    #%d: %s\n",i,string(idxs)))
+function Base.show(f::IO, s::LinkedInts)
+    print(f,"LinkedInts(\n")
+    @printf(f,"  Number of blocks: %d\n", length(s.block))
+    print(f,"  Blocks:\n")
+    for i in 1:length(s.block)
+        if s.block[i] > 0
+            idxs = getindexes(s,i)
+            print(f,"    #$i: $idxs\n")
         end
     end
-    p = l.free_ptr
+    p = s.free_ptr
     freelst = Int[]
     while p > 0
         push!(freelst,p)
-        p = l.prev[p]
+        p = s.prev[p]
     end
-    push!(r,@sprintf("  Free: %s\n",string(freelst)))
+    print(f,"  Free: $freelst\n")
     
-    push!(r,")")
-    join(r)
+    println(f,"  free_ptr = $(s.free_ptr)")
+    println(f,"  root     = $(s.root)")
+    println(f,"  next     = $(s.next)")
+    println(f,"  prev     = $(s.prev)")
+    
+    print(f,")")
 end
 
 """
@@ -110,6 +112,11 @@ function newblock(s::LinkedInts, N :: Int) :: Int
     push!(s.size,N)
 
     id = length(s.block)
+
+    if ! checkconsistency(s)
+        println("List = ",s)
+        assert(false)
+    end
     
     id
 end
@@ -188,7 +195,7 @@ end
 """
 Get a list if the currently free elements.
 """
-function getfreeindexes(s::LinkedInts)    
+function getfreeindexes(s::LinkedInts)
     N = s.free_cap
     r = Array{Int}(N)
     ptr = s.free_ptr
@@ -227,6 +234,32 @@ function checkconsistency(s::LinkedInts) :: Bool
     
     N = length(s.prev)
 
-    all(i -> s.prev[i] == 0 || s.next[s.prev[i]] == i, 1:N) &&
-    all(i -> s.next[i] == 0 || s.prev[s.next[i]] == i, 1:N)
+
+    if ! (all(i -> s.prev[i] == 0 || s.next[s.prev[i]] == i, 1:N) &&
+          all(i -> s.next[i] == 0 || s.prev[s.next[i]] == i, 1:N))
+        assert(false)
+    end
+
+    mark = fill(false,length(s.prev))
+    
+    p = s.free_ptr
+    while p != 0
+        mark[p] = true
+        p = s.prev[p]
+    end
+
+    p = s.root
+    while p != 0
+        assert(!mark[p])
+        mark[p] = true
+        p = s.prev[p]
+    end
+
+    if !all(mark)
+        println(s)
+        println(mark)
+        assert(all(mark))
+    end
+
+    return true
 end

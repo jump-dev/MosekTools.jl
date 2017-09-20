@@ -24,3 +24,5 @@ include(joinpath(Pkg.dir("MathOptInterface"),"test","intlinear.jl"))
 @testset "Mixed-integer linear problems" begin
     intlineartest(MosekSolver(QUIET = true))
 end
+
+include("test_jump.jl")

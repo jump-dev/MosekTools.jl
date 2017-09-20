@@ -8,7 +8,12 @@ MathOptInterface.getattribute(m::Union{MosekSolver,MosekModel},::MathOptInterfac
 MathOptInterface.getattribute(m::Union{MosekSolver,MosekModel},::MathOptInterface.SupportsConicThroughQuadratic) = false # though actually the solver does
 
 #### objective
-MathOptInterface.getattribute(m::MosekModel,attr::MathOptInterface.ObjectiveValue) = getprimalobj(m.task,m.solutions[attr.resultindex].whichsol)
+MathOptInterface.getattribute(m::MosekModel,attr::MathOptInterface.ObjectiveValue) =
+    begin
+        #showall(m.task)
+        #showall(m.task[Sol(MSK_SOL_ITR)])
+        getprimalobj(m.task,m.solutions[attr.resultindex].whichsol)
+    end
 MathOptInterface.cangetattribute(m::MosekSolver,attr::MathOptInterface.ObjectiveValue) = true
 MathOptInterface.cangetattribute(m::MosekModel,attr::MathOptInterface.ObjectiveValue) = attr.resultindex > 0 && attr.resultindex <= length(m.solutions)
 

@@ -236,7 +236,7 @@ function MathOptInterface.addconstraint!(m   :: MosekModel,
 
     N = MathOptInterface.dimension(dom)
 
-    if N < 3
+    if N < 2
         error("Invalid dimension for semidefinite constraint")
     end
 
@@ -248,11 +248,11 @@ function MathOptInterface.addconstraint!(m   :: MosekModel,
     
     id = allocateconstraints(m,NN)
 
-    appendbarvars(m.task,Int32(N))
-    barvaridx = getnumbarvar(m.task)
+    #appendbarvars(m.task,Int32[N])
+    #barvaridx = getnumbarvar(m.task)
     
     subi = getindexes(m.c_block,id)
-    m.c_block_slack[subi] = -barvaridx
+    #m.c_block_slack[id] = -barvaridx
 
     subii32 = convert(Vector{Int32},subi)
     putaijlist(m.task,
@@ -277,7 +277,8 @@ function MathOptInterface.addconstraint!(m   :: MosekModel,
     # constraint, but to resolve return value at compile time we
     # need to disguise it as a variable constraint.
     #id2cref{MathOptInterface.VectorOfVariables,D}(-id)
-    conref = MathOptInterface.ConstraintReference{MathOptInterface.VectorOfVariables,MathOptInterface.PositiveSemidefiniteConeTriangle}((UInt64(-id) << 1) | 1)
+
+    conref = MathOptInterface.ConstraintReference{MathOptInterface.VectorOfVariables,MathOptInterface.PositiveSemidefiniteConeTriangle}(UInt64((id << 1) | 1))
     select(m.constrmap,MathOptInterface.VectorOfVariables,MathOptInterface.PositiveSemidefiniteConeTriangle)[conref.value] = id
     
     conref 
@@ -381,7 +382,7 @@ function addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, consta
 end
 
 function addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, constant :: Vector{Float64}, dom :: MathOptInterface.PositiveSemidefiniteConeTriangle)
-    dim = dim(dom)
+    dim = MathOptInterface.dimension(dom)
     n = MathOptInterface.dimension(dom)
     appendbarvars(m.task,Int32[dim])
     barvaridx = getnumbarvar(m.task)
@@ -389,19 +390,26 @@ function addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, consta
     idx = 1
     for j in 1:dim
         for i in j:dim
-            matrixid = appendsparsesymmat(m.task,Int32(dim), Int32[i], Int32[j], Float64[-1.0])
-            putbaraij(m.task, conidxs[idx], barvaridx, Int[matrixid], Float64[1.0])
+            matrixid = appendsparsesymmat(m.task,Int32(dim), Int32[i], Int32[j], Float64[1.0])
+            if i == j
+                putbaraij(m.task, conidxs[idx], barvaridx, Int[matrixid], Float64[-1.0])
+            else
+                putbaraij(m.task, conidxs[idx], barvaridx, Int[matrixid], Float64[-0.5])
+            end
+            #putconname(m.task,Int32(conidxs[idx]),"bar_slack[$i,$j]")
             idx += 1
         end
     end
 
     putconboundlist(m.task,convert(Vector{Int32},conidxs),fill(MSK_BK_FX,length(constant)),-constant,-constant)
+    
 
     m.c_block_slack[conid] = -barvaridx
 end
 
 function addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, constant :: Vector{Float64}, dom :: MathOptInterface.PositiveSemidefiniteConeScaled)
-    dim = dim(dom)
+    dim = MathOptInterface.dimension(dom)
+    #dim = floor(Int,-.5 + sqrt(.25+2*MathOptInterface.dimension(dom)))
     n = MathOptInterface.dimension(dom)
 
     appendbarvars(m.task,Int32[dim])
@@ -410,12 +418,12 @@ function addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, consta
     idx = 1
     for j in 1:dim
         for i in j:dim
-            if i != j
-                matrixid = appendsparsesymmat(m.task,Int32(dim), Int32[i], Int32[j], Float64[- sqrt(2.0)])
+            matrixid = appendsparsesymmat(m.task,Int32(dim), Int32[i], Int32[j], Float64[1.0])
+            if i == j
+                putbaraij(m.task, conidxs[idx], barvaridx, Int[matrixid], Float64[-1.0])
             else
-                matrixid = appendsparsesymmat(m.task,Int32(dim), Int32[i], Int32[j], Float64[-1.0])
+                putbaraij(m.task, conidxs[idx], barvaridx, Int[matrixid], Float64[-sqrt(2.0)/2.0])
             end
-            putbaraij(m.task, conidxs[idx], barvaridx, Int[matrixid], Float64[1.0])
             idx += 1
         end
     end

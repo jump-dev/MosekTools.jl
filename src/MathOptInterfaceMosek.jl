@@ -2,6 +2,7 @@ module MathOptInterfaceMosek
 
 import MathOptInterface
 using Mosek
+using Mosek.Ext
 
 immutable MosekSolver <: MathOptInterface.AbstractSolver
   options
@@ -260,7 +261,7 @@ function MathOptInterface.SolverInstance(solver::MosekSolver)
             end
         end
         if ! be_quiet
-            Mosek.putstreamfunc(t,Mosek.MSK_STREAM_LOG,printstream)
+            Mosek.putstreamfunc(t,Mosek.MSK_STREAM_LOG,m -> print(m))
         end
         MosekModel(t,# task
                    0, # public numvar
@@ -280,13 +281,13 @@ function MathOptInterface.SolverInstance(solver::MosekSolver)
                    Mosek.MSK_RES_OK,
                    MosekSolution[]) # trm
     catch
-        deletetask(m.task)
+        Mosek.deletetask(t)
         rethrow()
     end
 end
 
 function MathOptInterface.free!(m::MosekModel)
-    deletetask(m.task)
+    Mosek.deletetask(m.task)
 end
 
 function MathOptInterface.optimize!(m::MosekModel)
@@ -388,12 +389,7 @@ MathOptInterface.supportsproblem(m::MosekSolver, ::Type{MathOptInterface.SingleV
 MathOptInterface.supportsproblem(m::MosekSolver, ::Type{MathOptInterface.ScalarAffineFunction{Float64}}, constraint_types) :: Bool = supportsconstraints(m,constraint_types)
 MathOptInterface.supportsproblem{F}(m::MosekSolver, ::Type{F}, constraint_types) :: Bool = false
 
-ref2id(ref :: MathOptInterface.VariableReference) :: Int =
-    if ref.value & 1 == 0
-        Int(ref.value >> 1)
-    else
-        - Int(ref.value >> 1)
-    end
+ref2id(ref :: MathOptInterface.VariableReference) :: Int = Int(ref.value)
 
 ref2id(ref :: MathOptInterface.ConstraintReference) :: Int =
     if ref.value & 1 == 0
@@ -402,12 +398,10 @@ ref2id(ref :: MathOptInterface.ConstraintReference) :: Int =
         - Int(ref.value >> 1)
     end
 
-id2vref(id :: Int) :: MathOptInterface.VariableReference =
-    if id < 0
-        MathOptInterface.VariableReference((UInt64(-id) << 1) | 1)
-    else
-        MathOptInterface.VariableReference(UInt64(id) << 1)
-    end
+function id2vref(id :: Int) :: MathOptInterface.VariableReference
+    assert(id > 0)
+    MathOptInterface.VariableReference(id)
+end
 
 include("objective.jl")
 include("variable.jl")

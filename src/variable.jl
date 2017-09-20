@@ -2,13 +2,14 @@
 MathOptInterface.candelete(m::MosekModel,ref::MathOptInterface.VariableReference) = isvalid(m,ref) && m.x_numxc[ref2id(ref)] == 0
 isvalid(m::MosekModel, ref::MathOptInterface.VariableReference) = allocated(m.x_block,ref2id(ref))
 
-function MathOptInterface.addvariables!(m::MosekModel, N :: Int)
+MathOptInterface.addvariables!(m::MosekModel, N :: I) where { I <: Integer } = MathOptInterface.addvariables!(m,UInt(N))
+function MathOptInterface.addvariables!(m::MosekModel, N :: UInt)
     ids = [ allocatevariable(m,1) for i in 1:N ]
 
     m.publicnumvar += N
     
     idxs = Vector{Int}(N)
-    for i in 1:N
+    for i in 1:Int(N)
         getindexes(m.x_block,ids[i],idxs,i)
     end
     

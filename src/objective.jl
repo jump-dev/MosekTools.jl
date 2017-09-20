@@ -35,7 +35,9 @@ function MathOptInterface.setobjective!(m::MosekModel, sense :: MathOptInterface
         getindexes(m.x_block,vids[i],subj,i)
     end
 
-    c[subj] = func.coefficients
+    for i in 1:length(subj)
+        c[subj[i]] += func.coefficients[i]
+    end
     
     putclist(m.task,Int32[1:numvar...],c)
     putcfix(m.task,func.constant)
