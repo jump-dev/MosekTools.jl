@@ -206,7 +206,7 @@ function test_jump_sdp(solver)
             #Mosek.writedata(m.solverinstance.task,"jump_sdo_1_stalls.task")
             #showall(m.solverinstance.task)
             #showall(m.solverinstance.task[Sol(Mosek.MSK_SOL_ITR)])
-            
+
             @test Xval[1,1] ≈ 0 atol=1e-5
             @test Xval[1,2] ≈ 1/2 atol=1e-5
             @test Xval[2,1] ≈ 1/2 atol=1e-5
