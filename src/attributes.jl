@@ -44,9 +44,9 @@ end
 
 function MathOptInterface.setattribute!(m::MosekModel,attr::MathOptInterface.ObjectiveSense, sense::MathOptInterface.OptimizationSense)
     if sense == MathOptInterface.MinSense
-        setobjsense(m.task,MSK_OBJECTIVE_SENSE_MINIMIZE)
+        putobjsense(m.task,MSK_OBJECTIVE_SENSE_MINIMIZE)
     elseif sense == MathOptInterface.MaxSense
-        setobjsense(m.task,MSK_OBJECTIVE_SENSE_MAXIMIZE)
+        putobjsense(m.task,MSK_OBJECTIVE_SENSE_MAXIMIZE)
     else
         error("Sense '$sense' is not supported")
     end
