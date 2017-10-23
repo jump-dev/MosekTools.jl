@@ -448,7 +448,7 @@ function MathOptInterface.getattribute!(
             output[1:length(output)] = m.solutions[attr.N].y[subi]
         elseif m.c_block_slack[cid] >  0 # qcone slack
             xid = m.c_block_slack[cid]
-            subj = getindexes(m.x_block, xid)
+            xsubj = getindexes(m.x_block, xid)
             output[1:length(output)] = m.solutions[attr.N].snx[xsubj]
         elseif m.c_block_slack[cid]  # psd slack
             xid = - m.c_block_slack[cid]
