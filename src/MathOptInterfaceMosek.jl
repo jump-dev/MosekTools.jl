@@ -344,7 +344,7 @@ function MathOptInterface.optimize!(m::MosekModel)
     end
 end
 
-function MathOptInterface.writeproblem(m::MosekModel, filename :: String)
+function MathOptInterface.write(m::MosekModel, filename :: String)
     putintparam(m.task,MSK_IPAR_OPF_WRITE_SOLUTIONS, MSK_ON)
     writedata(m.task,filename)
 end

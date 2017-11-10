@@ -1,8 +1,8 @@
 
 
-MathOptInterface.cangetattribute(::MosekModel, ::MathOptInterface.ObjectiveFunction) = true
+MathOptInterface.canget(::MosekModel, ::MathOptInterface.ObjectiveFunction) = true
 
-function MathOptInterface.setattribute!(m::MosekModel, ::MathOptInterface.ObjectiveFunction, func::MathOptInterface.SingleVariable)
+function MathOptInterface.set!(m::MosekModel, ::MathOptInterface.ObjectiveFunction, func::MathOptInterface.SingleVariable)
     numvar = getnumvar(m.task)
     c = zeros(Float64,numvar)
     vid = ref2id(func.variable)
@@ -14,7 +14,7 @@ function MathOptInterface.setattribute!(m::MosekModel, ::MathOptInterface.Object
     putcfix(m.task,0.0)
 end
 
-function MathOptInterface.setattribute!(m::MosekModel, ::MathOptInterface.ObjectiveFunction, func::MathOptInterface.ScalarAffineFunction{Float64})
+function MathOptInterface.set!(m::MosekModel, ::MathOptInterface.ObjectiveFunction, func::MathOptInterface.ScalarAffineFunction{Float64})
     numvar = getnumvar(m.task)
     c = zeros(Float64,numvar)
     vids = [ ref2id(vid) for vid in func.variables ]    
