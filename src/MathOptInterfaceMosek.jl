@@ -358,7 +358,8 @@ function supportsconstraints(m::MosekSolver, constraint_types) :: Bool
     for (fun,dom) in constraint_types
         if  fun in [MathOptInterface.ScalarAffineFunction{Float64},
                     MathOptInterface.SingleVariable,
-                    MathOptInterface.VectorAffineFunction{Float64}] &&
+                    MathOptInterface.VectorAffineFunction{Float64},
+                    MathOptInterface.VectorOfVariables] &&
             dom in [MathOptInterface.Zeros,
                     MathOptInterface.Reals,
                     MathOptInterface.Nonnegatives,
