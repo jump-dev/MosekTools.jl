@@ -310,7 +310,7 @@ function MathOptInterface.addconstraint!{D <: MathOptInterface.AbstractSet}(m ::
     end
 
     N = MathOptInterface.dimension(dom)
-    xcid = allocatevarconstraint(m,N)
+    xcid = allocatevarconstraints(m,N)
     xc_sub = getindexes(m.xc_block,xcid)
     
     m.xc_bounds[xcid]  = mask
@@ -320,8 +320,8 @@ function MathOptInterface.addconstraint!{D <: MathOptInterface.AbstractSet}(m ::
 
     m.x_boundflags[subj] .|= mask
     
-    conref = MathOptInterface.ConstraintReference{MathOptInterface.VectorOfVariables,D}(UInt64(id) << 1)
-    select(m.constrmap,MathOptInterface.VectorOfVariables,D)[conref.value] = id
+    conref = MathOptInterface.ConstraintReference{MathOptInterface.VectorOfVariables,D}(UInt64(xcid) << 1)
+    select(m.constrmap,MathOptInterface.VectorOfVariables,D)[conref.value] = xcid
     conref
 end
 
