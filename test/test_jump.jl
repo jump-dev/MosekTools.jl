@@ -1,5 +1,4 @@
 import MathOptInterfaceMosek
-using Mosek.Ext
 using Base.Test
 using JuMP
 const MOI = MathOptInterface
