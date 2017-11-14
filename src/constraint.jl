@@ -76,16 +76,14 @@ function MathOptInterface.addconstraint!(
     conref
 end
 
-dim(dom :: MathOptInterface.PositiveSemidefiniteConeTriangle) = floor(Int,-.5 + sqrt(.25+2*MathOptInterface.dimension(dom)))
-dim(dom :: MathOptInterface.PositiveSemidefiniteConeScaled) = floor(Int,-.5 + sqrt(.25+2*MathOptInterface.dimension(dom)))
-
 function MathOptInterface.addconstraint!(m   :: MosekModel,
                                          axb :: MathOptInterface.VectorAffineFunction{Float64},
                                          dom :: PSDCone) where { PSDCone <: PositiveSemidefiniteCone }
-    M = MathOptInterface.dimension(dom)
-    N = dim(dom)
-    
-    conid = allocateconstraints(m,M)
+
+    N = MathOptInterface.dimension(dom)
+    NN = (N*(N+1)) >> 1
+
+    conid = allocateconstraints(m,NN)
     addlhsblock!(m,
                  conid,
                  axb.outputindex,
@@ -96,7 +94,7 @@ function MathOptInterface.addconstraint!(m   :: MosekModel,
 
     addbound!(m,conid,conidxs,axb.constant,dom)
     conref = MathOptInterface.ConstraintReference{MathOptInterface.VectorAffineFunction{Float64},PSDCone}(UInt64(conid) << 1)
-    select(m.constrmap,MathOptInterface.VectorAffineFunction{Float64},PSDCone)[conref] = conid
+    select(m.constrmap,MathOptInterface.VectorAffineFunction{Float64},PSDCone)[conref.value] = conid
     conref
 end
 
