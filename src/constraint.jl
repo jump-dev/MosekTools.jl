@@ -164,7 +164,7 @@ function addvarconstr(m :: MosekModel, subj :: Vector{Int}, dom :: MathOptInterf
 end
 
 function addvarconstr(m :: MosekModel, subj :: Vector{Int}, dom :: MathOptInterface.Nonnegatives)
-    bkx = zeros(Int32,length(subj))
+    bkx = Vector{Boundkey}(length(subj))
     blx = zeros(Float64,length(subj))
     bux = zeros(Float64,length(subj))
     for (i,j) in enumerate(subj)
@@ -176,7 +176,7 @@ function addvarconstr(m :: MosekModel, subj :: Vector{Int}, dom :: MathOptInterf
 end
 
 function addvarconstr(m :: MosekModel, subj :: Vector{Int}, dom :: MathOptInterface.Nonpositives)
-    bkx = zeros(Int32,length(subj))
+    bkx = Vector{Boundkey}(length(subj))
     blx = zeros(Float64,length(subj))
     bux = zeros(Float64,length(subj))
     for (i,j) in enumerate(subj)
