@@ -235,12 +235,13 @@ function MathOptInterface.get!(
     attr  ::MathOptInterface.ConstraintPrimal,
     cref  ::MathOptInterface.ConstraintReference{MathOptInterface.VectorOfVariables,MathOptInterface.PositiveSemidefiniteConeTriangle})
 
+    whichsol = getsolcode(m,attr.N)
     cid = ref2id(cref)
     assert(cid < 0)
 
     # It is in fact a real constraint and cid is the id of an ordinary constraint
-    barvaridx = - m.c_slack[-cid]    
-    output[1:length(output)] = getbarxj(m.task,m.solutions[attr.N].whichsol,barvaridx)
+    barvaridx = - m.c_block_slack[-cid]
+    output[1:length(output)] = getbarxj(m.task,whichsol,barvaridx)
 end
 
 # Any other domain for variable vector
@@ -349,6 +350,8 @@ function MathOptInterface.get(
     end
 end
 
+getsolcode(m::MosekModel, N) = m.solutions[N].whichsol
+
 # Semidefinite domain for a variable 
 function MathOptInterface.get!(
     output::Vector{Float64},
@@ -361,7 +364,7 @@ function MathOptInterface.get!(
     assert(cid < 0)
 
     # It is in fact a real constraint and cid is the id of an ordinary constraint
-    barvaridx = - m.c_slack[-cid]
+    barvaridx = - m.c_block_slack[-cid]
     if (getobjsense(m.task) == MSK_OBJECTIVE_SENSE_MINIMIZE)
         output[1:length(output)] = getbarsj(m.task,whichsol,barvaridx)
     else
@@ -451,8 +454,9 @@ function MathOptInterface.get!(
             xsubj = getindexes(m.x_block, xid)
             output[1:length(output)] = m.solutions[attr.N].snx[xsubj]
         else # psd slack
+            whichsol = getsolcode(m,attr.N)
             xid = - m.c_block_slack[cid]
-            output[1:length(output)] = getbarsj(m.task,m.solutions[attr.N].whichsol,Int32(xid))
+            output[1:length(output)] = getbarsj(m.task,whichsol,Int32(xid))
         end
     else
         if     m.c_block_slack[cid] == 0 # no slack
@@ -462,8 +466,9 @@ function MathOptInterface.get!(
             subj = getindexes(m.x_block, xid)
             output[1:length(output)] = - m.solutions[attr.N].snx[subj]
         else # psd slack
+            whichsol = getsolcode(m,attr.N)
             xid = - m.c_block_slack[cid]
-            output[1:length(output)] = - getbarsj(m.task,m.solutions[attr.N].whichsol,Int32(xid))
+            output[1:length(output)] = - getbarsj(m.task,whichsol,Int32(xid))
         end
     end
 end
