@@ -117,6 +117,7 @@ end
 domain_type_mask(dom :: MathOptInterface.Reals)        = (boundflag_lower | boundflag_upper)
 domain_type_mask(dom :: MathOptInterface.Interval)     = (boundflag_lower | boundflag_upper)
 domain_type_mask(dom :: MathOptInterface.EqualTo)      = (boundflag_lower | boundflag_upper)
+domain_type_mask(dom :: MathOptInterface.Zeros)        = (boundflag_lower | boundflag_upper)
 domain_type_mask(dom :: MathOptInterface.GreaterThan)  = boundflag_lower
 domain_type_mask(dom :: MathOptInterface.Nonnegatives) = boundflag_lower
 domain_type_mask(dom :: MathOptInterface.LessThan)     = boundflag_upper
