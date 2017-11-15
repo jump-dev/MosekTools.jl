@@ -280,14 +280,14 @@ function MathOptInterface.get!{D}(
     subi = getindexes(m.c_block,cid)
 
     if     m.c_block_slack[cid] == 0 # no slack
-        output[1:length(output)] = m.solutions[attr.N].xc[subi] + m.c_constant[subi]
+        output[1:length(output)] = m.solutions[attr.N].xc[subi]
     elseif m.c_block_slack[cid] >  0 # qcone slack
         xid = m.c_block_slack[cid]
         xsubj = getindexes(m.x_block, xid)
-        output[1:length(output)] = m.solutions[attr.N].xx[xsubj]  + m.c_constant[subi]
+        output[1:length(output)] = m.solutions[attr.N].xx[xsubj]
     elseif m.c_block_slack[cid]  # psd slack
         xid = - m.c_block_slack[cid]
-        output[1:length(output)] = getbarxj(m.task,m.solutions[attr.N].whichsol,Int32(xid)) + m.c_constant[subi]
+        output[1:length(output)] = getbarxj(m.task,m.solutions[attr.N].whichsol,Int32(xid))
     end
 end
 
