@@ -141,7 +141,7 @@ is_conic_set(dom) = false
 addvarconstr(m :: MosekModel, subj :: Vector{Int}, dom :: MathOptInterface.Reals) = nothing
 function addvarconstr(m :: MosekModel, subj :: Vector{Int}, dom :: MathOptInterface.Zeros)
     bnd = zeros(Float64,length(subj))
-    putvarboundslice(m.task,subj,fill(MSK_BK_FX,length(subj)),bnd,bnd)
+    putvarboundlist(m.task,subj,fill(MSK_BK_FX,length(subj)),bnd,bnd)
 end
 addvarconstr(m :: MosekModel, subj :: Vector{Int}, dom :: MathOptInterface.Interval) = putvarbound(m.task,subj[1],MSK_BK_RA,dom.lower, dom.upper)
 addvarconstr(m :: MosekModel, subj :: Vector{Int}, dom :: MathOptInterface.EqualTo) = putvarbound(m.task,subj[1],MSK_BK_FX,dom.value, dom.value)
