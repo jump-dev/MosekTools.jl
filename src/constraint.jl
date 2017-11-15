@@ -76,23 +76,65 @@ function MathOptInterface.addconstraint!(
     conref
 end
 
+function trimapL(i, j, n)
+    if i < j
+        trimapL(j, i, n)
+    else
+        i + div((2n-j) * (j-1), 2)
+    end
+end
+
+function trimapU(i::Integer, j::Integer)
+    if i < j
+        trimapU(j, i)
+    else
+        div((i-1)*i, 2) + j
+    end
+end
+
+# Vectorized length for matrix dimension n
+sympackedlen(n) = (n*(n+1)) >> 1
+# Matrix dimension for vectorized length n
+sympackeddim(n) = div(isqrt(1+8n) - 1, 2)
+
+function _sympackedto(x, n, mapfrom, mapto)
+    @assert length(x) == sympackedlen(n)
+    y = similar(x)
+    for i in 1:n, j in 1:i
+        y[mapto(i, j)] = x[mapfrom(i, j)]
+    end
+    y
+end
+sympackedLtoU(x, n=sympackeddim(length(x))) = _sympackedto(x, n, (i, j) -> trimapL(i, j, n), trimapU)
+sympackedUtoL(x, n=sympackeddim(length(x))) = _sympackedto(x, n, trimapU, (i, j) -> trimapL(i, j, n))
+
+function sympackedUtoLidx(x::AbstractVector{<:Integer}, n)
+    y = similar(x)
+    map = sympackedLtoU(1:sympackedlen(n), n)
+    for i in eachindex(y)
+        y[i] = map[x[i]]
+    end
+    y
+end
+
 function MathOptInterface.addconstraint!(m   :: MosekModel,
                                          axb :: MathOptInterface.VectorAffineFunction{Float64},
                                          dom :: PSDCone) where { PSDCone <: PositiveSemidefiniteCone }
 
     N = MathOptInterface.dimension(dom)
-    NN = (N*(N+1)) >> 1
+    NN = sympackedlen(N)
 
     conid = allocateconstraints(m,NN)
     addlhsblock!(m,
                  conid,
-                 axb.outputindex,
+                 sympackedUtoLidx(axb.outputindex, N),
                  axb.variables,
                  axb.coefficients)
     conidxs = getindexes(m.c_block,conid)
-    m.c_constant[conidxs] = axb.constant
+    constant = sympackedUtoL(axb.constant, N)
+    m.c_constant[conidxs] = constant
 
-    addbound!(m,conid,conidxs,axb.constant,dom)
+    addbound!(m,conid,conidxs,constant,dom)
     conref = MathOptInterface.ConstraintReference{MathOptInterface.VectorAffineFunction{Float64},PSDCone}(UInt64(conid) << 1)
     select(m.constrmap,MathOptInterface.VectorAffineFunction{Float64},PSDCone)[conref.value] = conid
     conref
@@ -222,9 +264,11 @@ end
 function MathOptInterface.addconstraint!(m   :: MosekModel,
                                          xs  :: MathOptInterface.VectorOfVariables,
                                          dom :: D) where { D <: PositiveSemidefiniteCone }
-    subj = Vector{Int}(length(xs.variables))
+    N = MathOptInterface.dimension(dom)
+    vars = sympackedUtoL(xs.variables, N)
+    subj = Vector{Int}(length(vars))
     for i in 1:length(subj)
-        getindexes(m.x_block, ref2id(xs.variables[i]),subj,i)
+        getindexes(m.x_block, ref2id(vars[i]),subj,i)
     end
     
     mask = domain_type_mask(dom)
@@ -232,13 +276,11 @@ function MathOptInterface.addconstraint!(m   :: MosekModel,
         error("Cannot put multiple bound sets of the same type to a variable")
     end
 
-    N = MathOptInterface.dimension(dom)
-
     if N < 2
         error("Invalid dimension for semidefinite constraint")
     end
 
-    NN = (N*(N+1)) >> 1
+    NN = sympackedlen(N)
 
     if length(subj) != NN
         error("Mismatching variable length for semidefinite constraint")
