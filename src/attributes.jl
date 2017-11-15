@@ -450,7 +450,7 @@ function MathOptInterface.get!(
             xid = m.c_block_slack[cid]
             xsubj = getindexes(m.x_block, xid)
             output[1:length(output)] = m.solutions[attr.N].snx[xsubj]
-        elseif m.c_block_slack[cid]  # psd slack
+        else # psd slack
             xid = - m.c_block_slack[cid]
             output[1:length(output)] = getbarsj(m.task,m.solutions[attr.N].whichsol,Int32(xid))
         end
@@ -461,7 +461,7 @@ function MathOptInterface.get!(
             xid = m.c_block_slack[cid]
             subj = getindexes(m.x_block, xid)
             output[1:length(output)] = - m.solutions[attr.N].snx[subj]
-        elseif m.c_block_slack[cid]  # psd slack
+        else # psd slack
             xid = - m.c_block_slack[cid]
             output[1:length(output)] = - getbarsj(m.task,m.solutions[attr.N].whichsol,Int32(xid))
         end
