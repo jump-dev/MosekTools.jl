@@ -385,25 +385,25 @@ function MathOptInterface.get!{D}(
     subj = m.xc_idxs[idxs]
 
     if (getobjsense(m.task) == MSK_OBJECTIVE_SENSE_MINIMIZE)
-        if     m.xc_bounds[conid] & boundflag_lower != 0 && m.xc_bounds[conid] & boundflag_upper != 0
+        if     mask & boundflag_lower != 0 && mask & boundflag_upper != 0
             output[1:length(output)] = m.solutions[attr.N].slx[subj] - m.solutions[attr.N].sux[subj]
-        elseif (m.xc_bounds[conid] & boundflag_lower) != 0
+        elseif (mask & boundflag_lower) != 0
             output[1:length(output)] = m.solutions[attr.N].slx[subj]
-        elseif (m.xc_bounds[conid] & boundflag_upper) != 0 
+        elseif (mask & boundflag_upper) != 0
             output[1:length(output)] = - m.solutions[attr.N].sux[subj]
-        elseif (m.xc_bounds[conid] & boundflag_cone) != 0
+        elseif (mask & boundflag_cone) != 0
             output[1:length(output)] = m.solutions[attr.N].snx[subj]
         else
             error("Dual value available for this constraint")
         end
     else
-        if     m.xc_bounds[conid] & boundflag_lower != 0 && m.xc_bounds[conid] & boundflag_upper != 0
+        if     mask & boundflag_lower != 0 && mask & boundflag_upper != 0
             output[1:length(output)] = m.solutions[attr.N].sux[subj] - m.solutions[attr.N].slx[subj]
-        elseif (m.xc_bounds[conid] & boundflag_lower) != 0
+        elseif (mask & boundflag_lower) != 0
             output[1:length(output)] = - m.solutions[attr.N].slx[subj]
-        elseif (m.xc_bounds[conid] & boundflag_upper) != 0 
+        elseif (mask & boundflag_upper) != 0
             output[1:length(output)] = m.solutions[attr.N].sux[subj]
-        elseif (m.xc_bounds[conid] & boundflag_cone) != 0
+        elseif (mask & boundflag_cone) != 0
             output[1:length(output)] = - m.solutions[attr.N].snx[subj]
         else
             error("Dual value available for this constraint")
