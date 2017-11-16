@@ -240,8 +240,8 @@ function MathOptInterface.get!(
     assert(cid < 0)
 
     # It is in fact a real constraint and cid is the id of an ordinary constraint
-    barvaridx = - m.c_slack[-cid]    
-    output[1:length(output)] = sympackedLtoU(getbarxj(m.task,m.solutions[attr.N].whichsol,barvaridx))
+    barvaridx = - m.c_block_slack[-cid]
+    output[1:length(output)] = sympackedLtoU(getbarxj(m.task,whichsol,barvaridx))
 end
 
 # Any other domain for variable vector
@@ -288,7 +288,7 @@ function MathOptInterface.get!{D}(
         output[1:length(output)] = m.solutions[attr.N].xx[xsubj]
     elseif m.c_block_slack[cid]  # psd slack
         xid = - m.c_block_slack[cid]
-        output[1:length(output)] = sympackedLtoU(getbarxj(m.task,m.solutions[attr.N].whichsol,Int32(xid)) + m.c_constant[subi])
+        output[1:length(output)] = sympackedLtoU(getbarxj(m.task,m.solutions[attr.N].whichsol,Int32(xid)))
     end
 end
 
@@ -364,7 +364,7 @@ function MathOptInterface.get!(
     assert(cid < 0)
 
     # It is in fact a real constraint and cid is the id of an ordinary constraint
-    barvaridx = - m.c_slack[-cid]
+    barvaridx = - m.c_block_slack[-cid]
     dual = sympackedLtoU(getbarsj(m.task,whichsol,barvaridx))
     if (getobjsense(m.task) == MSK_OBJECTIVE_SENSE_MINIMIZE)
         output[1:length(output)] = dual
@@ -447,7 +447,7 @@ function MathOptInterface.get!(
         else # psd slack
             whichsol = getsolcode(m,attr.N)
             xid = - m.c_block_slack[cid]
-            output[1:length(output)] = sympackedLtoU(getbarsj(m.task,m.solutions[attr.N].whichsol,Int32(xid)))
+            output[1:length(output)] = sympackedLtoU(getbarsj(m.task,whichsol,Int32(xid)))
         end
     else
         if     m.c_block_slack[cid] == 0 # no slack
@@ -459,7 +459,7 @@ function MathOptInterface.get!(
         else # psd slack
             whichsol = getsolcode(m,attr.N)
             xid = - m.c_block_slack[cid]
-            output[1:length(output)] = sympackedLtoU(- getbarsj(m.task,m.solutions[attr.N].whichsol,Int32(xid)))
+            output[1:length(output)] = sympackedLtoU(- getbarsj(m.task,whichsol,Int32(xid)))
         end
     end
 end
