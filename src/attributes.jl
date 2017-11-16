@@ -425,16 +425,6 @@ function MathOptInterface.get{D}(m     ::MosekModel,
 end
 
 
-function MathOptInterface.get(
-    m     ::MosekModel,
-    attr  ::MathOptInterface.ConstraintDual,
-    cref  ::MathOptInterface.ConstraintReference{MathOptInterface.VectorAffineFunction{Float64},D}) where { D <: MathOptInterface.AbstractSet }
-    
-    n = blocksize(m.c_block,ref2id(cref))
-    res = Vector{Float64}(n)
-    MathOptInterface.get!(res,m,attr,cref)
-    res
-end
 function MathOptInterface.get!(
     output::Vector{Float64},
     m     ::MosekModel,
@@ -482,8 +472,8 @@ end
 
 
 
-solsize{F <: MathOptInterface.AbstractScalarFunction,D}(m::MosekModel, cref :: MathOptInterface.ConstraintReference{F,D}) = 1
-function solsize{D}(m::MosekModel, cref :: MathOptInterface.ConstraintReference{MathOptInterface.VectorOfVariables,D})
+solsize(m::MosekModel, cref :: MathOptInterface.ConstraintReference{<:MathOptInterface.AbstractScalarFunction}) = 1
+function solsize(m::MosekModel, cref :: MathOptInterface.ConstraintReference{MathOptInterface.VectorOfVariables})
     cid = ref2id(cref)
     if cid < 0
         blocksize(m.c_block,-cid)
@@ -492,12 +482,12 @@ function solsize{D}(m::MosekModel, cref :: MathOptInterface.ConstraintReference{
     end
 end
 
-function solsize{D}(m::MosekModel, cref :: MathOptInterface.ConstraintReference{MathOptInterface.VectorAffineFunction,D})
+function solsize(m::MosekModel, cref :: MathOptInterface.ConstraintReference{<:MathOptInterface.VectorAffineFunction})
     cid = ref2id(cref)
     blocksize(m.c_block,cid)
 end
 
-function MathOptInterface.get{F <: MathOptInterface.AbstractScalarFunction,D}(m::MosekModel,attr::MathOptInterface.ConstraintPrimal, cref :: MathOptInterface.ConstraintReference{F,D})
+function MathOptInterface.get{F <: MathOptInterface.AbstractVectorFunction,D}(m::MosekModel, attr::Union{MathOptInterface.ConstraintPrimal, MathOptInterface.ConstraintDual}, cref :: MathOptInterface.ConstraintReference{F,D})
     cid = ref2id(cref)
     output = Vector{Float64}(solsize(m,cref))
     MathOptInterface.get!(output,m,attr,cref)
