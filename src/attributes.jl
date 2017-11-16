@@ -235,6 +235,7 @@ function MathOptInterface.get!(
     attr  ::MathOptInterface.ConstraintPrimal,
     cref  ::MathOptInterface.ConstraintReference{MathOptInterface.VectorOfVariables,MathOptInterface.PositiveSemidefiniteConeTriangle})
 
+    whichsol = getsolcode(m,attr.N)
     cid = ref2id(cref)
     assert(cid < 0)
 
@@ -349,6 +350,8 @@ function MathOptInterface.get(
     end
 end
 
+getsolcode(m::MosekModel, N) = m.solutions[N].whichsol
+
 # Semidefinite domain for a variable 
 function MathOptInterface.get!(
     output::Vector{Float64},
@@ -442,6 +445,7 @@ function MathOptInterface.get!(
             xsubj = getindexes(m.x_block, xid)
             output[1:length(output)] = m.solutions[attr.N].snx[xsubj]
         else # psd slack
+            whichsol = getsolcode(m,attr.N)
             xid = - m.c_block_slack[cid]
             output[1:length(output)] = sympackedLtoU(getbarsj(m.task,m.solutions[attr.N].whichsol,Int32(xid)))
         end
@@ -453,6 +457,7 @@ function MathOptInterface.get!(
             subj = getindexes(m.x_block, xid)
             output[1:length(output)] = - m.solutions[attr.N].snx[subj]
         else # psd slack
+            whichsol = getsolcode(m,attr.N)
             xid = - m.c_block_slack[cid]
             output[1:length(output)] = sympackedLtoU(- getbarsj(m.task,m.solutions[attr.N].whichsol,Int32(xid)))
         end
