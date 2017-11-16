@@ -17,6 +17,7 @@ LinkedInts(capacity=128) =
                Int[],
                Int[])
 
+allocatedlist(s::LinkedInts) = find(s.block .> 0)
 allocated(s::LinkedInts, id :: Int) = id > 0 && id <= length(s.block) && s.block[id] > 0
 blocksize(s::LinkedInts, id :: Int) = s.size[id]
 Base.length(s::LinkedInts) = length(s.next)
@@ -180,6 +181,16 @@ function getindexes(s::LinkedInts, id :: Int, target :: Array{Int,1}, offset :: 
         p = s.next[p]
     end
     N
+end
+
+function getindexes(s::LinkedInts, ids::Vector{Int})
+    N = sum(map(id -> s.size[id], ids))
+    r = Vector{Int}(N)
+    offset = 1
+    for id in ids
+        offset += getindexes(s, id, r, offset)
+    end
+    r
 end
 
 function getoneindex(s::LinkedInts, id :: Int)

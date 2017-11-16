@@ -1,4 +1,10 @@
-
+function MathOptInterface.get(m::MosekModel, ::MathOptInterface.ObjectiveFunction)
+    vid = allocatedlist(m.x_block)
+    subj = getindexes(m.x_block, vid)
+    coeffs = getclist(m.task, subj)
+    constant = getcfix(m.task)
+    MOI.ScalarAffineFunction(MOI.VariableIndex.(vid), coeffs, constant)
+end
 
 MOI.canget(::MosekModel, ::MOI.ObjectiveFunction) = true
 
@@ -17,12 +23,7 @@ end
 function MOI.set!(m::MosekModel, ::MOI.ObjectiveFunction, func::MOI.ScalarAffineFunction{Float64})
     numvar = getnumvar(m.task)
     c = zeros(Float64,numvar)
-    vids = [ ref2id(vid) for vid in func.variables ]
-    subj = Vector{Int}(length(vids))
-    for i in 1:length(vids)
-        getindexes(m.x_block,vids[i],subj,i)
-    end
-
+    subj = getindexes(m.x_block, ref2id.(func.variables))
     for i in 1:length(subj)
         c[subj[i]] += func.coefficients[i]
     end
