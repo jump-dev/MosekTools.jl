@@ -240,8 +240,8 @@ function MathOptInterface.get!(
     assert(cid < 0)
 
     # It is in fact a real constraint and cid is the id of an ordinary constraint
-    barvaridx = - m.c_block_slack[-cid]
-    output[1:length(output)] = getbarxj(m.task,whichsol,barvaridx)
+    barvaridx = - m.c_slack[-cid]    
+    output[1:length(output)] = sympackedLtoU(getbarxj(m.task,m.solutions[attr.N].whichsol,barvaridx))
 end
 
 # Any other domain for variable vector
@@ -281,14 +281,14 @@ function MathOptInterface.get!{D}(
     subi = getindexes(m.c_block,cid)
 
     if     m.c_block_slack[cid] == 0 # no slack
-        output[1:length(output)] = m.solutions[attr.N].xc[subi] + m.c_constant[subi]
+        output[1:length(output)] = m.solutions[attr.N].xc[subi]
     elseif m.c_block_slack[cid] >  0 # qcone slack
         xid = m.c_block_slack[cid]
         xsubj = getindexes(m.x_block, xid)
-        output[1:length(output)] = m.solutions[attr.N].xx[xsubj]  + m.c_constant[subi]
+        output[1:length(output)] = m.solutions[attr.N].xx[xsubj]
     elseif m.c_block_slack[cid]  # psd slack
         xid = - m.c_block_slack[cid]
-        output[1:length(output)] = getbarxj(m.task,m.solutions[attr.N].whichsol,Int32(xid)) + m.c_constant[subi]
+        output[1:length(output)] = sympackedLtoU(getbarxj(m.task,m.solutions[attr.N].whichsol,Int32(xid)) + m.c_constant[subi])
     end
 end
 
@@ -364,11 +364,12 @@ function MathOptInterface.get!(
     assert(cid < 0)
 
     # It is in fact a real constraint and cid is the id of an ordinary constraint
-    barvaridx = - m.c_block_slack[-cid]
+    barvaridx = - m.c_slack[-cid]
+    dual = sympackedLtoU(getbarsj(m.task,whichsol,barvaridx))
     if (getobjsense(m.task) == MSK_OBJECTIVE_SENSE_MINIMIZE)
-        output[1:length(output)] = getbarsj(m.task,whichsol,barvaridx)
+        output[1:length(output)] = dual
     else
-        output[1:length(output)] = - getbarsj(m.task,whichsol,barvaridx)
+        output[1:length(output)] = -dual
     end
 end
 
@@ -387,25 +388,25 @@ function MathOptInterface.get!{D}(
     subj = m.xc_idxs[idxs]
 
     if (getobjsense(m.task) == MSK_OBJECTIVE_SENSE_MINIMIZE)
-        if     m.xc_bounds[conid] & boundflag_lower != 0 && m.xc_bounds[conid] & boundflag_upper != 0
+        if     mask & boundflag_lower != 0 && mask & boundflag_upper != 0
             output[1:length(output)] = m.solutions[attr.N].slx[subj] - m.solutions[attr.N].sux[subj]
-        elseif (m.xc_bounds[conid] & boundflag_lower) != 0
+        elseif (mask & boundflag_lower) != 0
             output[1:length(output)] = m.solutions[attr.N].slx[subj]
-        elseif (m.xc_bounds[conid] & boundflag_upper) != 0 
+        elseif (mask & boundflag_upper) != 0
             output[1:length(output)] = - m.solutions[attr.N].sux[subj]
-        elseif (m.xc_bounds[conid] & boundflag_cone) != 0
+        elseif (mask & boundflag_cone) != 0
             output[1:length(output)] = m.solutions[attr.N].snx[subj]
         else
             error("Dual value available for this constraint")
         end
     else
-        if     m.xc_bounds[conid] & boundflag_lower != 0 && m.xc_bounds[conid] & boundflag_upper != 0
+        if     mask & boundflag_lower != 0 && mask & boundflag_upper != 0
             output[1:length(output)] = m.solutions[attr.N].sux[subj] - m.solutions[attr.N].slx[subj]
-        elseif (m.xc_bounds[conid] & boundflag_lower) != 0
+        elseif (mask & boundflag_lower) != 0
             output[1:length(output)] = - m.solutions[attr.N].slx[subj]
-        elseif (m.xc_bounds[conid] & boundflag_upper) != 0 
+        elseif (mask & boundflag_upper) != 0
             output[1:length(output)] = m.solutions[attr.N].sux[subj]
-        elseif (m.xc_bounds[conid] & boundflag_cone) != 0
+        elseif (mask & boundflag_cone) != 0
             output[1:length(output)] = - m.solutions[attr.N].snx[subj]
         else
             error("Dual value available for this constraint")
@@ -427,16 +428,6 @@ function MathOptInterface.get{D}(m     ::MosekModel,
 end
 
 
-function MathOptInterface.get(
-    m     ::MosekModel,
-    attr  ::MathOptInterface.ConstraintDual,
-    cref  ::MathOptInterface.ConstraintReference{MathOptInterface.VectorAffineFunction{Float64},D}) where { D <: MathOptInterface.AbstractSet }
-    
-    n = blocksize(m.c_block,ref2id(cref))
-    res = Vector{Float64}(n)
-    MathOptInterface.get!(res,m,attr,cref)
-    res
-end
 function MathOptInterface.get!(
     output::Vector{Float64},
     m     ::MosekModel,
@@ -456,7 +447,7 @@ function MathOptInterface.get!(
         else # psd slack
             whichsol = getsolcode(m,attr.N)
             xid = - m.c_block_slack[cid]
-            output[1:length(output)] = getbarsj(m.task,whichsol,Int32(xid))
+            output[1:length(output)] = sympackedLtoU(getbarsj(m.task,m.solutions[attr.N].whichsol,Int32(xid)))
         end
     else
         if     m.c_block_slack[cid] == 0 # no slack
@@ -468,7 +459,7 @@ function MathOptInterface.get!(
         else # psd slack
             whichsol = getsolcode(m,attr.N)
             xid = - m.c_block_slack[cid]
-            output[1:length(output)] = - getbarsj(m.task,whichsol,Int32(xid))
+            output[1:length(output)] = sympackedLtoU(- getbarsj(m.task,m.solutions[attr.N].whichsol,Int32(xid)))
         end
     end
 end
@@ -486,8 +477,8 @@ end
 
 
 
-solsize{F <: MathOptInterface.AbstractScalarFunction,D}(m::MosekModel, cref :: MathOptInterface.ConstraintReference{F,D}) = 1
-function solsize{D}(m::MosekModel, cref :: MathOptInterface.ConstraintReference{MathOptInterface.VectorOfVariables,D})
+solsize(m::MosekModel, cref :: MathOptInterface.ConstraintReference{<:MathOptInterface.AbstractScalarFunction}) = 1
+function solsize(m::MosekModel, cref :: MathOptInterface.ConstraintReference{MathOptInterface.VectorOfVariables})
     cid = ref2id(cref)
     if cid < 0
         blocksize(m.c_block,-cid)
@@ -496,12 +487,12 @@ function solsize{D}(m::MosekModel, cref :: MathOptInterface.ConstraintReference{
     end
 end
 
-function solsize{D}(m::MosekModel, cref :: MathOptInterface.ConstraintReference{MathOptInterface.VectorAffineFunction,D})
+function solsize(m::MosekModel, cref :: MathOptInterface.ConstraintReference{<:MathOptInterface.VectorAffineFunction})
     cid = ref2id(cref)
     blocksize(m.c_block,cid)
 end
 
-function MathOptInterface.get{F <: MathOptInterface.AbstractScalarFunction,D}(m::MosekModel,attr::MathOptInterface.ConstraintPrimal, cref :: MathOptInterface.ConstraintReference{F,D})
+function MathOptInterface.get{F <: MathOptInterface.AbstractVectorFunction,D}(m::MosekModel, attr::Union{MathOptInterface.ConstraintPrimal, MathOptInterface.ConstraintDual}, cref :: MathOptInterface.ConstraintReference{F,D})
     cid = ref2id(cref)
     output = Vector{Float64}(solsize(m,cref))
     MathOptInterface.get!(output,m,attr,cref)
