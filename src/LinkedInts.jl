@@ -209,7 +209,7 @@ end
 
 
 """
-Get a list if the currently free elements.
+Get a list if the currently used elements.
 """ 
 function getusedindexes(s::LinkedInts)    
     N = length(s.next) - s.free_cap
