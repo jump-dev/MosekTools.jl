@@ -286,7 +286,7 @@ function MathOptInterface.get!{D}(
         xid = m.c_block_slack[cid]
         xsubj = getindexes(m.x_block, xid)
         output[1:length(output)] = m.solutions[attr.N].xx[xsubj]
-    elseif m.c_block_slack[cid]  # psd slack
+    else # psd slack
         xid = - m.c_block_slack[cid]
         output[1:length(output)] = sympackedLtoU(getbarxj(m.task,m.solutions[attr.N].whichsol,Int32(xid)))
     end
