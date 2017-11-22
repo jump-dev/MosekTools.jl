@@ -48,7 +48,9 @@ function MathOptInterface.set!(m::MosekModel,attr::MathOptInterface.ObjectiveSen
     elseif sense == MathOptInterface.MaxSense
         putobjsense(m.task,MSK_OBJECTIVE_SENSE_MAXIMIZE)
     else
-        error("Sense '$sense' is not supported")
+        @assert sense == MathOptInterface.FeasibilitySense
+        putobjsense(m.task,MSK_OBJECTIVE_SENSE_MINIMIZE)
+        MathOptInterface.set!(m, MathOptInterface.ObjectiveFunction(), MathOptInterface.ScalarAffineFunction(MathOptInterface.VariableReference[], Float64[], 0.))
     end
 end
 
