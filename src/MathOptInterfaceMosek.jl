@@ -4,13 +4,7 @@ import MathOptInterface
 using Mosek
 #using Mosek.Ext
 
-immutable MosekSolver <: MathOptInterface.AbstractSolver
-  options
-end
-
-MosekSolver(;kwargs...) = MosekSolver(kwargs)
-export MosekSolver
-
+export MosekInstance
 
 
 include("LinkedInts.jl")
@@ -233,11 +227,11 @@ mutable struct MosekModel  <: MathOptInterface.AbstractSolverInstance
 end
 
 
-function MathOptInterface.SolverInstance(solver::MosekSolver)
+function MosekInstance(; kws...)
     t = maketask()
     try
         be_quiet = false
-        for (option,val) in solver.options
+        for (option,val) in kws
             parname = string(option)
             if parname == "QUIET"
                 be_quiet = be_quiet || convert(Bool,val)
@@ -354,41 +348,41 @@ end
 # OR affine and quadratic left-hand side, and ranged, unbounded, half-open, fixed (equality) domains (quadratic constraints must be unbounded or half-open)
 #
 # For non-quadratic problems we allow binary and integer variables (but not constraints)
-function supportsconstraints(m::MosekSolver, constraint_types) :: Bool
-    for (fun,dom) in constraint_types
-        if  fun in [MathOptInterface.ScalarAffineFunction{Float64},
-                    MathOptInterface.SingleVariable,
-                    MathOptInterface.VectorAffineFunction{Float64},
-                    MathOptInterface.VectorOfVariables] &&
-            dom in [MathOptInterface.Zeros,
-                    MathOptInterface.Reals,
-                    MathOptInterface.Nonnegatives,
-                    MathOptInterface.Nonpositives,
-                    MathOptInterface.GreaterThan{Float64},
-                    MathOptInterface.LessThan{Float64},
-                    MathOptInterface.EqualTo{Float64},
-                    MathOptInterface.Interval{Float64},
-                    MathOptInterface.SecondOrderCone,
-                    MathOptInterface.RotatedSecondOrderCone,
-                    MathOptInterface.PositiveSemidefiniteConeTriangle,
-                    MathOptInterface.PositiveSemidefiniteConeScaled ]
-            # ok
-        elseif dom in [MathOptInterface.ZeroOne,
-                       MathOptInterface.Integer] &&
-                           fun in [MathOptInterface.SingleVariable,
-                                   MathOptInterface.VectorOfVariables]
-            # ok
-        else
-            return false
-        end
-    end
-    true
-end
+#function supportsconstraints(m::MosekSolver, constraint_types) :: Bool
+#    for (fun,dom) in constraint_types
+#        if  fun in [MathOptInterface.ScalarAffineFunction{Float64},
+#                    MathOptInterface.SingleVariable,
+#                    MathOptInterface.VectorAffineFunction{Float64},
+#                    MathOptInterface.VectorOfVariables] &&
+#            dom in [MathOptInterface.Zeros,
+#                    MathOptInterface.Reals,
+#                    MathOptInterface.Nonnegatives,
+#                    MathOptInterface.Nonpositives,
+#                    MathOptInterface.GreaterThan{Float64},
+#                    MathOptInterface.LessThan{Float64},
+#                    MathOptInterface.EqualTo{Float64},
+#                    MathOptInterface.Interval{Float64},
+#                    MathOptInterface.SecondOrderCone,
+#                    MathOptInterface.RotatedSecondOrderCone,
+#                    MathOptInterface.PositiveSemidefiniteConeTriangle,
+#                    MathOptInterface.PositiveSemidefiniteConeScaled ]
+#            # ok
+#        elseif dom in [MathOptInterface.ZeroOne,
+#                       MathOptInterface.Integer] &&
+#                           fun in [MathOptInterface.SingleVariable,
+#                                   MathOptInterface.VectorOfVariables]
+#            # ok
+#        else
+#            return false
+#        end
+#    end
+#    true
+#end
 
 
-MathOptInterface.supportsproblem(m::MosekSolver, ::Type{MathOptInterface.SingleVariable},                constraint_types) :: Bool = supportsconstraints(m,constraint_types)
-MathOptInterface.supportsproblem(m::MosekSolver, ::Type{MathOptInterface.ScalarAffineFunction{Float64}}, constraint_types) :: Bool = supportsconstraints(m,constraint_types)
-MathOptInterface.supportsproblem{F}(m::MosekSolver, ::Type{F}, constraint_types) :: Bool = false
+#MathOptInterface.supportsproblem(m::MosekSolver, ::Type{MathOptInterface.SingleVariable},                constraint_types) :: Bool = supportsconstraints(m,constraint_types)
+#MathOptInterface.supportsproblem(m::MosekSolver, ::Type{MathOptInterface.ScalarAffineFunction{Float64}}, constraint_types) :: Bool = supportsconstraints(m,constraint_types)
+#MathOptInterface.supportsproblem{F}(m::MosekSolver, ::Type{F}, constraint_types) :: Bool = false
 
 ref2id(ref :: MathOptInterface.VariableReference) :: Int = Int(ref.value)
 
