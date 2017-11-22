@@ -7,7 +7,7 @@ const MOI = MathOptInterface
 using MathOptInterfaceTests
 const MOIT = MathOptInterfaceTests
 
-const solver = MosekSolver(QUIET = true)
+const solver = () -> MosekInstance(QUIET = true)
 const config = MOIT.TestConfig(1e-7, 1e-7, false, true, true)
 
 @testset "Continuous linear problems" begin

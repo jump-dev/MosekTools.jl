@@ -1,11 +1,11 @@
 
 #### solver attributes
-MathOptInterface.get(m::Union{MosekSolver,MosekModel},::MathOptInterface.SupportsDuals) = true
-MathOptInterface.get(m::Union{MosekSolver,MosekModel},::MathOptInterface.SupportsAddConstraintAfterSolve) = true
-MathOptInterface.get(m::Union{MosekSolver,MosekModel},::MathOptInterface.SupportsAddVariableAfterSolve) = true
-MathOptInterface.get(m::Union{MosekSolver,MosekModel},::MathOptInterface.SupportsDeleteConstraint) = true
-MathOptInterface.get(m::Union{MosekSolver,MosekModel},::MathOptInterface.SupportsDeleteVariable) = true
-MathOptInterface.get(m::Union{MosekSolver,MosekModel},::MathOptInterface.SupportsConicThroughQuadratic) = false # though actually the solver does
+#MathOptInterface.get(m::Union{MosekSolver,MosekModel},::MathOptInterface.SupportsDuals) = true
+#MathOptInterface.get(m::Union{MosekSolver,MosekModel},::MathOptInterface.SupportsAddConstraintAfterSolve) = true
+#MathOptInterface.get(m::Union{MosekSolver,MosekModel},::MathOptInterface.SupportsAddVariableAfterSolve) = true
+#MathOptInterface.get(m::Union{MosekSolver,MosekModel},::MathOptInterface.SupportsDeleteConstraint) = true
+#MathOptInterface.get(m::Union{MosekSolver,MosekModel},::MathOptInterface.SupportsDeleteVariable) = true
+#MathOptInterface.get(m::Union{MosekSolver,MosekModel},::MathOptInterface.SupportsConicThroughQuadratic) = false # though actually the solver does
 
 #### objective
 MathOptInterface.get(m::MosekModel,attr::MathOptInterface.ObjectiveValue) =
