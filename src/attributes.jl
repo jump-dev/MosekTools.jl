@@ -214,8 +214,7 @@ function canget(m::MosekModel,attr::MathOptInterface.ConstraintPrimal)
     attr.N > 0 && attr.N <= num
 end
 
-MathOptInterface.canget(m::MosekModel,attr::MathOptInterface.ConstraintPrimal, c) = canget(m,attr)
-MathOptInterface.canget{F,D}(m::MosekModel,attr::MathOptInterface.ConstraintPrimal, cref::MathOptInterface.ConstraintReference{F,D}) = canget(m,attr)
+MathOptInterface.canget(m::MosekModel,attr::MathOptInterface.ConstraintPrimal, cref::MathOptInterface.ConstraintReference) = canget(m,attr)
 MathOptInterface.canget(m::MosekModel,attr::MathOptInterface.ConstraintPrimal, cref::MathOptInterface.ConstraintReference{MathOptInterface.ScalarAffineFunction{Float64},MathOptInterface.LessThan{Float64}}) = canget(m,attr)
 
 function MathOptInterface.get{D}(
