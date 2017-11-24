@@ -121,7 +121,7 @@ function MathOptInterface.addconstraint!(m   :: MosekModel,
                                          axb :: MathOptInterface.VectorAffineFunction{Float64},
                                          dom :: PSDCone) where { PSDCone <: PositiveSemidefiniteCone }
 
-    N = MathOptInterface.dimension(dom)
+    N = dom.dimension
     NN = sympackedlen(N)
 
     conid = allocateconstraints(m,NN)
@@ -265,7 +265,7 @@ end
 function MathOptInterface.addconstraint!(m   :: MosekModel,
                                          xs  :: MathOptInterface.VectorOfVariables,
                                          dom :: D) where { D <: PositiveSemidefiniteCone }
-    N = MathOptInterface.dimension(dom)
+    N = dom.dimension
     vars = sympackedUtoL(xs.variables, N)
     subj = Vector{Int}(length(vars))
     for i in 1:length(subj)
@@ -423,8 +423,7 @@ function addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, consta
 end
 
 function addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, constant :: Vector{Float64}, dom :: MathOptInterface.PositiveSemidefiniteConeTriangle)
-    dim = MathOptInterface.dimension(dom)
-    n = MathOptInterface.dimension(dom)
+    dim = dom.dimension
     appendbarvars(m.task,Int32[dim])
     barvaridx = getnumbarvar(m.task)
 
