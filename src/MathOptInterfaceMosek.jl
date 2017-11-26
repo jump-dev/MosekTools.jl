@@ -220,7 +220,7 @@ mutable struct MosekModel  <: MathOptInterface.AbstractSolverInstance
 
     ###########################
     conecounter :: Int
-    
+
     ###########################
     trm :: Rescode
     solutions :: Vector{MosekSolution}

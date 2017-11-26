@@ -32,23 +32,23 @@ function MathOptInterface.addconstraint!(
     m   :: MosekModel,
     axb :: MathOptInterface.ScalarAffineFunction{Float64},
     dom :: D) where {D <: MathOptInterface.AbstractScalarSet}
-    
+
     N = 1
     conid = allocateconstraints(m,N)
     addlhsblock!(m, conid, fill(1,length(axb.variables)),axb.variables, axb.coefficients)
-    
+
     if length(m.c_constant) < length(m.c_block)
         append!(m.c_constant,zeros(Float64,length(m.c_block) - length(m.c_constant)))
     end
     conidxs = getindexes(m.c_block,conid)
     m.c_constant[conidxs] = axb.constant
-    
+
     addbound!(m,conid,conidxs,Float64[axb.constant],dom)
 
-    
+
     conref = MathOptInterface.ConstraintReference{MathOptInterface.ScalarAffineFunction{Float64},D}(UInt64(conid) << 1)
     select(m.constrmap,MathOptInterface.ScalarAffineFunction{Float64},D)[conref.value] = conid
-    
+
     conref
 end
 
@@ -56,7 +56,7 @@ function MathOptInterface.addconstraint!(
     m   :: MosekModel,
     axb :: MathOptInterface.VectorAffineFunction{Float64},
     dom :: D) where { D <: MathOptInterface.AbstractVectorSet }
-    
+
     N = MathOptInterface.dimension(dom)
     conid = allocateconstraints(m,N)
     addlhsblock!(m,
@@ -68,11 +68,11 @@ function MathOptInterface.addconstraint!(
     m.c_constant[conidxs] = axb.constant
 
     m.c_block_slack[conid]
-    
+
     addbound!(m,conid,conidxs,axb.constant,dom)
     conref = MathOptInterface.ConstraintReference{MathOptInterface.VectorAffineFunction{Float64},D}(UInt64(conid) << 1)
     select(m.constrmap,MathOptInterface.VectorAffineFunction{Float64},D)[conref.value] = conid
-    
+
     conref
 end
 
@@ -237,9 +237,9 @@ function MathOptInterface.addconstraint!(
     m   :: MosekModel,
     xs  :: MathOptInterface.SingleVariable,
     dom :: D) where {D <: MathOptInterface.AbstractScalarSet}
-    
+
     subj = getindexes(m.x_block, ref2id(xs.variable))
-    
+
     mask = domain_type_mask(dom)
     if mask & m.x_boundflags[subj[1]] != 0
         error("Cannot put multiple bound sets of the same type on a variable")
@@ -248,7 +248,7 @@ function MathOptInterface.addconstraint!(
     xcid = allocatevarconstraints(m,1)
 
     xc_sub = getindexes(m.xc_block,xcid)[1]
-    
+
     m.xc_bounds[xcid]  = mask
     m.xc_idxs[xc_sub] = subj[1]
 
@@ -257,7 +257,7 @@ function MathOptInterface.addconstraint!(
     m.x_boundflags[subj[1]] .|= mask
 
     conref = MathOptInterface.ConstraintReference{MathOptInterface.SingleVariable,D}(UInt64(xcid) << 1)
-    
+
     select(m.constrmap,MathOptInterface.SingleVariable,D)[conref.value] = xcid
     conref
 end
@@ -271,7 +271,7 @@ function MathOptInterface.addconstraint!(m   :: MosekModel,
     for i in 1:length(subj)
         getindexes(m.x_block, ref2id(vars[i]),subj,i)
     end
-    
+
     mask = domain_type_mask(dom)
     if any(mask .& m.x_boundflags[subj[1]] .> 0)
         error("Cannot put multiple bound sets of the same type to a variable")
@@ -286,12 +286,12 @@ function MathOptInterface.addconstraint!(m   :: MosekModel,
     if length(subj) != NN
         error("Mismatching variable length for semidefinite constraint")
     end
-    
+
     id = allocateconstraints(m,NN)
 
     #appendbarvars(m.task,Int32[N])
     #barvaridx = getnumbarvar(m.task)
-    
+
     subi = getindexes(m.c_block,id)
     #m.c_block_slack[id] = -barvaridx
 
@@ -302,7 +302,7 @@ function MathOptInterface.addconstraint!(m   :: MosekModel,
                ones(Float64,NN))
 
     addbound!(m,id,subi,zeros(Float64,NN),dom)
-    
+
     #putconboundlist(m.task,subii32,fill(MSK_BK_FX,NN),zeros(Float64,NN),zeros(Float64,NN))
     #idx = 1
     #for j in 1:N
@@ -321,8 +321,8 @@ function MathOptInterface.addconstraint!(m   :: MosekModel,
 
     conref = MathOptInterface.ConstraintReference{MathOptInterface.VectorOfVariables,MathOptInterface.PositiveSemidefiniteConeTriangle}(UInt64((id << 1) | 1))
     select(m.constrmap,MathOptInterface.VectorOfVariables,MathOptInterface.PositiveSemidefiniteConeTriangle)[conref.value] = id
-    
-    conref 
+
+    conref
 end
 
 
@@ -332,7 +332,7 @@ function aux_setvardom(m :: MosekModel,
                        subj :: Vector{Int},
                        dom :: D) where { D <: VectorCone }
     appendcone(m.task,abstractset2ct(dom),  0.0, subj)
-    coneidx = getnumcone(m.task)    
+    coneidx = getnumcone(m.task)
     m.conecounter += 1
     putconename(m.task,coneidx,"$(m.conecounter)")
     m.xc_coneid[xcid] = m.conecounter
@@ -344,7 +344,7 @@ function MathOptInterface.addconstraint!{D <: MathOptInterface.AbstractSet}(m ::
     for i in 1:length(subj)
         getindexes(m.x_block, ref2id(xs.variables[i]),subj,i)
     end
-    
+
     mask = domain_type_mask(dom)
     if any(mask .& m.x_boundflags[subj[1]] .> 0)
         error("Cannot multiple bound sets of the same type to a variable")
@@ -353,14 +353,14 @@ function MathOptInterface.addconstraint!{D <: MathOptInterface.AbstractSet}(m ::
     N = MathOptInterface.dimension(dom)
     xcid = allocatevarconstraints(m,N)
     xc_sub = getindexes(m.xc_block,xcid)
-    
+
     m.xc_bounds[xcid]  = mask
     m.xc_idxs[xc_sub] = subj
 
     aux_setvardom(m,xcid,subj,dom)
 
     m.x_boundflags[subj] .|= mask
-    
+
     conref = MathOptInterface.ConstraintReference{MathOptInterface.VectorOfVariables,D}(UInt64(xcid) << 1)
     select(m.constrmap,MathOptInterface.VectorOfVariables,D)[conref.value] = xcid
     conref
@@ -382,7 +382,7 @@ function addlhsblock!(m        :: MosekModel,
         getindexes(m.x_block,ref2id(varidxs[i]),subj,i)
     end
 
-    N = length(consubi)    
+    N = length(consubi)
 
     At = sparse(subj, conidxs, cofs, getnumvar(m.task), N)
     putarowlist(m.task,convert(Vector{Int32},consubi),At)
@@ -401,7 +401,7 @@ addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, constant :: Vec
 function addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, constant :: Vector{Float64}, dom :: D) where { D <: VectorCone }
     N = MathOptInterface.dimension(dom)
     nalloc = ensurefree(m.x_block,N)
-    
+
     varid = newblock(m.x_block,N)
     numvar = getnumvar(m.task)
     if length(m.x_block) > numvar
@@ -442,7 +442,7 @@ function addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, consta
     end
 
     putconboundlist(m.task,convert(Vector{Int32},conidxs),fill(MSK_BK_FX,length(constant)),-constant,-constant)
-    
+
 
     m.c_block_slack[conid] = -barvaridx
 end
@@ -498,7 +498,7 @@ function MathOptInterface.modifyconstraint!(m::MosekModel,
     j = m.xc_idxs[getindexes(m.xc_block,xcid)[1]]
     bk,bl,bu = getvarbound(m.task,j)
     bl,bu = chgbound(bl,bu,0.0,dom)
-    putvarbound(m.task,j,bk,bl,bu)    
+    putvarbound(m.task,j,bk,bl,bu)
 end
 
 
@@ -554,7 +554,7 @@ function MathOptInterface.modifyconstraint!(m::MosekModel,
     bl += m.c_constant[subi] - func.new_constant
     bu += m.c_constant[subi] - func.new_constant
     m.c_constant[subi] = func.new_constant
-    
+
     putconboundlist(m.task,convert(Vector{Int32},subi),bk,bl,bu)
 end
 
@@ -594,14 +594,14 @@ function MathOptInterface.transformconstraint!(m::MosekModel,
                                                newdom::D2) where {D1 <: ScalarLinearDomain,
                                                                   D2 <: ScalarLinearDomain}
     const F = MathOptInterface.ScalarAffineFunction{Float64}
-    
+
     cid = ref2id(cref)
 
     subi = getindexes(m.c_block,cid)
 
     addbound!(m,cid,subi,m.c_constant[subi], newdom)
-    
-    newcref = MathOptInterface.ConstraintReference{F,D2}(UInt64(cid) << 1)    
+
+    newcref = MathOptInterface.ConstraintReference{F,D2}(UInt64(cid) << 1)
     delete!(select(m.constrmap,F,D1), cref.value)
     select(m.constrmap,F, D2)[newcref.value] = cid
     newcref
@@ -612,14 +612,14 @@ function MathOptInterface.transformconstraint!(m::MosekModel,
                                                newdom::D2) where {D1 <: VectorLinearDomain,
                                                                   D2 <: VectorLinearDomain}
     const F = MathOptInterface.VectorAffineFunction{Float64}
-    
+
     cid = ref2id(cref)
 
     subi = getindexes(m.c_block,cid)
 
     addbound!(m,cid,subi,m.c_constant[subi], newdom)
-    
-    newcref = MathOptInterface.ConstraintReference{F,D2}(UInt64(cid) << 1)    
+
+    newcref = MathOptInterface.ConstraintReference{F,D2}(UInt64(cid) << 1)
     delete!(select(m.constrmap,F,D1), cref.value)
     select(m.constrmap,F,D2)[newcref.value] = cid
     newcref
@@ -682,7 +682,7 @@ function Base.delete!(
                                                                        MathOptInterface.Reals}}
 
     delete!(select(m.constrmap, F, D), cref.value)
-    
+
     cid = ref2id(cref)
     subi = getindexes(m.c_block,cid)
 
@@ -706,14 +706,14 @@ function Base.delete!(
                                                                        MathOptInterface.DualExponentialCone,
                                                                        MathOptInterface.PowerCone,
                                                                        MathOptInterface.DualPowerCone}}
-    
+
     delete!(select(m.constrmap, F, D), cref.value)
     xcid = ref2id(cref)
     sub = getindexes(m.xc_block,xcid)
 
     subj = [ getindexes(m.x_block,i)[1] for i in sub ]
     N = length(subj)
-    m.x_boundflags[subj] .&= ~m.xc_bounds[xcid]    
+    m.x_boundflags[subj] .&= ~m.xc_bounds[xcid]
     asgn,coneidx = getconenameindex(m.task,"$(m.xc_coneid[xcid])")
     m.xc_coneid[xcid] = 0
     removecone(m.task,coneidx)
@@ -721,7 +721,7 @@ function Base.delete!(
     m.x_numxc[subj]  -= 1
     m.xc_idxs[sub]    = 0
     m.xc_bounds[xcid] = 0
-    
+
     deleteblock(m.xc_block,xcid)
 end
 
@@ -741,7 +741,7 @@ function Base.delete!(
                                                                        MathOptInterface.ZeroOne,
                                                                        MathOptInterface.Integer}}
     delete!(select(m.constrmap, F, D), cref.value)
-    
+
     xcid = ref2id(cref)
     sub = getindexes(m.xc_block,xcid)
 
@@ -754,7 +754,7 @@ function Base.delete!(
             putvartype(m.task,subj[i],MSK_VAR_TYPE_CONT)
         end
     end
-    
+
     if m.xc_bounds[xcid] & boundflag_lower != 0 && m.xc_bounds[xcid] & boundflag_upper != 0
         bnd = fill(0.0, length(N))
         putvarboundlist(m.task,convert(Vector{Int32},subj),fill(MSK_BK_FR,N),bnd,bnd)
@@ -782,7 +782,7 @@ function Base.delete!(
                 bk[i] = MSK_BK_FR
             end
         end
-        
+
         putvarboundlist(m.task,convert(Vector{Int32},subj),bk,bl,bu)
     else
         assert(false)
@@ -792,7 +792,7 @@ function Base.delete!(
     m.x_numxc[subj] -= 1
     m.xc_idxs[sub] = 0
     m.xc_bounds[xcid] = 0
-    
+
     deleteblock(m.xc_block,xcid)
 end
 

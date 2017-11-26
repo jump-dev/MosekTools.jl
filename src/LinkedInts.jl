@@ -39,12 +39,12 @@ function Base.show(f::IO, s::LinkedInts)
         p = s.prev[p]
     end
     print(f,"  Free: $freelst\n")
-    
+
     println(f,"  free_ptr = $(s.free_ptr)")
     println(f,"  root     = $(s.root)")
     println(f,"  next     = $(s.next)")
     println(f,"  prev     = $(s.prev)")
-    
+
     print(f,")")
 end
 
@@ -60,7 +60,7 @@ function ensurefree(s::LinkedInts, N :: Int)
         cap = length(s.next)
         first = cap+1
         last  = cap+num
-        
+
         append!(s.next,Int[i+1 for i in first:last])
         append!(s.prev,Int[i-1 for i in first:last])
 
@@ -101,7 +101,7 @@ function newblock(s::LinkedInts, N :: Int) :: Int
 
     s.free_ptr = s.prev[ptrb]
     s.free_cap -= N
-    
+
     # insert into list `idx`
     s.prev[ptrb] = s.root
     if s.root > 0
@@ -117,7 +117,7 @@ function newblock(s::LinkedInts, N :: Int) :: Int
         println("List = ",s)
         assert(false)
     end
-    
+
     id
 end
 
@@ -134,16 +134,16 @@ function deleteblock(s::LinkedInts, id :: Int)
         end
         prev = s.prev[ptrb]
         next = s.next[ptre]
-        
+
         # remove from list and clear the block id
         if s.root == ptre s.root = prev end
         if prev > 0 s.next[prev] = next end
         if next > 0 s.prev[next] = prev end
-            
+
         s.size[id]  = 0
         s.block[id] = 0
-        
-        # add to free list        
+
+        # add to free list
         if s.free_ptr > 0
             s.next[s.free_ptr] = ptrb
         end
@@ -210,8 +210,8 @@ end
 
 """
 Get a list if the currently used elements.
-""" 
-function getusedindexes(s::LinkedInts)    
+"""
+function getusedindexes(s::LinkedInts)
     N = length(s.next) - s.free_cap
     r = Array{Int}(N)
     ptr = s.root
@@ -231,7 +231,7 @@ function checkconsistency(s::LinkedInts) :: Bool
     if length(s.prev) != length(s.next)
         return false
     end
-    
+
     N = length(s.prev)
 
 
@@ -241,7 +241,7 @@ function checkconsistency(s::LinkedInts) :: Bool
     end
 
     mark = fill(false,length(s.prev))
-    
+
     p = s.free_ptr
     while p != 0
         mark[p] = true

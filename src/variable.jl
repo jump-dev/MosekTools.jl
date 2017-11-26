@@ -7,12 +7,12 @@ function MathOptInterface.addvariables!(m::MosekModel, N :: UInt)
     ids = [ allocatevariable(m,1) for i in 1:N ]
 
     m.publicnumvar += N
-    
+
     idxs = Vector{Int}(N)
     for i in 1:Int(N)
         getindexes(m.x_block,ids[i],idxs,i)
     end
-    
+
     bnd = zeros(Float64,N)
     putvarboundlist(m.task,
                     convert(Vector{Int32}, idxs),
@@ -69,12 +69,12 @@ function Base.delete!(m::MosekModel, refs::Vector{MathOptInterface.VariableRefer
         end
 
         # clear all non-zeros in columns
-        putacollist(m.task, 
+        putacollist(m.task,
                     indexes,
                     zeros(Int64,N),
                     zeros(Int64,N),
                     Int32[],
-                    Float64[])        
+                    Float64[])
         putclist(m.task,indexes,zeros(Int64,N))
         # clear bounds
         bnd = zeros(Float64,N)
@@ -88,7 +88,7 @@ function Base.delete!(m::MosekModel, refs::Vector{MathOptInterface.VariableRefer
                 putvarname(m.task,Int32(idxs),"deleted$i")
             end
         end
-        
+
         for i in 1:length(ids)
             deleteblock(s.x_block,ids[i])
         end
@@ -104,7 +104,7 @@ function Base.delete!(m::MosekModel, ref::MathOptInterface.VariableReference)
         id = ref2id(ref)
 
         m.publicnumvar -= 1
-        
+
         indexes = convert(Array{Int32,1},getindexes(m.x_block,id))
         N = blocksize(m.x_block,id)
 
@@ -112,7 +112,7 @@ function Base.delete!(m::MosekModel, ref::MathOptInterface.VariableReference)
         for i in indexes
             putcj(m.task,i,0.0)
         end
-        putacollist(m.task, 
+        putacollist(m.task,
                     indexes,
                     zeros(Int64,N),
                     zeros(Int64,N),

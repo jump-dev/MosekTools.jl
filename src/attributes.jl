@@ -91,7 +91,7 @@ MathOptInterface.get(m::MosekModel,attr::MathOptInterface.RawSolver) = m.task
 MathOptInterface.canget(m::MosekSolver,attr::MathOptInterface.ResultCount) = true
 MathOptInterface.canget(m::MosekModel,attr::MathOptInterface.ResultCount) = true
 MathOptInterface.get(m::MosekModel,attr::MathOptInterface.ResultCount) = length(m.solutions)
-    
+
 #### Problem information
 
 MathOptInterface.canget(m::MosekSolver,attr::MathOptInterface.NumberOfVariables) = true
@@ -112,7 +112,7 @@ MathOptInterface.get{F,D}(m::MosekSolver,attr::MathOptInterface.ListOfConstraint
 #### Warm start values
 
 MathOptInterface.canset(m::MosekSolver,attr::MathOptInterface.VariablePrimalStart) = true
-MathOptInterface.canset(m::MosekModel,attr::MathOptInterface.VariablePrimalStart) = true 
+MathOptInterface.canset(m::MosekModel,attr::MathOptInterface.VariablePrimalStart) = true
 function MathOptInterface.set!(m::MosekModel,attr::MathOptInterface.VariablePrimalStart, v :: MathOptInterface.VariableReference, val::Float64)
     subj = getindexes(m.x_block,ref2id(v))
 
@@ -127,7 +127,7 @@ function MathOptInterface.set!(m::MosekModel,attr::MathOptInterface.VariablePrim
     for i in 1:length(subj)
         getindexes(m.x_block,ref2id(vs[i]),subj,i)
     end
-    
+
     for sol in [ MSK_SOL_BAS, MSK_SOL_ITG ]
         if solutiondef(m.task,sol)
             xx = getxx(m.task,sol)
@@ -152,7 +152,7 @@ MathOptInterface.canset(m::MosekModel,attr::MathOptInterface.ConstraintDualStart
 #     for i in 1:length(subj)
 #         getindexes(m.x_block,ref2id(vs[i]),subj,i)
 #     end
-    
+
 #     for sol in [ MSK_SOL_BAS, MSK_SOL_ITG ]
 #         if solutiondef(m.task,sol)
 #             xx = getxx(m.task,sol)
@@ -171,7 +171,7 @@ MathOptInterface.canset(m::MosekModel,attr::MathOptInterface.ConstraintDualStart
 #### Variable solution values
 
 MathOptInterface.canget(m::MosekModel,attr::MathOptInterface.VariablePrimal) = attr.N > 0 && attr.N <= length(m.solutions)
-MathOptInterface.canget(m::MosekSolver,attr::MathOptInterface.VariablePrimal) = true 
+MathOptInterface.canget(m::MosekSolver,attr::MathOptInterface.VariablePrimal) = true
 
 MathOptInterface.canget(m::MosekModel,attr::MathOptInterface.VariablePrimal,vs::Vector{MathOptInterface.VariableReference}) = MathOptInterface.canget(m,attr)
 MathOptInterface.canget(m::MosekModel,attr::MathOptInterface.VariablePrimal,v::MathOptInterface.VariableReference) = MathOptInterface.canget(m,attr)
@@ -182,7 +182,7 @@ function MathOptInterface.get!(output::Vector{Float64},m::MosekModel,attr::MathO
     for i in 1:length(subj)
         getindexes(m.x_block,ref2id(vs[i]),subj,i)
     end
-    
+
     output[1:length(output)] = m.solutions[attr.N].xx[subj]
 end
 
@@ -222,15 +222,15 @@ function MathOptInterface.get{D}(
     m     ::MosekModel,
     attr  ::MathOptInterface.ConstraintPrimal,
     cref  ::MathOptInterface.ConstraintReference{MathOptInterface.SingleVariable,D})
-    
+
     conid = ref2id(cref)
     idxs  = getindexes(m.xc_block,conid)
     subj  = m.xc_idxs[idxs[1]]
-    
+
     m.solutions[attr.N].xx[subj]
 end
 
-# Semidefinite domain for a variable 
+# Semidefinite domain for a variable
 function MathOptInterface.get!(
     output::Vector{Float64},
     m     ::MosekModel,
@@ -255,7 +255,7 @@ function MathOptInterface.get!{D}(
 
     xcid = ref2id(cref)
     assert(xcid > 0)
-    
+
     mask = m.xc_bounds[xcid]
     idxs = getindexes(m.xc_block,xcid)
     subj = m.xc_idxs[idxs]
@@ -330,7 +330,7 @@ function MathOptInterface.get(
             m.solutions[attr.N].slx[subj] - m.solutions[attr.N].sux[subj]
         elseif (m.xc_bounds[xcid] & boundflag_lower) != 0
             m.solutions[attr.N].slx[subj]
-        elseif (m.xc_bounds[xcid] & boundflag_upper) != 0 
+        elseif (m.xc_bounds[xcid] & boundflag_upper) != 0
             - m.solutions[attr.N].sux[subj]
         elseif (m.xc_bounds[xcid] & boundflag_cone) != 0
             m.solutions[attr.N].snx[subj]
@@ -342,7 +342,7 @@ function MathOptInterface.get(
             m.solutions[attr.N].sux[subj] - m.solutions[attr.N].slx[subj]
         elseif (m.xc_bounds[xcid] & boundflag_lower) != 0
             - m.solutions[attr.N].slx[subj]
-        elseif (m.xc_bounds[xcid] & boundflag_upper) != 0 
+        elseif (m.xc_bounds[xcid] & boundflag_upper) != 0
             m.solutions[attr.N].sux[subj]
         elseif (m.xc_bounds[xcid] & boundflag_cone) != 0
             - m.solutions[attr.N].snx[subj]
@@ -354,7 +354,7 @@ end
 
 getsolcode(m::MosekModel, N) = m.solutions[N].whichsol
 
-# Semidefinite domain for a variable 
+# Semidefinite domain for a variable
 function MathOptInterface.get!(
     output::Vector{Float64},
     m     ::MosekModel,
@@ -384,7 +384,7 @@ function MathOptInterface.get!{D}(
 
     xcid = ref2id(cref)
     assert(xcid > 0)
-    
+
     mask = m.xc_bounds[xcid]
     idxs = getindexes(m.xc_block,xcid)
     subj = m.xc_idxs[idxs]
