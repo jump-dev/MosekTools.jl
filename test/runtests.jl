@@ -12,7 +12,10 @@ const config = MOIT.TestConfig(1e-7, 1e-7, true, false, true, true)
 const configgeomean = MOIT.TestConfig(1e-4, 1e-4, true, false, true, true)
 
 @testset "Continuous linear problems" begin
-    MOIT.contlineartest(solver, config)
+    # linear11 is failing because the following are not implemented:
+    # * MOI.cantransformconstraint(instance, c2, MOI.LessThan(2.0))
+    # * MOI.get(instance, MathOptInterface.ConstraintFunction())
+    MOIT.contlineartest(solver, config, ["linear11"])
 end
 
 # include("contquadratic.jl")
@@ -22,8 +25,8 @@ end
 
 @testset "Continuous conic problems" begin
     # lin1 and soc1 are failing because ListOfConstraints is not implemented
-    # sdp0sv, sdp0sf, sdp1sv, sdp1sf and sdp2 are failing because PositiveSemidefiniteConeScaled is not working yet
-    MOIT.contconictest(solver, config, ["lin1", "soc1", "sdp0sv", "sdp0sf", "sdp1sv", "sdp1sf", "sdp2", "geomean", "logdet", "rootdet1qv", "rootdet1qf"])
+    # sdp2 is failing because MOI.get(instance, MOI.ConstraintPrimal(), c1) returns -10 instead of 0
+    MOIT.contconictest(solver, config, ["lin1", "soc1", "geomean", "sdp2", "logdet"])
     MOIT.geomeantest(solver, configgeomean)
 end
 

@@ -4,8 +4,7 @@ const VectorCone = Union{MathOptInterface.SecondOrderCone,
                          MathOptInterface.DualPowerCone,
                          MathOptInterface.ExponentialCone,
                          MathOptInterface.DualExponentialCone}
-const PositiveSemidefiniteCone = Union{MathOptInterface.PositiveSemidefiniteConeTriangle,
-                                       MathOptInterface.PositiveSemidefiniteConeScaled}
+const PositiveSemidefiniteCone = MathOptInterface.PositiveSemidefiniteConeTriangle
 const LinearFunction = Union{MathOptInterface.SingleVariable,
                              MathOptInterface.VectorOfVariables,
                              MathOptInterface.ScalarAffineFunction,
@@ -171,12 +170,11 @@ domain_type_mask(dom :: MathOptInterface.ExponentialCone)        = boundflag_con
 domain_type_mask(dom :: MathOptInterface.PowerCone)              = boundflag_cone
 
 domain_type_mask(dom :: MathOptInterface.PositiveSemidefiniteConeTriangle) = 0
-domain_type_mask(dom :: MathOptInterface.PositiveSemidefiniteConeScaled)   = 0
 
 domain_type_mask(dom :: MathOptInterface.Integer) = boundflag_int
 domain_type_mask(dom :: MathOptInterface.ZeroOne) = (boundflag_int | boundflag_upper | boundflag_lower)
 
-is_positivesemidefinite_set(dom :: Union{MathOptInterface.PositiveSemidefiniteConeTriangle,MathOptInterface.PositiveSemidefiniteConeScaled}) = true
+is_positivesemidefinite_set(dom :: PositiveSemidefiniteCone) = true
 is_positivesemidefinite_set(dom) = false
 is_conic_set(dom :: VectorCone) = true
 is_conic_set(dom) = false
@@ -447,31 +445,31 @@ function addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, consta
     m.c_block_slack[conid] = -barvaridx
 end
 
-function addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, constant :: Vector{Float64}, dom :: MathOptInterface.PositiveSemidefiniteConeScaled)
-    dim = MathOptInterface.dimension(dom)
-    #dim = floor(Int,-.5 + sqrt(.25+2*MathOptInterface.dimension(dom)))
-    n = MathOptInterface.dimension(dom)
-
-    appendbarvars(m.task,Int32[dim])
-    barvaridx = getnumbarvar(m.task)
-
-    idx = 1
-    for j in 1:dim
-        for i in j:dim
-            matrixid = appendsparsesymmat(m.task,Int32(dim), Int32[i], Int32[j], Float64[1.0])
-            if i == j
-                putbaraij(m.task, conidxs[idx], barvaridx, Int[matrixid], Float64[-1.0])
-            else
-                putbaraij(m.task, conidxs[idx], barvaridx, Int[matrixid], Float64[-sqrt(2.0)/2.0])
-            end
-            idx += 1
-        end
-    end
-
-    putconboundlist(m.task,convert(Vector{Int32},conidxs),fill(MSK_BK_FX,length(constant)),-constant,-constant)
-
-    m.c_block_slack[conid] = -barvaridx
-end
+#function addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, constant :: Vector{Float64}, dom :: MathOptInterface.PositiveSemidefiniteConeScaled)
+#    dim = MathOptInterface.dimension(dom)
+#    #dim = floor(Int,-.5 + sqrt(.25+2*MathOptInterface.dimension(dom)))
+#    n = MathOptInterface.dimension(dom)
+#
+#    appendbarvars(m.task,Int32[dim])
+#    barvaridx = getnumbarvar(m.task)
+#
+#    idx = 1
+#    for j in 1:dim
+#        for i in j:dim
+#            matrixid = appendsparsesymmat(m.task,Int32(dim), Int32[i], Int32[j], Float64[1.0])
+#            if i == j
+#                putbaraij(m.task, conidxs[idx], barvaridx, Int[matrixid], Float64[-1.0])
+#            else
+#                putbaraij(m.task, conidxs[idx], barvaridx, Int[matrixid], Float64[-sqrt(2.0)/2.0])
+#            end
+#            idx += 1
+#        end
+#    end
+#
+#    putconboundlist(m.task,convert(Vector{Int32},conidxs),fill(MSK_BK_FX,length(constant)),-constant,-constant)
+#
+#    m.c_block_slack[conid] = -barvaridx
+#end
 
 
 
