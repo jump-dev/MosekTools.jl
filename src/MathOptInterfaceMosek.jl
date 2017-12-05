@@ -38,42 +38,42 @@ boundflag_all   = 0x0f
 
 # Mapping of all constraint types to its index
 struct ConstraintMap
-    x_lessthan           :: Dict{UInt64,Int} # (SingleVariable,LessThan) -> constraint number
-    x_greaterthan        :: Dict{UInt64,Int} # (SingleVariable,GreaterThan) -> constraint number
-    x_equalto            :: Dict{UInt64,Int} # (SingleVariable,EqualTo) -> constraint number
-    x_interval           :: Dict{UInt64,Int} # (SingleVariable,Interval) -> constraint number
-    x_nonpositives       :: Dict{UInt64,Int} # (SingleVariable,Nonpositives) -> constraint number
-    x_nonnegatives       :: Dict{UInt64,Int} # (SingleVariable,Nonnegatives) -> constraint number
-    x_binary             :: Dict{UInt64,Int} # (SingleVariable,ZeroOne) -> constraint number
-    x_integer            :: Dict{UInt64,Int} # (SingleVariable,Integer) -> constraint number
+    x_lessthan           :: Dict{Int64,Int} # (SingleVariable,LessThan) -> constraint number
+    x_greaterthan        :: Dict{Int64,Int} # (SingleVariable,GreaterThan) -> constraint number
+    x_equalto            :: Dict{Int64,Int} # (SingleVariable,EqualTo) -> constraint number
+    x_interval           :: Dict{Int64,Int} # (SingleVariable,Interval) -> constraint number
+    x_nonpositives       :: Dict{Int64,Int} # (SingleVariable,Nonpositives) -> constraint number
+    x_nonnegatives       :: Dict{Int64,Int} # (SingleVariable,Nonnegatives) -> constraint number
+    x_binary             :: Dict{Int64,Int} # (SingleVariable,ZeroOne) -> constraint number
+    x_integer            :: Dict{Int64,Int} # (SingleVariable,Integer) -> constraint number
 
-    xs_nonpositives      :: Dict{UInt64,Int} # (VectorOfVariables,Nonpositives) -> constraint number
-    xs_nonnegatives      :: Dict{UInt64,Int} # (VectorOfVariables,Nonnegatives) -> constraint number
-    xs_zeros             :: Dict{UInt64,Int} # (VectorOfVariables,Zeros) -> constraint number
-    xs_reals             :: Dict{UInt64,Int} # (VectorOfVariables,Reals) -> constraint number
-    xs_qcone             :: Dict{UInt64,Int} # (VectorOfVariables,SecondOrderCone) -> constraint number
-    xs_rqcone            :: Dict{UInt64,Int} # (VectorOfVariables,RotatedSecondOrderCone) -> constraint number
-    xs_psdconetriangle   :: Dict{UInt64,Int} # (VectorOfVariables,PositiveSemidefiniteConeTriangle) -> constraint number
+    xs_nonpositives      :: Dict{Int64,Int} # (VectorOfVariables,Nonpositives) -> constraint number
+    xs_nonnegatives      :: Dict{Int64,Int} # (VectorOfVariables,Nonnegatives) -> constraint number
+    xs_zeros             :: Dict{Int64,Int} # (VectorOfVariables,Zeros) -> constraint number
+    xs_reals             :: Dict{Int64,Int} # (VectorOfVariables,Reals) -> constraint number
+    xs_qcone             :: Dict{Int64,Int} # (VectorOfVariables,SecondOrderCone) -> constraint number
+    xs_rqcone            :: Dict{Int64,Int} # (VectorOfVariables,RotatedSecondOrderCone) -> constraint number
+    xs_psdconetriangle   :: Dict{Int64,Int} # (VectorOfVariables,PositiveSemidefiniteConeTriangle) -> constraint number
 
-    axb_lessthan         :: Dict{UInt64,Int} # (ScalarAffineFunction,LessThan) -> constraint number
-    axb_greaterthan      :: Dict{UInt64,Int} # (ScalarAffineFunction,GreaterThan) -> constraint number
-    axb_equalto          :: Dict{UInt64,Int} # (ScalarAffineFunction,EqualTo) -> constraint number
-    axb_interval         :: Dict{UInt64,Int} # (ScalarAffineFunction,Interval) -> constraint number
-    axb_nonpositives     :: Dict{UInt64,Int} # (ScalarAffineFunction,Nonpositives) -> constraint number
-    axb_nonnegatives     :: Dict{UInt64,Int} # (ScalarAffineFunction,Nonnegatives) -> constraint number
-    axb_binary           :: Dict{UInt64,Int} # (ScalarAffineFunction,ZeroOne) -> constraint number
-    axb_integer          :: Dict{UInt64,Int} # (ScalarAffineFunction,Integer) -> constraint number
+    axb_lessthan         :: Dict{Int64,Int} # (ScalarAffineFunction,LessThan) -> constraint number
+    axb_greaterthan      :: Dict{Int64,Int} # (ScalarAffineFunction,GreaterThan) -> constraint number
+    axb_equalto          :: Dict{Int64,Int} # (ScalarAffineFunction,EqualTo) -> constraint number
+    axb_interval         :: Dict{Int64,Int} # (ScalarAffineFunction,Interval) -> constraint number
+    axb_nonpositives     :: Dict{Int64,Int} # (ScalarAffineFunction,Nonpositives) -> constraint number
+    axb_nonnegatives     :: Dict{Int64,Int} # (ScalarAffineFunction,Nonnegatives) -> constraint number
+    axb_binary           :: Dict{Int64,Int} # (ScalarAffineFunction,ZeroOne) -> constraint number
+    axb_integer          :: Dict{Int64,Int} # (ScalarAffineFunction,Integer) -> constraint number
 
-    axbs_nonpositives    :: Dict{UInt64,Int} # (VectorAffineFunction,Nonpositives) -> constraint number
-    axbs_nonnegatives    :: Dict{UInt64,Int} # (VectorAffineFunction,Nonnegatives) -> constraint number
-    axbs_zeros           :: Dict{UInt64,Int} # (VectorAffineFunction,Zeros) -> constraint number
-    axbs_reals           :: Dict{UInt64,Int} # (VectorAffineFunction,Reals) -> constraint number
-    axbs_qcone           :: Dict{UInt64,Int} # (VectorAffineFunction,SecondOrderCone) -> constraint number
-    axbs_rqcone          :: Dict{UInt64,Int} # (VectorAffineFunction,RotatedSecondOrderCone) -> constraint number
-    axbs_psdconetriangle :: Dict{UInt64,Int} # (VectorAffineFunction,PositiveSemidefiniteConeTriangle) -> constraint number
+    axbs_nonpositives    :: Dict{Int64,Int} # (VectorAffineFunction,Nonpositives) -> constraint number
+    axbs_nonnegatives    :: Dict{Int64,Int} # (VectorAffineFunction,Nonnegatives) -> constraint number
+    axbs_zeros           :: Dict{Int64,Int} # (VectorAffineFunction,Zeros) -> constraint number
+    axbs_reals           :: Dict{Int64,Int} # (VectorAffineFunction,Reals) -> constraint number
+    axbs_qcone           :: Dict{Int64,Int} # (VectorAffineFunction,SecondOrderCone) -> constraint number
+    axbs_rqcone          :: Dict{Int64,Int} # (VectorAffineFunction,RotatedSecondOrderCone) -> constraint number
+    axbs_psdconetriangle :: Dict{Int64,Int} # (VectorAffineFunction,PositiveSemidefiniteConeTriangle) -> constraint number
 end
 
-ConstraintMap() = ConstraintMap([Dict{UInt64,Int}() for i in 1:30]...)
+ConstraintMap() = ConstraintMap([Dict{Int64,Int}() for i in 1:30]...)
 select(cm::ConstraintMap,::Type{MathOptInterface.SingleVariable},               ::Type{MathOptInterface.LessThan{Float64}}) =                cm.x_lessthan
 select(cm::ConstraintMap,::Type{MathOptInterface.SingleVariable},               ::Type{MathOptInterface.GreaterThan{Float64}}) =             cm.x_greaterthan
 select(cm::ConstraintMap,::Type{MathOptInterface.SingleVariable},               ::Type{MathOptInterface.EqualTo{Float64}}) =                 cm.x_equalto
@@ -105,7 +105,7 @@ select(cm::ConstraintMap,::Type{MathOptInterface.VectorAffineFunction{Float64}},
 select(cm::ConstraintMap,::Type{MathOptInterface.VectorAffineFunction{Float64}},::Type{MathOptInterface.RotatedSecondOrderCone}) =           cm.axbs_rqcone
 select(cm::ConstraintMap,::Type{MathOptInterface.VectorAffineFunction{Float64}},::Type{MathOptInterface.PositiveSemidefiniteConeTriangle}) = cm.axbs_psdconetriangle
 
-Base.getindex{F,D}(cm::ConstraintMap,r :: MathOptInterface.ConstraintReference{F,D}) = select(cm,F,D)[r.value]
+Base.getindex{F,D}(cm::ConstraintMap,r :: MathOptInterface.ConstraintIndex{F,D}) = select(cm,F,D)[r.value]
 
 
 struct MosekSolution
@@ -134,7 +134,7 @@ does not support deleting PSD variables.
 
 Note also that adding variables and constraints will permanently add
 some (currently between 1 and 3) Int64s that a `delete!` will not
-remove. This ensures that References (Variable and constraint) that
+remove. This ensures that Indices (Variable and constraint) that
 are deleted are thereafter invalid.
 """
 mutable struct MosekModel  <: MathOptInterface.AbstractSolverInstance
@@ -390,18 +390,18 @@ end
 #MathOptInterface.supportsproblem(m::MosekSolver, ::Type{MathOptInterface.ScalarAffineFunction{Float64}}, constraint_types) :: Bool = supportsconstraints(m,constraint_types)
 #MathOptInterface.supportsproblem{F}(m::MosekSolver, ::Type{F}, constraint_types) :: Bool = false
 
-ref2id(ref :: MathOptInterface.VariableReference) :: Int = Int(ref.value)
+ref2id(ref :: MathOptInterface.VariableIndex) :: Int = Int(ref.value)
 
-ref2id(ref :: MathOptInterface.ConstraintReference) :: Int =
+ref2id(ref :: MathOptInterface.ConstraintIndex) :: Int =
     if ref.value & 1 == 0
         Int(ref.value >> 1)
     else
         - Int(ref.value >> 1)
     end
 
-function id2vref(id :: Int) :: MathOptInterface.VariableReference
+function id2vref(id :: Int) :: MathOptInterface.VariableIndex
     assert(id > 0)
-    MathOptInterface.VariableReference(id)
+    MathOptInterface.VariableIndex(id)
 end
 
 include("objective.jl")

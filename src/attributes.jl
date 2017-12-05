@@ -50,7 +50,7 @@ function MathOptInterface.set!(m::MosekModel,attr::MathOptInterface.ObjectiveSen
     else
         @assert sense == MathOptInterface.FeasibilitySense
         putobjsense(m.task,MSK_OBJECTIVE_SENSE_MINIMIZE)
-        MathOptInterface.set!(m, MathOptInterface.ObjectiveFunction(), MathOptInterface.ScalarAffineFunction(MathOptInterface.VariableReference[], Float64[], 0.))
+        MathOptInterface.set!(m, MathOptInterface.ObjectiveFunction(), MathOptInterface.ScalarAffineFunction(MathOptInterface.VariableIndex[], Float64[], 0.))
     end
 end
 
@@ -102,18 +102,18 @@ MathOptInterface.canget(m::MosekSolver,attr::MathOptInterface.NumberOfConstraint
 MathOptInterface.canget{F,D}(m::MosekModel,attr::MathOptInterface.NumberOfConstraints{F,D}) = true
 MathOptInterface.get{F,D}(m::MosekModel,attr::MathOptInterface.NumberOfConstraints{F,D}) = length(select(m.constrmap,F,D))
 
-#MathOptInterface.canget(m::MosekSolver,attr::MathOptInterface.ListOfVariableReferences) = false
+#MathOptInterface.canget(m::MosekSolver,attr::MathOptInterface.ListOfVariableIndices) = false
 #MathOptInterface.canget(m::MosekSolver,attr::MathOptInterface.ListOfConstraints) = false
 
-MathOptInterface.canget{F,D}(m::MosekSolver,attr::MathOptInterface.ListOfConstraintReferences{F,D}) = true
-MathOptInterface.get{F,D}(m::MosekSolver,attr::MathOptInterface.ListOfConstraintReferences{F,D}) = keys(select(m.constrmap,F,D))
+MathOptInterface.canget{F,D}(m::MosekSolver,attr::MathOptInterface.ListOfConstraintIndices{F,D}) = true
+MathOptInterface.get{F,D}(m::MosekSolver,attr::MathOptInterface.ListOfConstraintIndices{F,D}) = keys(select(m.constrmap,F,D))
 
 
 #### Warm start values
 
 MathOptInterface.canset(m::MosekSolver,attr::MathOptInterface.VariablePrimalStart) = true
 MathOptInterface.canset(m::MosekModel,attr::MathOptInterface.VariablePrimalStart) = true
-function MathOptInterface.set!(m::MosekModel,attr::MathOptInterface.VariablePrimalStart, v :: MathOptInterface.VariableReference, val::Float64)
+function MathOptInterface.set!(m::MosekModel,attr::MathOptInterface.VariablePrimalStart, v :: MathOptInterface.VariableIndex, val::Float64)
     subj = getindexes(m.x_block,ref2id(v))
 
     xx = Float64[val]
@@ -122,7 +122,7 @@ function MathOptInterface.set!(m::MosekModel,attr::MathOptInterface.VariablePrim
     end
 end
 
-function MathOptInterface.set!(m::MosekModel,attr::MathOptInterface.VariablePrimalStart, vs::Vector{MathOptInterface.VariableReference}, vals::Vector{Float64})
+function MathOptInterface.set!(m::MosekModel,attr::MathOptInterface.VariablePrimalStart, vs::Vector{MathOptInterface.VariableIndex}, vals::Vector{Float64})
     subj = Array{Int}(length(vs))
     for i in 1:length(subj)
         getindexes(m.x_block,ref2id(vs[i]),subj,i)
@@ -147,7 +147,7 @@ MathOptInterface.canset(m::MosekModel,attr::MathOptInterface.ConstraintPrimalSta
 MathOptInterface.canset(m::MosekSolver,attr::MathOptInterface.ConstraintDualStart) = false # for now
 MathOptInterface.canset(m::MosekModel,attr::MathOptInterface.ConstraintDualStart) = false
 
-# function MathOptInterface.set!(m::MosekModel,attr::MathOptInterface.ConstraintDualStart, vs::Vector{MathOptInterface.ConstraintReference}, vals::Vector{Float64})
+# function MathOptInterface.set!(m::MosekModel,attr::MathOptInterface.ConstraintDualStart, vs::Vector{MathOptInterface.ConstraintIndex}, vals::Vector{Float64})
 #     subj = Array{Int}(length(vs))
 #     for i in 1:length(subj)
 #         getindexes(m.x_block,ref2id(vs[i]),subj,i)
@@ -173,11 +173,11 @@ MathOptInterface.canset(m::MosekModel,attr::MathOptInterface.ConstraintDualStart
 MathOptInterface.canget(m::MosekModel,attr::MathOptInterface.VariablePrimal) = attr.N > 0 && attr.N <= length(m.solutions)
 MathOptInterface.canget(m::MosekSolver,attr::MathOptInterface.VariablePrimal) = true
 
-MathOptInterface.canget(m::MosekModel,attr::MathOptInterface.VariablePrimal,vs::Vector{MathOptInterface.VariableReference}) = MathOptInterface.canget(m,attr)
-MathOptInterface.canget(m::MosekModel,attr::MathOptInterface.VariablePrimal,v::MathOptInterface.VariableReference) = MathOptInterface.canget(m,attr)
+MathOptInterface.canget(m::MosekModel,attr::MathOptInterface.VariablePrimal,vs::Vector{MathOptInterface.VariableIndex}) = MathOptInterface.canget(m,attr)
+MathOptInterface.canget(m::MosekModel,attr::MathOptInterface.VariablePrimal,v::MathOptInterface.VariableIndex) = MathOptInterface.canget(m,attr)
 
 
-function MathOptInterface.get!(output::Vector{Float64},m::MosekModel,attr::MathOptInterface.VariablePrimal, vs::Vector{MathOptInterface.VariableReference})
+function MathOptInterface.get!(output::Vector{Float64},m::MosekModel,attr::MathOptInterface.VariablePrimal, vs::Vector{MathOptInterface.VariableIndex})
     subj = Array{Int}(length(vs))
     for i in 1:length(subj)
         getindexes(m.x_block,ref2id(vs[i]),subj,i)
@@ -186,13 +186,13 @@ function MathOptInterface.get!(output::Vector{Float64},m::MosekModel,attr::MathO
     output[1:length(output)] = m.solutions[attr.N].xx[subj]
 end
 
-function MathOptInterface.get(m::MosekModel,attr::MathOptInterface.VariablePrimal, vs::Vector{MathOptInterface.VariableReference})
+function MathOptInterface.get(m::MosekModel,attr::MathOptInterface.VariablePrimal, vs::Vector{MathOptInterface.VariableIndex})
     output = Vector{Float64}(length(vs))
     MathOptInterface.get!(output,m,attr,vs)
     output
 end
 
-function MathOptInterface.get(m::MosekModel,attr::MathOptInterface.VariablePrimal, vref::MathOptInterface.VariableReference)
+function MathOptInterface.get(m::MosekModel,attr::MathOptInterface.VariablePrimal, vref::MathOptInterface.VariableIndex)
     subj = getindexes(m.x_block,ref2id(vref))[1]
     m.solutions[attr.N].xx[subj]
 end
@@ -214,13 +214,13 @@ function canget(m::MosekModel,attr::MathOptInterface.ConstraintPrimal)
     attr.N > 0 && attr.N <= num
 end
 
-MathOptInterface.canget(m::MosekModel,attr::MathOptInterface.ConstraintPrimal, cref::MathOptInterface.ConstraintReference) = canget(m,attr)
-MathOptInterface.canget(m::MosekModel,attr::MathOptInterface.ConstraintPrimal, cref::MathOptInterface.ConstraintReference{MathOptInterface.ScalarAffineFunction{Float64},MathOptInterface.LessThan{Float64}}) = canget(m,attr)
+MathOptInterface.canget(m::MosekModel,attr::MathOptInterface.ConstraintPrimal, cref::MathOptInterface.ConstraintIndex) = canget(m,attr)
+MathOptInterface.canget(m::MosekModel,attr::MathOptInterface.ConstraintPrimal, cref::MathOptInterface.ConstraintIndex{MathOptInterface.ScalarAffineFunction{Float64},MathOptInterface.LessThan{Float64}}) = canget(m,attr)
 
 function MathOptInterface.get{D}(
     m     ::MosekModel,
     attr  ::MathOptInterface.ConstraintPrimal,
-    cref  ::MathOptInterface.ConstraintReference{MathOptInterface.SingleVariable,D})
+    cref  ::MathOptInterface.ConstraintIndex{MathOptInterface.SingleVariable,D})
 
     conid = ref2id(cref)
     idxs  = getindexes(m.xc_block,conid)
@@ -234,7 +234,7 @@ function MathOptInterface.get!(
     output::Vector{Float64},
     m     ::MosekModel,
     attr  ::MathOptInterface.ConstraintPrimal,
-    cref  ::MathOptInterface.ConstraintReference{MathOptInterface.VectorOfVariables,MathOptInterface.PositiveSemidefiniteConeTriangle})
+    cref  ::MathOptInterface.ConstraintIndex{MathOptInterface.VectorOfVariables,MathOptInterface.PositiveSemidefiniteConeTriangle})
 
     whichsol = getsolcode(m,attr.N)
     cid = ref2id(cref)
@@ -250,7 +250,7 @@ function MathOptInterface.get!{D}(
     output::Vector{Float64},
     m     ::MosekModel,
     attr  ::MathOptInterface.ConstraintPrimal,
-    cref  ::MathOptInterface.ConstraintReference{MathOptInterface.VectorOfVariables,D})
+    cref  ::MathOptInterface.ConstraintIndex{MathOptInterface.VectorOfVariables,D})
 
     xcid = ref2id(cref)
     assert(xcid > 0)
@@ -264,7 +264,7 @@ end
 
 function MathOptInterface.get{D}(m     ::MosekModel,
                                           attr  ::MathOptInterface.ConstraintPrimal,
-                                          cref  ::MathOptInterface.ConstraintReference{MathOptInterface.ScalarAffineFunction{Float64},D})
+                                          cref  ::MathOptInterface.ConstraintIndex{MathOptInterface.ScalarAffineFunction{Float64},D})
     cid = ref2id(cref)
     subi = getindexes(m.c_block,cid)[1]
     m.solutions[attr.N].xc[subi]
@@ -276,7 +276,7 @@ function MathOptInterface.get!{D}(
     output::Vector{Float64},
     m     ::MosekModel,
     attr  ::MathOptInterface.ConstraintPrimal,
-    cref  ::MathOptInterface.ConstraintReference{MathOptInterface.VectorAffineFunction{Float64},D})
+    cref  ::MathOptInterface.ConstraintIndex{MathOptInterface.VectorAffineFunction{Float64},D})
 
     cid = ref2id(cref)
     subi = getindexes(m.c_block,cid)
@@ -306,16 +306,16 @@ end
 
 
 MathOptInterface.canget(m::MosekModel,attr::MathOptInterface.ConstraintDual) = attr.N > 0 && attr.N <= length(m.solutions)
-MathOptInterface.canget(m::MosekModel,attr::MathOptInterface.ConstraintDual, crefs::Vector{MathOptInterface.ConstraintReference}) = MathOptInterface.canget(m,attr)
+MathOptInterface.canget(m::MosekModel,attr::MathOptInterface.ConstraintDual, crefs::Vector{MathOptInterface.ConstraintIndex}) = MathOptInterface.canget(m,attr)
 MathOptInterface.canget(m::MosekModel,
                                  attr::MathOptInterface.ConstraintDual,
-                                 cref::MathOptInterface.ConstraintReference{F,D}) where {F,D} = MathOptInterface.canget(m,attr)
+                                 cref::MathOptInterface.ConstraintIndex{F,D}) where {F,D} = MathOptInterface.canget(m,attr)
 
 
 function MathOptInterface.get(
     m     ::MosekModel,
     attr  ::MathOptInterface.ConstraintDual,
-    cref  ::MathOptInterface.ConstraintReference{MathOptInterface.SingleVariable,D}) where { D <: MathOptInterface.AbstractSet }
+    cref  ::MathOptInterface.ConstraintIndex{MathOptInterface.SingleVariable,D}) where { D <: MathOptInterface.AbstractSet }
 
 
     xcid = ref2id(cref)
@@ -358,7 +358,7 @@ function MathOptInterface.get!(
     output::Vector{Float64},
     m     ::MosekModel,
     attr  ::MathOptInterface.ConstraintDual,
-    cref  ::MathOptInterface.ConstraintReference{MathOptInterface.VectorOfVariables,MathOptInterface.PositiveSemidefiniteConeTriangle})
+    cref  ::MathOptInterface.ConstraintIndex{MathOptInterface.VectorOfVariables,MathOptInterface.PositiveSemidefiniteConeTriangle})
 
     whichsol = getsolcode(m,attr.N)
     cid = ref2id(cref)
@@ -379,7 +379,7 @@ function MathOptInterface.get!{D}(
     output::Vector{Float64},
     m     ::MosekModel,
     attr  ::MathOptInterface.ConstraintDual,
-    cref  ::MathOptInterface.ConstraintReference{MathOptInterface.VectorOfVariables,D})
+    cref  ::MathOptInterface.ConstraintIndex{MathOptInterface.VectorOfVariables,D})
 
     xcid = ref2id(cref)
     assert(xcid > 0)
@@ -417,7 +417,7 @@ end
 
 function MathOptInterface.get{D}(m     ::MosekModel,
                                           attr  ::MathOptInterface.ConstraintDual,
-                                          cref  ::MathOptInterface.ConstraintReference{MathOptInterface.ScalarAffineFunction{Float64},D})
+                                          cref  ::MathOptInterface.ConstraintIndex{MathOptInterface.ScalarAffineFunction{Float64},D})
     cid = ref2id(cref)
     subi = getindexes(m.c_block,cid)[1]
 
@@ -433,7 +433,7 @@ function MathOptInterface.get!(
     output::Vector{Float64},
     m     ::MosekModel,
     attr  ::MathOptInterface.ConstraintDual,
-    cref  ::MathOptInterface.ConstraintReference{MathOptInterface.VectorAffineFunction{Float64},D}) where { D <: MathOptInterface.AbstractSet }
+    cref  ::MathOptInterface.ConstraintIndex{MathOptInterface.VectorAffineFunction{Float64},D}) where { D <: MathOptInterface.AbstractSet }
 
     cid = ref2id(cref)
     subi = getindexes(m.c_block,cid)
@@ -478,8 +478,8 @@ end
 
 
 
-solsize(m::MosekModel, cref :: MathOptInterface.ConstraintReference{<:MathOptInterface.AbstractScalarFunction}) = 1
-function solsize(m::MosekModel, cref :: MathOptInterface.ConstraintReference{MathOptInterface.VectorOfVariables})
+solsize(m::MosekModel, cref :: MathOptInterface.ConstraintIndex{<:MathOptInterface.AbstractScalarFunction}) = 1
+function solsize(m::MosekModel, cref :: MathOptInterface.ConstraintIndex{MathOptInterface.VectorOfVariables})
     cid = ref2id(cref)
     if cid < 0
         blocksize(m.c_block,-cid)
@@ -488,12 +488,12 @@ function solsize(m::MosekModel, cref :: MathOptInterface.ConstraintReference{Mat
     end
 end
 
-function solsize(m::MosekModel, cref :: MathOptInterface.ConstraintReference{<:MathOptInterface.VectorAffineFunction})
+function solsize(m::MosekModel, cref :: MathOptInterface.ConstraintIndex{<:MathOptInterface.VectorAffineFunction})
     cid = ref2id(cref)
     blocksize(m.c_block,cid)
 end
 
-function MathOptInterface.get{F <: MathOptInterface.AbstractVectorFunction,D}(m::MosekModel, attr::Union{MathOptInterface.ConstraintPrimal, MathOptInterface.ConstraintDual}, cref :: MathOptInterface.ConstraintReference{F,D})
+function MathOptInterface.get{F <: MathOptInterface.AbstractVectorFunction,D}(m::MosekModel, attr::Union{MathOptInterface.ConstraintPrimal, MathOptInterface.ConstraintDual}, cref :: MathOptInterface.ConstraintIndex{F,D})
     cid = ref2id(cref)
     output = Vector{Float64}(solsize(m,cref))
     MathOptInterface.get!(output,m,attr,cref)
