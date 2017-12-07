@@ -1,64 +1,64 @@
 
 #### solver attributes
-#MathOptInterface.get(m::Union{MosekSolver,MosekModel},::MathOptInterface.SupportsDuals) = true
-#MathOptInterface.get(m::Union{MosekSolver,MosekModel},::MathOptInterface.SupportsAddConstraintAfterSolve) = true
-#MathOptInterface.get(m::Union{MosekSolver,MosekModel},::MathOptInterface.SupportsAddVariableAfterSolve) = true
-#MathOptInterface.get(m::Union{MosekSolver,MosekModel},::MathOptInterface.SupportsDeleteConstraint) = true
-#MathOptInterface.get(m::Union{MosekSolver,MosekModel},::MathOptInterface.SupportsDeleteVariable) = true
-#MathOptInterface.get(m::Union{MosekSolver,MosekModel},::MathOptInterface.SupportsConicThroughQuadratic) = false # though actually the solver does
+#MOI.get(m::Union{MosekSolver,MosekModel},::MOI.SupportsDuals) = true
+#MOI.get(m::Union{MosekSolver,MosekModel},::MOI.SupportsAddConstraintAfterSolve) = true
+#MOI.get(m::Union{MosekSolver,MosekModel},::MOI.SupportsAddVariableAfterSolve) = true
+#MOI.get(m::Union{MosekSolver,MosekModel},::MOI.SupportsDeleteConstraint) = true
+#MOI.get(m::Union{MosekSolver,MosekModel},::MOI.SupportsDeleteVariable) = true
+#MOI.get(m::Union{MosekSolver,MosekModel},::MOI.SupportsConicThroughQuadratic) = false # though actually the solver does
 
 #### objective
-MathOptInterface.get(m::MosekModel,attr::MathOptInterface.ObjectiveValue) =
+MOI.get(m::MosekModel,attr::MOI.ObjectiveValue) =
     begin
         #showall(m.task)
         #showall(m.task[Sol(MSK_SOL_ITR)])
         getprimalobj(m.task,m.solutions[attr.resultindex].whichsol)
     end
-MathOptInterface.canget(m::MosekSolver,attr::MathOptInterface.ObjectiveValue) = true
-MathOptInterface.canget(m::MosekModel,attr::MathOptInterface.ObjectiveValue) = attr.resultindex > 0 && attr.resultindex <= length(m.solutions)
+MOI.canget(m::MosekSolver,attr::MOI.ObjectiveValue) = true
+MOI.canget(m::MosekModel,attr::MOI.ObjectiveValue) = attr.resultindex > 0 && attr.resultindex <= length(m.solutions)
 
-MathOptInterface.canget(m::MosekModel,attr::MathOptInterface.ObjectiveBound) = getintinf(m.task,MSK_IINF_MIO_NUM_RELAX) > 0
-MathOptInterface.get(m::MosekModel,attr::MathOptInterface.ObjectiveBound) = getdouinf(m.task,MSK_DINF_MIO_OBJ_BOUND)
+MOI.canget(m::MosekModel,attr::MOI.ObjectiveBound) = getintinf(m.task,MSK_IINF_MIO_NUM_RELAX) > 0
+MOI.get(m::MosekModel,attr::MOI.ObjectiveBound) = getdouinf(m.task,MSK_DINF_MIO_OBJ_BOUND)
 
-MathOptInterface.canget(m::MosekModel,attr::MathOptInterface.RelativeGap) = getdouinf(m.task,MSK_DINF_MIO_OBJ_REL_GAP) > -1.0
-MathOptInterface.get(m::MosekModel,attr::MathOptInterface.RelativeGap) = getdouinf(m.task,MSK_DINF_MIO_OBJ_REL_GAP)
+MOI.canget(m::MosekModel,attr::MOI.RelativeGap) = getdouinf(m.task,MSK_DINF_MIO_OBJ_REL_GAP) > -1.0
+MOI.get(m::MosekModel,attr::MOI.RelativeGap) = getdouinf(m.task,MSK_DINF_MIO_OBJ_REL_GAP)
 
-MathOptInterface.canget(m::MosekSolver,attr::MathOptInterface.SolveTime) = true
-MathOptInterface.canget(m::MosekModel,attr::MathOptInterface.SolveTime) = true
-MathOptInterface.get(m::MosekModel,attr::MathOptInterface.SolveTime) = getdouinf(m.task,MSK_DINF_OPTIMIZER_TIME)
+MOI.canget(m::MosekSolver,attr::MOI.SolveTime) = true
+MOI.canget(m::MosekModel,attr::MOI.SolveTime) = true
+MOI.get(m::MosekModel,attr::MOI.SolveTime) = getdouinf(m.task,MSK_DINF_OPTIMIZER_TIME)
 
-MathOptInterface.canget(m::MosekSolver,attr::MathOptInterface.ObjectiveSense) = true
-MathOptInterface.canget(m::MosekModel,attr::MathOptInterface.ObjectiveSense)  = true
-MathOptInterface.canset(m::MosekSolver,attr::MathOptInterface.ObjectiveSense) = true
-MathOptInterface.canset(m::MosekModel,attr::MathOptInterface.ObjectiveSense)  = true
+MOI.canget(m::MosekSolver,attr::MOI.ObjectiveSense) = true
+MOI.canget(m::MosekModel,attr::MOI.ObjectiveSense)  = true
+MOI.canset(m::MosekSolver,attr::MOI.ObjectiveSense) = true
+MOI.canset(m::MosekModel,attr::MOI.ObjectiveSense)  = true
 
 # NOTE: The MOSEK interface currently only supports Min and Max
-function MathOptInterface.get(m::MosekModel,attr::MathOptInterface.ObjectiveSense)
+function MOI.get(m::MosekModel,attr::MOI.ObjectiveSense)
     sense = getobjsense(m.task)
     if sense == MSK_OBJECTIVE_SENSE_MINIMIZE
-        MathOptInterface.MinSense
+        MOI.MinSense
     else
-        MathOptInterface.MaxSense
+        MOI.MaxSense
     end
 end
 
-function MathOptInterface.set!(m::MosekModel,attr::MathOptInterface.ObjectiveSense, sense::MathOptInterface.OptimizationSense)
-    if sense == MathOptInterface.MinSense
+function MOI.set!(m::MosekModel,attr::MOI.ObjectiveSense, sense::MOI.OptimizationSense)
+    if sense == MOI.MinSense
         putobjsense(m.task,MSK_OBJECTIVE_SENSE_MINIMIZE)
-    elseif sense == MathOptInterface.MaxSense
+    elseif sense == MOI.MaxSense
         putobjsense(m.task,MSK_OBJECTIVE_SENSE_MAXIMIZE)
     else
-        @assert sense == MathOptInterface.FeasibilitySense
+        @assert sense == MOI.FeasibilitySense
         putobjsense(m.task,MSK_OBJECTIVE_SENSE_MINIMIZE)
-        MathOptInterface.set!(m, MathOptInterface.ObjectiveFunction(), MathOptInterface.ScalarAffineFunction(MathOptInterface.VariableIndex[], Float64[], 0.))
+        MOI.set!(m, MOI.ObjectiveFunction(), MOI.ScalarAffineFunction(MOI.VariableIndex[], Float64[], 0.))
     end
 end
 
 #### Solver/Solution information
 
-MathOptInterface.canget(m::MosekSolver,attr::MathOptInterface.SimplexIterations) = true
-MathOptInterface.canget(m::MosekModel,attr::MathOptInterface.SimplexIterations) = true
-function MathOptInterface.get(m::MosekModel,attr::MathOptInterface.SimplexIterations)
+MOI.canget(m::MosekSolver,attr::MOI.SimplexIterations) = true
+MOI.canget(m::MosekModel,attr::MOI.SimplexIterations) = true
+function MOI.get(m::MosekModel,attr::MOI.SimplexIterations)
     miosimiter = getlintinf(m.task,MSK_LIINF_MIO_SIMPLEX_ITER)
     if miosimiter > 0
         Int(miosimiter)
@@ -67,9 +67,9 @@ function MathOptInterface.get(m::MosekModel,attr::MathOptInterface.SimplexIterat
     end
 end
 
-MathOptInterface.canget(m::MosekSolver,attr::MathOptInterface.BarrierIterations) = true
-MathOptInterface.canget(m::MosekModel,attr::MathOptInterface.BarrierIterations) = true
-function MathOptInterface.get(m::MosekModel,attr::MathOptInterface.BarrierIterations)
+MOI.canget(m::MosekSolver,attr::MOI.BarrierIterations) = true
+MOI.canget(m::MosekModel,attr::MOI.BarrierIterations) = true
+function MOI.get(m::MosekModel,attr::MOI.BarrierIterations)
     miosimiter = getlintinf(m.task,MSK_LIINF_MIO_INTPNT_ITER)
     if miosimiter > 0
         Int(miosimiter)
@@ -78,42 +78,42 @@ function MathOptInterface.get(m::MosekModel,attr::MathOptInterface.BarrierIterat
     end
 end
 
-MathOptInterface.canget(m::MosekSolver,attr::MathOptInterface.NodeCount) = true
-MathOptInterface.canget(m::MosekModel,attr::MathOptInterface.NodeCount) = true
-function MathOptInterface.get(m::MosekModel,attr::MathOptInterface.NodeCount)
+MOI.canget(m::MosekSolver,attr::MOI.NodeCount) = true
+MOI.canget(m::MosekModel,attr::MOI.NodeCount) = true
+function MOI.get(m::MosekModel,attr::MOI.NodeCount)
         Int(getintinf(m.task,MSK_IINF_MIO_NUM_BRANCH))
 end
 
-MathOptInterface.canget(m::MosekSolver,attr::MathOptInterface.RawSolver) = true
-MathOptInterface.canget(m::MosekModel,attr::MathOptInterface.RawSolver) = true
-MathOptInterface.get(m::MosekModel,attr::MathOptInterface.RawSolver) = m.task
+MOI.canget(m::MosekSolver,attr::MOI.RawSolver) = true
+MOI.canget(m::MosekModel,attr::MOI.RawSolver) = true
+MOI.get(m::MosekModel,attr::MOI.RawSolver) = m.task
 
-MathOptInterface.canget(m::MosekSolver,attr::MathOptInterface.ResultCount) = true
-MathOptInterface.canget(m::MosekModel,attr::MathOptInterface.ResultCount) = true
-MathOptInterface.get(m::MosekModel,attr::MathOptInterface.ResultCount) = length(m.solutions)
+MOI.canget(m::MosekSolver,attr::MOI.ResultCount) = true
+MOI.canget(m::MosekModel,attr::MOI.ResultCount) = true
+MOI.get(m::MosekModel,attr::MOI.ResultCount) = length(m.solutions)
 
 #### Problem information
 
-MathOptInterface.canget(m::MosekSolver,attr::MathOptInterface.NumberOfVariables) = true
-MathOptInterface.canget(m::MosekModel,attr::MathOptInterface.NumberOfVariables) = true
-MathOptInterface.get(m::MosekModel,attr::MathOptInterface.NumberOfVariables) = m.publicnumvar
+MOI.canget(m::MosekSolver,attr::MOI.NumberOfVariables) = true
+MOI.canget(m::MosekModel,attr::MOI.NumberOfVariables) = true
+MOI.get(m::MosekModel,attr::MOI.NumberOfVariables) = m.publicnumvar
 
-MathOptInterface.canget(m::MosekSolver,attr::MathOptInterface.NumberOfConstraints) = true
-MathOptInterface.canget{F,D}(m::MosekModel,attr::MathOptInterface.NumberOfConstraints{F,D}) = true
-MathOptInterface.get{F,D}(m::MosekModel,attr::MathOptInterface.NumberOfConstraints{F,D}) = length(select(m.constrmap,F,D))
+MOI.canget(m::MosekSolver,attr::MOI.NumberOfConstraints) = true
+MOI.canget{F,D}(m::MosekModel,attr::MOI.NumberOfConstraints{F,D}) = true
+MOI.get{F,D}(m::MosekModel,attr::MOI.NumberOfConstraints{F,D}) = length(select(m.constrmap,F,D))
 
-#MathOptInterface.canget(m::MosekSolver,attr::MathOptInterface.ListOfVariableIndices) = false
-#MathOptInterface.canget(m::MosekSolver,attr::MathOptInterface.ListOfConstraints) = false
+#MOI.canget(m::MosekSolver,attr::MOI.ListOfVariableIndices) = false
+#MOI.canget(m::MosekSolver,attr::MOI.ListOfConstraints) = false
 
-MathOptInterface.canget{F,D}(m::MosekSolver,attr::MathOptInterface.ListOfConstraintIndices{F,D}) = true
-MathOptInterface.get{F,D}(m::MosekSolver,attr::MathOptInterface.ListOfConstraintIndices{F,D}) = keys(select(m.constrmap,F,D))
+MOI.canget{F,D}(m::MosekSolver,attr::MOI.ListOfConstraintIndices{F,D}) = true
+MOI.get{F,D}(m::MosekSolver,attr::MOI.ListOfConstraintIndices{F,D}) = keys(select(m.constrmap,F,D))
 
 
 #### Warm start values
 
-MathOptInterface.canset(m::MosekSolver,attr::MathOptInterface.VariablePrimalStart) = true
-MathOptInterface.canset(m::MosekModel,attr::MathOptInterface.VariablePrimalStart) = true
-function MathOptInterface.set!(m::MosekModel,attr::MathOptInterface.VariablePrimalStart, v :: MathOptInterface.VariableIndex, val::Float64)
+MOI.canset(m::MosekSolver,attr::MOI.VariablePrimalStart) = true
+MOI.canset(m::MosekModel,attr::MOI.VariablePrimalStart) = true
+function MOI.set!(m::MosekModel,attr::MOI.VariablePrimalStart, v :: MOI.VariableIndex, val::Float64)
     subj = getindexes(m.x_block,ref2id(v))
 
     xx = Float64[val]
@@ -122,7 +122,7 @@ function MathOptInterface.set!(m::MosekModel,attr::MathOptInterface.VariablePrim
     end
 end
 
-function MathOptInterface.set!(m::MosekModel,attr::MathOptInterface.VariablePrimalStart, vs::Vector{MathOptInterface.VariableIndex}, vals::Vector{Float64})
+function MOI.set!(m::MosekModel,attr::MOI.VariablePrimalStart, vs::Vector{MOI.VariableIndex}, vals::Vector{Float64})
     subj = Array{Int}(length(vs))
     for i in 1:length(subj)
         getindexes(m.x_block,ref2id(vs[i]),subj,i)
@@ -141,13 +141,13 @@ function MathOptInterface.set!(m::MosekModel,attr::MathOptInterface.VariablePrim
     end
 end
 
-MathOptInterface.canset(m::MosekSolver,attr::MathOptInterface.ConstraintPrimalStart) = false # not sure what exactly this would be...
-MathOptInterface.canset(m::MosekModel,attr::MathOptInterface.ConstraintPrimalStart) = false
+MOI.canset(m::MosekSolver,attr::MOI.ConstraintPrimalStart) = false # not sure what exactly this would be...
+MOI.canset(m::MosekModel,attr::MOI.ConstraintPrimalStart) = false
 
-MathOptInterface.canset(m::MosekSolver,attr::MathOptInterface.ConstraintDualStart) = false # for now
-MathOptInterface.canset(m::MosekModel,attr::MathOptInterface.ConstraintDualStart) = false
+MOI.canset(m::MosekSolver,attr::MOI.ConstraintDualStart) = false # for now
+MOI.canset(m::MosekModel,attr::MOI.ConstraintDualStart) = false
 
-# function MathOptInterface.set!(m::MosekModel,attr::MathOptInterface.ConstraintDualStart, vs::Vector{MathOptInterface.ConstraintIndex}, vals::Vector{Float64})
+# function MOI.set!(m::MosekModel,attr::MOI.ConstraintDualStart, vs::Vector{MOI.ConstraintIndex}, vals::Vector{Float64})
 #     subj = Array{Int}(length(vs))
 #     for i in 1:length(subj)
 #         getindexes(m.x_block,ref2id(vs[i]),subj,i)
@@ -170,14 +170,14 @@ MathOptInterface.canset(m::MosekModel,attr::MathOptInterface.ConstraintDualStart
 
 #### Variable solution values
 
-MathOptInterface.canget(m::MosekModel,attr::MathOptInterface.VariablePrimal) = attr.N > 0 && attr.N <= length(m.solutions)
-MathOptInterface.canget(m::MosekSolver,attr::MathOptInterface.VariablePrimal) = true
+MOI.canget(m::MosekModel,attr::MOI.VariablePrimal) = attr.N > 0 && attr.N <= length(m.solutions)
+MOI.canget(m::MosekSolver,attr::MOI.VariablePrimal) = true
 
-MathOptInterface.canget(m::MosekModel,attr::MathOptInterface.VariablePrimal,vs::Vector{MathOptInterface.VariableIndex}) = MathOptInterface.canget(m,attr)
-MathOptInterface.canget(m::MosekModel,attr::MathOptInterface.VariablePrimal,v::MathOptInterface.VariableIndex) = MathOptInterface.canget(m,attr)
+MOI.canget(m::MosekModel,attr::MOI.VariablePrimal,vs::Vector{MOI.VariableIndex}) = MOI.canget(m,attr)
+MOI.canget(m::MosekModel,attr::MOI.VariablePrimal,v::MOI.VariableIndex) = MOI.canget(m,attr)
 
 
-function MathOptInterface.get!(output::Vector{Float64},m::MosekModel,attr::MathOptInterface.VariablePrimal, vs::Vector{MathOptInterface.VariableIndex})
+function MOI.get!(output::Vector{Float64},m::MosekModel,attr::MOI.VariablePrimal, vs::Vector{MOI.VariableIndex})
     subj = Array{Int}(length(vs))
     for i in 1:length(subj)
         getindexes(m.x_block,ref2id(vs[i]),subj,i)
@@ -186,13 +186,13 @@ function MathOptInterface.get!(output::Vector{Float64},m::MosekModel,attr::MathO
     output[1:length(output)] = m.solutions[attr.N].xx[subj]
 end
 
-function MathOptInterface.get(m::MosekModel,attr::MathOptInterface.VariablePrimal, vs::Vector{MathOptInterface.VariableIndex})
+function MOI.get(m::MosekModel,attr::MOI.VariablePrimal, vs::Vector{MOI.VariableIndex})
     output = Vector{Float64}(length(vs))
-    MathOptInterface.get!(output,m,attr,vs)
+    MOI.get!(output,m,attr,vs)
     output
 end
 
-function MathOptInterface.get(m::MosekModel,attr::MathOptInterface.VariablePrimal, vref::MathOptInterface.VariableIndex)
+function MOI.get(m::MosekModel,attr::MOI.VariablePrimal, vref::MOI.VariableIndex)
     subj = getindexes(m.x_block,ref2id(vref))[1]
     m.solutions[attr.N].xx[subj]
 end
@@ -202,11 +202,11 @@ end
 
 
 
-MathOptInterface.canget(m::MosekSolver,attr::MathOptInterface.VariableBasisStatus) = false # is a solution selector missing?
-MathOptInterface.canget(m::MosekModel,attr::MathOptInterface.VariableBasisStatus)  = false
+MOI.canget(m::MosekSolver,attr::MOI.VariableBasisStatus) = false # is a solution selector missing?
+MOI.canget(m::MosekModel,attr::MOI.VariableBasisStatus)  = false
 
 #### Constraint solution values
-function canget(m::MosekModel,attr::MathOptInterface.ConstraintPrimal)
+function canget(m::MosekModel,attr::MOI.ConstraintPrimal)
     num = 0
     if solutiondef(m.task,MSK_SOL_ITG) num += 1 end
     if solutiondef(m.task,MSK_SOL_BAS) num += 1 end
@@ -214,13 +214,13 @@ function canget(m::MosekModel,attr::MathOptInterface.ConstraintPrimal)
     attr.N > 0 && attr.N <= num
 end
 
-MathOptInterface.canget(m::MosekModel,attr::MathOptInterface.ConstraintPrimal, cref::MathOptInterface.ConstraintIndex) = canget(m,attr)
-MathOptInterface.canget(m::MosekModel,attr::MathOptInterface.ConstraintPrimal, cref::MathOptInterface.ConstraintIndex{MathOptInterface.ScalarAffineFunction{Float64},MathOptInterface.LessThan{Float64}}) = canget(m,attr)
+MOI.canget(m::MosekModel,attr::MOI.ConstraintPrimal, cref::MOI.ConstraintIndex) = canget(m,attr)
+MOI.canget(m::MosekModel,attr::MOI.ConstraintPrimal, cref::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},MOI.LessThan{Float64}}) = canget(m,attr)
 
-function MathOptInterface.get{D}(
+function MOI.get{D}(
     m     ::MosekModel,
-    attr  ::MathOptInterface.ConstraintPrimal,
-    cref  ::MathOptInterface.ConstraintIndex{MathOptInterface.SingleVariable,D})
+    attr  ::MOI.ConstraintPrimal,
+    cref  ::MOI.ConstraintIndex{MOI.SingleVariable,D})
 
     conid = ref2id(cref)
     idxs  = getindexes(m.xc_block,conid)
@@ -230,11 +230,11 @@ function MathOptInterface.get{D}(
 end
 
 # Semidefinite domain for a variable
-function MathOptInterface.get!(
+function MOI.get!(
     output::Vector{Float64},
     m     ::MosekModel,
-    attr  ::MathOptInterface.ConstraintPrimal,
-    cref  ::MathOptInterface.ConstraintIndex{MathOptInterface.VectorOfVariables,MathOptInterface.PositiveSemidefiniteConeTriangle})
+    attr  ::MOI.ConstraintPrimal,
+    cref  ::MOI.ConstraintIndex{MOI.VectorOfVariables,MOI.PositiveSemidefiniteConeTriangle})
 
     whichsol = getsolcode(m,attr.N)
     cid = ref2id(cref)
@@ -246,11 +246,11 @@ function MathOptInterface.get!(
 end
 
 # Any other domain for variable vector
-function MathOptInterface.get!{D}(
+function MOI.get!{D}(
     output::Vector{Float64},
     m     ::MosekModel,
-    attr  ::MathOptInterface.ConstraintPrimal,
-    cref  ::MathOptInterface.ConstraintIndex{MathOptInterface.VectorOfVariables,D})
+    attr  ::MOI.ConstraintPrimal,
+    cref  ::MOI.ConstraintIndex{MOI.VectorOfVariables,D})
 
     xcid = ref2id(cref)
     assert(xcid > 0)
@@ -262,9 +262,9 @@ function MathOptInterface.get!{D}(
     output[1:length(output)] = m.solutions[attr.N].xx[subj]
 end
 
-function MathOptInterface.get{D}(m     ::MosekModel,
-                                          attr  ::MathOptInterface.ConstraintPrimal,
-                                          cref  ::MathOptInterface.ConstraintIndex{MathOptInterface.ScalarAffineFunction{Float64},D})
+function MOI.get{D}(m     ::MosekModel,
+                                          attr  ::MOI.ConstraintPrimal,
+                                          cref  ::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D})
     cid = ref2id(cref)
     subi = getindexes(m.c_block,cid)[1]
     m.solutions[attr.N].xc[subi]
@@ -272,11 +272,11 @@ end
 
 
 
-function MathOptInterface.get!{D}(
+function MOI.get!{D}(
     output::Vector{Float64},
     m     ::MosekModel,
-    attr  ::MathOptInterface.ConstraintPrimal,
-    cref  ::MathOptInterface.ConstraintIndex{MathOptInterface.VectorAffineFunction{Float64},D})
+    attr  ::MOI.ConstraintPrimal,
+    cref  ::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},D})
 
     cid = ref2id(cref)
     subi = getindexes(m.c_block,cid)
@@ -305,17 +305,17 @@ end
 
 
 
-MathOptInterface.canget(m::MosekModel,attr::MathOptInterface.ConstraintDual) = attr.N > 0 && attr.N <= length(m.solutions)
-MathOptInterface.canget(m::MosekModel,attr::MathOptInterface.ConstraintDual, crefs::Vector{MathOptInterface.ConstraintIndex}) = MathOptInterface.canget(m,attr)
-MathOptInterface.canget(m::MosekModel,
-                                 attr::MathOptInterface.ConstraintDual,
-                                 cref::MathOptInterface.ConstraintIndex{F,D}) where {F,D} = MathOptInterface.canget(m,attr)
+MOI.canget(m::MosekModel,attr::MOI.ConstraintDual) = attr.N > 0 && attr.N <= length(m.solutions)
+MOI.canget(m::MosekModel,attr::MOI.ConstraintDual, crefs::Vector{MOI.ConstraintIndex}) = MOI.canget(m,attr)
+MOI.canget(m::MosekModel,
+                                 attr::MOI.ConstraintDual,
+                                 cref::MOI.ConstraintIndex{F,D}) where {F,D} = MOI.canget(m,attr)
 
 
-function MathOptInterface.get(
+function MOI.get(
     m     ::MosekModel,
-    attr  ::MathOptInterface.ConstraintDual,
-    cref  ::MathOptInterface.ConstraintIndex{MathOptInterface.SingleVariable,D}) where { D <: MathOptInterface.AbstractSet }
+    attr  ::MOI.ConstraintDual,
+    cref  ::MOI.ConstraintIndex{MOI.SingleVariable,D}) where { D <: MOI.AbstractSet }
 
 
     xcid = ref2id(cref)
@@ -354,11 +354,11 @@ end
 getsolcode(m::MosekModel, N) = m.solutions[N].whichsol
 
 # Semidefinite domain for a variable
-function MathOptInterface.get!(
+function MOI.get!(
     output::Vector{Float64},
     m     ::MosekModel,
-    attr  ::MathOptInterface.ConstraintDual,
-    cref  ::MathOptInterface.ConstraintIndex{MathOptInterface.VectorOfVariables,MathOptInterface.PositiveSemidefiniteConeTriangle})
+    attr  ::MOI.ConstraintDual,
+    cref  ::MOI.ConstraintIndex{MOI.VectorOfVariables,MOI.PositiveSemidefiniteConeTriangle})
 
     whichsol = getsolcode(m,attr.N)
     cid = ref2id(cref)
@@ -375,11 +375,11 @@ function MathOptInterface.get!(
 end
 
 # Any other domain for variable vector
-function MathOptInterface.get!{D}(
+function MOI.get!{D}(
     output::Vector{Float64},
     m     ::MosekModel,
-    attr  ::MathOptInterface.ConstraintDual,
-    cref  ::MathOptInterface.ConstraintIndex{MathOptInterface.VectorOfVariables,D})
+    attr  ::MOI.ConstraintDual,
+    cref  ::MOI.ConstraintIndex{MOI.VectorOfVariables,D})
 
     xcid = ref2id(cref)
     assert(xcid > 0)
@@ -415,9 +415,9 @@ function MathOptInterface.get!{D}(
     end
 end
 
-function MathOptInterface.get{D}(m     ::MosekModel,
-                                          attr  ::MathOptInterface.ConstraintDual,
-                                          cref  ::MathOptInterface.ConstraintIndex{MathOptInterface.ScalarAffineFunction{Float64},D})
+function MOI.get{D}(m     ::MosekModel,
+                                          attr  ::MOI.ConstraintDual,
+                                          cref  ::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D})
     cid = ref2id(cref)
     subi = getindexes(m.c_block,cid)[1]
 
@@ -429,11 +429,11 @@ function MathOptInterface.get{D}(m     ::MosekModel,
 end
 
 
-function MathOptInterface.get!(
+function MOI.get!(
     output::Vector{Float64},
     m     ::MosekModel,
-    attr  ::MathOptInterface.ConstraintDual,
-    cref  ::MathOptInterface.ConstraintIndex{MathOptInterface.VectorAffineFunction{Float64},D}) where { D <: MathOptInterface.AbstractSet }
+    attr  ::MOI.ConstraintDual,
+    cref  ::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},D}) where { D <: MOI.AbstractSet }
 
     cid = ref2id(cref)
     subi = getindexes(m.c_block,cid)
@@ -478,8 +478,8 @@ end
 
 
 
-solsize(m::MosekModel, cref :: MathOptInterface.ConstraintIndex{<:MathOptInterface.AbstractScalarFunction}) = 1
-function solsize(m::MosekModel, cref :: MathOptInterface.ConstraintIndex{MathOptInterface.VectorOfVariables})
+solsize(m::MosekModel, cref :: MOI.ConstraintIndex{<:MOI.AbstractScalarFunction}) = 1
+function solsize(m::MosekModel, cref :: MOI.ConstraintIndex{MOI.VectorOfVariables})
     cid = ref2id(cref)
     if cid < 0
         blocksize(m.c_block,-cid)
@@ -488,15 +488,15 @@ function solsize(m::MosekModel, cref :: MathOptInterface.ConstraintIndex{MathOpt
     end
 end
 
-function solsize(m::MosekModel, cref :: MathOptInterface.ConstraintIndex{<:MathOptInterface.VectorAffineFunction})
+function solsize(m::MosekModel, cref :: MOI.ConstraintIndex{<:MOI.VectorAffineFunction})
     cid = ref2id(cref)
     blocksize(m.c_block,cid)
 end
 
-function MathOptInterface.get{F <: MathOptInterface.AbstractVectorFunction,D}(m::MosekModel, attr::Union{MathOptInterface.ConstraintPrimal, MathOptInterface.ConstraintDual}, cref :: MathOptInterface.ConstraintIndex{F,D})
+function MOI.get{F <: MOI.AbstractVectorFunction,D}(m::MosekModel, attr::Union{MOI.ConstraintPrimal, MOI.ConstraintDual}, cref :: MOI.ConstraintIndex{F,D})
     cid = ref2id(cref)
     output = Vector{Float64}(solsize(m,cref))
-    MathOptInterface.get!(output,m,attr,cref)
+    MOI.get!(output,m,attr,cref)
     output
 end
 
@@ -506,44 +506,44 @@ end
 
 
 #### Status codes
-MathOptInterface.canget(m::MosekModel,attr::MathOptInterface.TerminationStatus) = true
-function MathOptInterface.get(m::MosekModel,attr::MathOptInterface.TerminationStatus)
+MOI.canget(m::MosekModel,attr::MOI.TerminationStatus) = true
+function MOI.get(m::MosekModel,attr::MOI.TerminationStatus)
     if     m.trm == MSK_RES_OK
-        MathOptInterface.Success
+        MOI.Success
     elseif m.trm == MSK_RES_TRM_MAX_ITERATIONS
-        MathOptInterface.IterationLimit
+        MOI.IterationLimit
     elseif m.trm == MSK_RES_TRM_MAX_TIME
-        MathOptInterface.TimeLimit
+        MOI.TimeLimit
     elseif m.trm == MSK_RES_TRM_OBJECTIVE_RANGE
-        MathOptInterface.ObjectiveLimit
+        MOI.ObjectiveLimit
     elseif m.trm == MSK_RES_TRM_MIO_NEAR_REL_GAP
-        MathOptInterface.AlmostSuccess
+        MOI.AlmostSuccess
     elseif m.trm == MSK_RES_TRM_MIO_NEAR_ABS_GAP
-        MathOptInterface.AlmostSuccess
+        MOI.AlmostSuccess
     elseif m.trm == MSK_RES_TRM_MIO_NUM_RELAXS
-        MathOptInterface.OtherLimit
+        MOI.OtherLimit
     elseif m.trm == MSK_RES_TRM_MIO_NUM_BRANCHES
-        MathOptInterface.NodeLimit
+        MOI.NodeLimit
     elseif m.trm == MSK_RES_TRM_NUM_MAX_NUM_INT_SOLUTIONS
-        MathOptInterface.SolutionLimit
+        MOI.SolutionLimit
     elseif m.trm == MSK_RES_TRM_STALL
-        MathOptInterface.SlowProgress
+        MOI.SlowProgress
     elseif m.trm == MSK_RES_TRM_USER_CALLBACK
-        MathOptInterface.Interrupted
+        MOI.Interrupted
     elseif m.trm == MSK_RES_TRM_MAX_NUM_SETBACKS
-        MathOptInterface.OtherLimit
+        MOI.OtherLimit
     elseif m.trm == MSK_RES_TRM_NUMERICAL_PROBLEM
-        MathOptInterface.SlowProgress
+        MOI.SlowProgress
     elseif m.trm == MSK_RES_TRM_INTERNAL
-        MathOptInterface.OtherError
+        MOI.OtherError
     elseif m.trm == MSK_RES_TRM_INTERNAL_STOP
-        MathOptInterface.OtherError
+        MOI.OtherError
     else
-        MathOptInterface.OtherError
+        MOI.OtherError
     end
 end
 
-function MathOptInterface.canget(m::MosekModel,attr::MathOptInterface.PrimalStatus)
+function MOI.canget(m::MosekModel,attr::MOI.PrimalStatus)
     if attr.N < 0 || attr.N > length(m.solutions)
         false
     else
@@ -569,48 +569,48 @@ function MathOptInterface.canget(m::MosekModel,attr::MathOptInterface.PrimalStat
         end
     end
 end
-function MathOptInterface.get(m::MosekModel,attr::MathOptInterface.PrimalStatus)
+function MOI.get(m::MosekModel,attr::MOI.PrimalStatus)
     solsta = m.solutions[attr.N].solsta
     if     solsta == MSK_SOL_STA_UNKNOWN
-        MathOptInterface.UnknownResultStatus
+        MOI.UnknownResultStatus
     elseif solsta == MSK_SOL_STA_OPTIMAL
-        MathOptInterface.FeasiblePoint
+        MOI.FeasiblePoint
     elseif solsta == MSK_SOL_STA_PRIM_FEAS
-        MathOptInterface.FeasiblePoint
+        MOI.FeasiblePoint
     elseif solsta == MSK_SOL_STA_DUAL_FEAS
-        MathOptInterface.UnknownResultStatus
+        MOI.UnknownResultStatus
     elseif solsta == MSK_SOL_STA_PRIM_AND_DUAL_FEAS
-        MathOptInterface.FeasiblePoint
+        MOI.FeasiblePoint
     elseif solsta == MSK_SOL_STA_NEAR_OPTIMAL
-        MathOptInterface.NearlyFeasiblePoint
+        MOI.NearlyFeasiblePoint
     elseif solsta == MSK_SOL_STA_NEAR_PRIM_FEAS
-        MathOptInterface.NearlyFeasiblePoint
+        MOI.NearlyFeasiblePoint
     elseif solsta == MSK_SOL_STA_NEAR_DUAL_FEAS
-        MathOptInterface.UnknownResultStatus
+        MOI.UnknownResultStatus
     elseif solsta == MSK_SOL_STA_NEAR_PRIM_AND_DUAL_FEAS
-        MathOptInterface.NearFeasiblePoint
+        MOI.NearFeasiblePoint
     elseif solsta == MSK_SOL_STA_PRIM_INFEAS_CER
-        MathOptInterface.UnknownResultStatus
+        MOI.UnknownResultStatus
     elseif solsta == MSK_SOL_STA_DUAL_INFEAS_CER
-        MathOptInterface.InfeasibilityCertificate
+        MOI.InfeasibilityCertificate
     elseif solsta == MSK_SOL_STA_NEAR_PRIM_INFEAS_CER
-        MathOptInterface.UnknownResultStatus
+        MOI.UnknownResultStatus
     elseif solsta == MSK_SOL_STA_NEAR_DUAL_INFEAS_CER
-        MathOptInterface.NearlyInfeasibilityCertificate
+        MOI.NearlyInfeasibilityCertificate
     elseif solsta == MSK_SOL_STA_PRIM_ILLPOSED_CER
-        MathOptInterface.UnknownResultStatus
+        MOI.UnknownResultStatus
     elseif solsta == MSK_SOL_STA_DUAL_ILLPOSED_CER
-        MathOptInterface.ReductionCertificate
+        MOI.ReductionCertificate
     elseif solsta == MSK_SOL_STA_INTEGER_OPTIMAL
-        MathOptInterface.FeasiblePoint
+        MOI.FeasiblePoint
     elseif solsta == MSK_SOL_STA_NEAR_INTEGER_OPTIMAL
-        MathOptInterface.NearlyFeasiblePoint
+        MOI.NearlyFeasiblePoint
     else
-        MathOptInterface.UnknownResultStatus
+        MOI.UnknownResultStatus
     end
 end
 
-function MathOptInterface.canget(m::MosekModel,attr::MathOptInterface.DualStatus)
+function MOI.canget(m::MosekModel,attr::MOI.DualStatus)
     if attr.N < 0 || attr.N > length(m.solutions)
         false
     else
@@ -636,43 +636,43 @@ function MathOptInterface.canget(m::MosekModel,attr::MathOptInterface.DualStatus
         end
     end
 end
-function MathOptInterface.get(m::MosekModel,attr::MathOptInterface.DualStatus)
+function MOI.get(m::MosekModel,attr::MOI.DualStatus)
     solsta = m.solutions[attr.N].solsta
     if     solsta == MSK_SOL_STA_UNKNOWN
-        MathOptInterface.UnknownResultStatus
+        MOI.UnknownResultStatus
     elseif solsta == MSK_SOL_STA_OPTIMAL
-        MathOptInterface.FeasiblePoint
+        MOI.FeasiblePoint
     elseif solsta == MSK_SOL_STA_PRIM_FEAS
-        MathOptInterface.UnknownResultStatus
+        MOI.UnknownResultStatus
     elseif solsta == MSK_SOL_STA_DUAL_FEAS
-        MathOptInterface.FeasiblePoint
+        MOI.FeasiblePoint
     elseif solsta == MSK_SOL_STA_PRIM_AND_DUAL_FEAS
-        MathOptInterface.FeasiblePoint
+        MOI.FeasiblePoint
     elseif solsta == MSK_SOL_STA_NEAR_OPTIMAL
-        MathOptInterface.NearlyFeasiblePoint
+        MOI.NearlyFeasiblePoint
     elseif solsta == MSK_SOL_STA_NEAR_PRIM_FEAS
-        MathOptInterface.UnknownResultStatus
+        MOI.UnknownResultStatus
     elseif solsta == MSK_SOL_STA_NEAR_DUAL_FEAS
-        MathOptInterface.NearlyFeasiblePoint
+        MOI.NearlyFeasiblePoint
     elseif solsta == MSK_SOL_STA_NEAR_PRIM_AND_DUAL_FEAS
-        MathOptInterface.NearFeasiblePoint
+        MOI.NearFeasiblePoint
     elseif solsta == MSK_SOL_STA_PRIM_INFEAS_CER
-        MathOptInterface.InfeasibilityCertificate
+        MOI.InfeasibilityCertificate
     elseif solsta == MSK_SOL_STA_DUAL_INFEAS_CER
-        MathOptInterface.UnknownResultStatus
+        MOI.UnknownResultStatus
     elseif solsta == MSK_SOL_STA_NEAR_PRIM_INFEAS_CER
-        MathOptInterface.NearlyInfeasibilityCertificate
+        MOI.NearlyInfeasibilityCertificate
     elseif solsta == MSK_SOL_STA_NEAR_DUAL_INFEAS_CER
-        MathOptInterface.UnknownResultStatus
+        MOI.UnknownResultStatus
     elseif solsta == MSK_SOL_STA_PRIM_ILLPOSED_CER
-        MathOptInterface.ReductionCertificate
+        MOI.ReductionCertificate
     elseif solsta == MSK_SOL_STA_DUAL_ILLPOSED_CER
-        MathOptInterface.UnknownResultStatus
+        MOI.UnknownResultStatus
     elseif solsta == MSK_SOL_STA_INTEGER_OPTIMAL
-        MathOptInterface.FeasiblePoint
+        MOI.FeasiblePoint
     elseif solsta == MSK_SOL_STA_NEAR_INTEGER_OPTIMAL
-        MathOptInterface.NearlyFeasiblePoint
+        MOI.NearlyFeasiblePoint
     else
-        MathOptInterface.UnknownResultStatus
+        MOI.UnknownResultStatus
     end
 end

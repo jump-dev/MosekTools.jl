@@ -1,8 +1,8 @@
 
 
-MathOptInterface.canget(::MosekModel, ::MathOptInterface.ObjectiveFunction) = true
+MOI.canget(::MosekModel, ::MOI.ObjectiveFunction) = true
 
-function MathOptInterface.set!(m::MosekModel, ::MathOptInterface.ObjectiveFunction, func::MathOptInterface.SingleVariable)
+function MOI.set!(m::MosekModel, ::MOI.ObjectiveFunction, func::MOI.SingleVariable)
     numvar = getnumvar(m.task)
     c = zeros(Float64,numvar)
     vid = ref2id(func.variable)
@@ -14,7 +14,7 @@ function MathOptInterface.set!(m::MosekModel, ::MathOptInterface.ObjectiveFuncti
     putcfix(m.task,0.0)
 end
 
-function MathOptInterface.set!(m::MosekModel, ::MathOptInterface.ObjectiveFunction, func::MathOptInterface.ScalarAffineFunction{Float64})
+function MOI.set!(m::MosekModel, ::MOI.ObjectiveFunction, func::MOI.ScalarAffineFunction{Float64})
     numvar = getnumvar(m.task)
     c = zeros(Float64,numvar)
     vids = [ ref2id(vid) for vid in func.variables ]
@@ -31,14 +31,14 @@ function MathOptInterface.set!(m::MosekModel, ::MathOptInterface.ObjectiveFuncti
     putcfix(m.task,func.constant)
 end
 
-MathOptInterface.canmodifyobjective(m::MosekModel, change :: MathOptInterface.ScalarConstantChange) = true
-MathOptInterface.canmodifyobjective(m::MosekModel, change :: MathOptInterface.ScalarCoefficientChange) = true
+MOI.canmodifyobjective(m::MosekModel, change :: MOI.ScalarConstantChange) = true
+MOI.canmodifyobjective(m::MosekModel, change :: MOI.ScalarCoefficientChange) = true
 
-function MathOptInterface.modifyobjective!(m::MosekModel, change :: MathOptInterface.ScalarConstantChange)
+function MOI.modifyobjective!(m::MosekModel, change :: MOI.ScalarConstantChange)
     putcfix(m.task,change.new_constant)
 end
 
-function MathOptInterface.modifyobjective!(m::MosekModel, change :: MathOptInterface.ScalarCoefficientChange)
+function MOI.modifyobjective!(m::MosekModel, change :: MOI.ScalarCoefficientChange)
     vid = ref2id(change.variable)
     subj = getindexes(m.x_block,vid)
     putcj(m.task,Int32(subj[1]),change.new_coefficient)
