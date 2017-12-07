@@ -2,8 +2,6 @@ using MathOptInterfaceMosek
 
 using Base.Test
 
-const MOI = MathOptInterface
-
 using MathOptInterfaceTests
 const MOIT = MathOptInterfaceTests
 
