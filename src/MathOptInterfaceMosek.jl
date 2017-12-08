@@ -1,6 +1,7 @@
 module MathOptInterfaceMosek
 
 import MathOptInterface
+const MOI = MathOptInterface
 using Mosek
 #using Mosek.Ext
 
@@ -74,38 +75,38 @@ struct ConstraintMap
 end
 
 ConstraintMap() = ConstraintMap([Dict{Int64,Int}() for i in 1:30]...)
-select(cm::ConstraintMap,::Type{MathOptInterface.SingleVariable},               ::Type{MathOptInterface.LessThan{Float64}}) =                cm.x_lessthan
-select(cm::ConstraintMap,::Type{MathOptInterface.SingleVariable},               ::Type{MathOptInterface.GreaterThan{Float64}}) =             cm.x_greaterthan
-select(cm::ConstraintMap,::Type{MathOptInterface.SingleVariable},               ::Type{MathOptInterface.EqualTo{Float64}}) =                 cm.x_equalto
-select(cm::ConstraintMap,::Type{MathOptInterface.SingleVariable},               ::Type{MathOptInterface.Interval{Float64}}) =                cm.x_interval
-select(cm::ConstraintMap,::Type{MathOptInterface.SingleVariable},               ::Type{MathOptInterface.Nonpositives}) =                     cm.x_nonpositives
-select(cm::ConstraintMap,::Type{MathOptInterface.SingleVariable},               ::Type{MathOptInterface.Nonnegatives}) =                     cm.x_nonnegatives
-select(cm::ConstraintMap,::Type{MathOptInterface.SingleVariable},               ::Type{MathOptInterface.ZeroOne}) =                          cm.x_binary
-select(cm::ConstraintMap,::Type{MathOptInterface.SingleVariable},               ::Type{MathOptInterface.Integer}) =                          cm.x_integer
-select(cm::ConstraintMap,::Type{MathOptInterface.VectorOfVariables},            ::Type{MathOptInterface.Nonpositives}) =                     cm.xs_nonpositives
-select(cm::ConstraintMap,::Type{MathOptInterface.VectorOfVariables},            ::Type{MathOptInterface.Nonnegatives}) =                     cm.xs_nonnegatives
-select(cm::ConstraintMap,::Type{MathOptInterface.VectorOfVariables},            ::Type{MathOptInterface.Zeros}) =                            cm.xs_zeros
-select(cm::ConstraintMap,::Type{MathOptInterface.VectorOfVariables},            ::Type{MathOptInterface.Reals}) =                            cm.xs_reals
-select(cm::ConstraintMap,::Type{MathOptInterface.VectorOfVariables},            ::Type{MathOptInterface.SecondOrderCone}) =                  cm.xs_qcone
-select(cm::ConstraintMap,::Type{MathOptInterface.VectorOfVariables},            ::Type{MathOptInterface.RotatedSecondOrderCone}) =           cm.xs_rqcone
-select(cm::ConstraintMap,::Type{MathOptInterface.VectorOfVariables},            ::Type{MathOptInterface.PositiveSemidefiniteConeTriangle}) = cm.xs_psdconetriangle
-select(cm::ConstraintMap,::Type{MathOptInterface.ScalarAffineFunction{Float64}},::Type{MathOptInterface.LessThan{Float64}}) =                cm.axb_lessthan
-select(cm::ConstraintMap,::Type{MathOptInterface.ScalarAffineFunction{Float64}},::Type{MathOptInterface.GreaterThan{Float64}}) =             cm.axb_greaterthan
-select(cm::ConstraintMap,::Type{MathOptInterface.ScalarAffineFunction{Float64}},::Type{MathOptInterface.EqualTo{Float64}}) =                 cm.axb_equalto
-select(cm::ConstraintMap,::Type{MathOptInterface.ScalarAffineFunction{Float64}},::Type{MathOptInterface.Interval{Float64}}) =                cm.axb_interval
-select(cm::ConstraintMap,::Type{MathOptInterface.ScalarAffineFunction{Float64}},::Type{MathOptInterface.ZeroOne}) =                          cm.axb_binary
-select(cm::ConstraintMap,::Type{MathOptInterface.ScalarAffineFunction{Float64}},::Type{MathOptInterface.Integer}) =                          cm.axb_integer
-select(cm::ConstraintMap,::Type{MathOptInterface.ScalarAffineFunction{Float64}},::Type{MathOptInterface.Nonpositives}) =                     cm.axb_nonpositives
-select(cm::ConstraintMap,::Type{MathOptInterface.ScalarAffineFunction{Float64}},::Type{MathOptInterface.Nonnegatives}) =                     cm.axb_nonnegatives
-select(cm::ConstraintMap,::Type{MathOptInterface.VectorAffineFunction{Float64}},::Type{MathOptInterface.Nonpositives}) =                     cm.axbs_nonpositives
-select(cm::ConstraintMap,::Type{MathOptInterface.VectorAffineFunction{Float64}},::Type{MathOptInterface.Nonnegatives}) =                     cm.axbs_nonnegatives
-select(cm::ConstraintMap,::Type{MathOptInterface.VectorAffineFunction{Float64}},::Type{MathOptInterface.Zeros}) =                            cm.axbs_zeros
-select(cm::ConstraintMap,::Type{MathOptInterface.VectorAffineFunction{Float64}},::Type{MathOptInterface.Reals}) =                            cm.axbs_reals
-select(cm::ConstraintMap,::Type{MathOptInterface.VectorAffineFunction{Float64}},::Type{MathOptInterface.SecondOrderCone}) =                  cm.axbs_qcone
-select(cm::ConstraintMap,::Type{MathOptInterface.VectorAffineFunction{Float64}},::Type{MathOptInterface.RotatedSecondOrderCone}) =           cm.axbs_rqcone
-select(cm::ConstraintMap,::Type{MathOptInterface.VectorAffineFunction{Float64}},::Type{MathOptInterface.PositiveSemidefiniteConeTriangle}) = cm.axbs_psdconetriangle
+select(cm::ConstraintMap,::Type{MOI.SingleVariable},               ::Type{MOI.LessThan{Float64}}) =                cm.x_lessthan
+select(cm::ConstraintMap,::Type{MOI.SingleVariable},               ::Type{MOI.GreaterThan{Float64}}) =             cm.x_greaterthan
+select(cm::ConstraintMap,::Type{MOI.SingleVariable},               ::Type{MOI.EqualTo{Float64}}) =                 cm.x_equalto
+select(cm::ConstraintMap,::Type{MOI.SingleVariable},               ::Type{MOI.Interval{Float64}}) =                cm.x_interval
+select(cm::ConstraintMap,::Type{MOI.SingleVariable},               ::Type{MOI.Nonpositives}) =                     cm.x_nonpositives
+select(cm::ConstraintMap,::Type{MOI.SingleVariable},               ::Type{MOI.Nonnegatives}) =                     cm.x_nonnegatives
+select(cm::ConstraintMap,::Type{MOI.SingleVariable},               ::Type{MOI.ZeroOne}) =                          cm.x_binary
+select(cm::ConstraintMap,::Type{MOI.SingleVariable},               ::Type{MOI.Integer}) =                          cm.x_integer
+select(cm::ConstraintMap,::Type{MOI.VectorOfVariables},            ::Type{MOI.Nonpositives}) =                     cm.xs_nonpositives
+select(cm::ConstraintMap,::Type{MOI.VectorOfVariables},            ::Type{MOI.Nonnegatives}) =                     cm.xs_nonnegatives
+select(cm::ConstraintMap,::Type{MOI.VectorOfVariables},            ::Type{MOI.Zeros}) =                            cm.xs_zeros
+select(cm::ConstraintMap,::Type{MOI.VectorOfVariables},            ::Type{MOI.Reals}) =                            cm.xs_reals
+select(cm::ConstraintMap,::Type{MOI.VectorOfVariables},            ::Type{MOI.SecondOrderCone}) =                  cm.xs_qcone
+select(cm::ConstraintMap,::Type{MOI.VectorOfVariables},            ::Type{MOI.RotatedSecondOrderCone}) =           cm.xs_rqcone
+select(cm::ConstraintMap,::Type{MOI.VectorOfVariables},            ::Type{MOI.PositiveSemidefiniteConeTriangle}) = cm.xs_psdconetriangle
+select(cm::ConstraintMap,::Type{MOI.ScalarAffineFunction{Float64}},::Type{MOI.LessThan{Float64}}) =                cm.axb_lessthan
+select(cm::ConstraintMap,::Type{MOI.ScalarAffineFunction{Float64}},::Type{MOI.GreaterThan{Float64}}) =             cm.axb_greaterthan
+select(cm::ConstraintMap,::Type{MOI.ScalarAffineFunction{Float64}},::Type{MOI.EqualTo{Float64}}) =                 cm.axb_equalto
+select(cm::ConstraintMap,::Type{MOI.ScalarAffineFunction{Float64}},::Type{MOI.Interval{Float64}}) =                cm.axb_interval
+select(cm::ConstraintMap,::Type{MOI.ScalarAffineFunction{Float64}},::Type{MOI.ZeroOne}) =                          cm.axb_binary
+select(cm::ConstraintMap,::Type{MOI.ScalarAffineFunction{Float64}},::Type{MOI.Integer}) =                          cm.axb_integer
+select(cm::ConstraintMap,::Type{MOI.ScalarAffineFunction{Float64}},::Type{MOI.Nonpositives}) =                     cm.axb_nonpositives
+select(cm::ConstraintMap,::Type{MOI.ScalarAffineFunction{Float64}},::Type{MOI.Nonnegatives}) =                     cm.axb_nonnegatives
+select(cm::ConstraintMap,::Type{MOI.VectorAffineFunction{Float64}},::Type{MOI.Nonpositives}) =                     cm.axbs_nonpositives
+select(cm::ConstraintMap,::Type{MOI.VectorAffineFunction{Float64}},::Type{MOI.Nonnegatives}) =                     cm.axbs_nonnegatives
+select(cm::ConstraintMap,::Type{MOI.VectorAffineFunction{Float64}},::Type{MOI.Zeros}) =                            cm.axbs_zeros
+select(cm::ConstraintMap,::Type{MOI.VectorAffineFunction{Float64}},::Type{MOI.Reals}) =                            cm.axbs_reals
+select(cm::ConstraintMap,::Type{MOI.VectorAffineFunction{Float64}},::Type{MOI.SecondOrderCone}) =                  cm.axbs_qcone
+select(cm::ConstraintMap,::Type{MOI.VectorAffineFunction{Float64}},::Type{MOI.RotatedSecondOrderCone}) =           cm.axbs_rqcone
+select(cm::ConstraintMap,::Type{MOI.VectorAffineFunction{Float64}},::Type{MOI.PositiveSemidefiniteConeTriangle}) = cm.axbs_psdconetriangle
 
-Base.getindex{F,D}(cm::ConstraintMap,r :: MathOptInterface.ConstraintIndex{F,D}) = select(cm,F,D)[r.value]
+Base.getindex{F,D}(cm::ConstraintMap,r :: MOI.ConstraintIndex{F,D}) = select(cm,F,D)[r.value]
 
 
 struct MosekSolution
@@ -137,7 +138,7 @@ some (currently between 1 and 3) Int64s that a `delete!` will not
 remove. This ensures that Indices (Variable and constraint) that
 are deleted are thereafter invalid.
 """
-mutable struct MosekModel  <: MathOptInterface.AbstractSolverInstance
+mutable struct MosekModel  <: MOI.AbstractSolverInstance
     task :: Mosek.MSKtask
 
 
@@ -286,11 +287,11 @@ function MosekInstance(; kws...)
     end
 end
 
-function MathOptInterface.free!(m::MosekModel)
+function MOI.free!(m::MosekModel)
     Mosek.deletetask(m.task)
 end
 
-function MathOptInterface.optimize!(m::MosekModel)
+function MOI.optimize!(m::MosekModel)
     m.trm = optimize(m.task)
     m.solutions = MosekSolution[]
     if solutiondef(m.task,MSK_SOL_ITG)
@@ -344,7 +345,7 @@ function MathOptInterface.optimize!(m::MosekModel)
     end
 end
 
-function MathOptInterface.write(m::MosekModel, filename :: String)
+function MOI.write(m::MosekModel, filename :: String)
     putintparam(m.task,MSK_IPAR_OPF_WRITE_SOLUTIONS, MSK_ON)
     writedata(m.task,filename)
 end
@@ -356,27 +357,27 @@ end
 # For non-quadratic problems we allow binary and integer variables (but not constraints)
 #function supportsconstraints(m::MosekSolver, constraint_types) :: Bool
 #    for (fun,dom) in constraint_types
-#        if  fun in [MathOptInterface.ScalarAffineFunction{Float64},
-#                    MathOptInterface.SingleVariable,
-#                    MathOptInterface.VectorAffineFunction{Float64},
-#                    MathOptInterface.VectorOfVariables] &&
-#            dom in [MathOptInterface.Zeros,
-#                    MathOptInterface.Reals,
-#                    MathOptInterface.Nonnegatives,
-#                    MathOptInterface.Nonpositives,
-#                    MathOptInterface.GreaterThan{Float64},
-#                    MathOptInterface.LessThan{Float64},
-#                    MathOptInterface.EqualTo{Float64},
-#                    MathOptInterface.Interval{Float64},
-#                    MathOptInterface.SecondOrderCone,
-#                    MathOptInterface.RotatedSecondOrderCone,
-#                    MathOptInterface.PositiveSemidefiniteConeTriangle,
-#                    MathOptInterface.PositiveSemidefiniteConeScaled ]
+#        if  fun in [MOI.ScalarAffineFunction{Float64},
+#                    MOI.SingleVariable,
+#                    MOI.VectorAffineFunction{Float64},
+#                    MOI.VectorOfVariables] &&
+#            dom in [MOI.Zeros,
+#                    MOI.Reals,
+#                    MOI.Nonnegatives,
+#                    MOI.Nonpositives,
+#                    MOI.GreaterThan{Float64},
+#                    MOI.LessThan{Float64},
+#                    MOI.EqualTo{Float64},
+#                    MOI.Interval{Float64},
+#                    MOI.SecondOrderCone,
+#                    MOI.RotatedSecondOrderCone,
+#                    MOI.PositiveSemidefiniteConeTriangle,
+#                    MOI.PositiveSemidefiniteConeScaled ]
 #            # ok
-#        elseif dom in [MathOptInterface.ZeroOne,
-#                       MathOptInterface.Integer] &&
-#                           fun in [MathOptInterface.SingleVariable,
-#                                   MathOptInterface.VectorOfVariables]
+#        elseif dom in [MOI.ZeroOne,
+#                       MOI.Integer] &&
+#                           fun in [MOI.SingleVariable,
+#                                   MOI.VectorOfVariables]
 #            # ok
 #        else
 #            return false
@@ -386,22 +387,22 @@ end
 #end
 
 
-#MathOptInterface.supportsproblem(m::MosekSolver, ::Type{MathOptInterface.SingleVariable},                constraint_types) :: Bool = supportsconstraints(m,constraint_types)
-#MathOptInterface.supportsproblem(m::MosekSolver, ::Type{MathOptInterface.ScalarAffineFunction{Float64}}, constraint_types) :: Bool = supportsconstraints(m,constraint_types)
-#MathOptInterface.supportsproblem{F}(m::MosekSolver, ::Type{F}, constraint_types) :: Bool = false
+#MOI.supportsproblem(m::MosekSolver, ::Type{MOI.SingleVariable},                constraint_types) :: Bool = supportsconstraints(m,constraint_types)
+#MOI.supportsproblem(m::MosekSolver, ::Type{MOI.ScalarAffineFunction{Float64}}, constraint_types) :: Bool = supportsconstraints(m,constraint_types)
+#MOI.supportsproblem{F}(m::MosekSolver, ::Type{F}, constraint_types) :: Bool = false
 
-ref2id(ref :: MathOptInterface.VariableIndex) :: Int = Int(ref.value)
+ref2id(ref :: MOI.VariableIndex) :: Int = Int(ref.value)
 
-ref2id(ref :: MathOptInterface.ConstraintIndex) :: Int =
+ref2id(ref :: MOI.ConstraintIndex) :: Int =
     if ref.value & 1 == 0
         Int(ref.value >> 1)
     else
         - Int(ref.value >> 1)
     end
 
-function id2vref(id :: Int) :: MathOptInterface.VariableIndex
+function id2vref(id :: Int) :: MOI.VariableIndex
     assert(id > 0)
-    MathOptInterface.VariableIndex(id)
+    MOI.VariableIndex(id)
 end
 
 include("objective.jl")

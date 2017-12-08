@@ -1,36 +1,36 @@
-const VectorCone = Union{MathOptInterface.SecondOrderCone,
-                         MathOptInterface.RotatedSecondOrderCone,
-                         MathOptInterface.PowerCone,
-                         MathOptInterface.DualPowerCone,
-                         MathOptInterface.ExponentialCone,
-                         MathOptInterface.DualExponentialCone}
-const PositiveSemidefiniteCone = MathOptInterface.PositiveSemidefiniteConeTriangle
-const LinearFunction = Union{MathOptInterface.SingleVariable,
-                             MathOptInterface.VectorOfVariables,
-                             MathOptInterface.ScalarAffineFunction,
-                             MathOptInterface.VectorAffineFunction}
-const AffineFunction = Union{MathOptInterface.ScalarAffineFunction,
-                             MathOptInterface.VectorAffineFunction}
-const VariableFunction = Union{MathOptInterface.ScalarAffineFunction,
-                               MathOptInterface.VectorAffineFunction}
+const VectorCone = Union{MOI.SecondOrderCone,
+                         MOI.RotatedSecondOrderCone,
+                         MOI.PowerCone,
+                         MOI.DualPowerCone,
+                         MOI.ExponentialCone,
+                         MOI.DualExponentialCone}
+const PositiveSemidefiniteCone = MOI.PositiveSemidefiniteConeTriangle
+const LinearFunction = Union{MOI.SingleVariable,
+                             MOI.VectorOfVariables,
+                             MOI.ScalarAffineFunction,
+                             MOI.VectorAffineFunction}
+const AffineFunction = Union{MOI.ScalarAffineFunction,
+                             MOI.VectorAffineFunction}
+const VariableFunction = Union{MOI.ScalarAffineFunction,
+                               MOI.VectorAffineFunction}
 
-const ScalarLinearDomain = Union{MathOptInterface.LessThan{Float64},
-                                 MathOptInterface.GreaterThan{Float64},
-                                 MathOptInterface.EqualTo{Float64},
-                                 MathOptInterface.Interval{Float64} }
-const VectorLinearDomain = Union{MathOptInterface.Nonpositives,
-                                 MathOptInterface.Nonnegatives,
-                                 MathOptInterface.Reals,
-                                 MathOptInterface.Zeros}
+const ScalarLinearDomain = Union{MOI.LessThan{Float64},
+                                 MOI.GreaterThan{Float64},
+                                 MOI.EqualTo{Float64},
+                                 MOI.Interval{Float64} }
+const VectorLinearDomain = Union{MOI.Nonpositives,
+                                 MOI.Nonnegatives,
+                                 MOI.Reals,
+                                 MOI.Zeros}
 const LinearDomain = Union{ScalarLinearDomain,VectorLinearDomain}
 ################################################################################
 # ADD CONSTRAINT ###############################################################
 ################################################################################
 
-function MathOptInterface.addconstraint!(
+function MOI.addconstraint!(
     m   :: MosekModel,
-    axb :: MathOptInterface.ScalarAffineFunction{Float64},
-    dom :: D) where {D <: MathOptInterface.AbstractScalarSet}
+    axb :: MOI.ScalarAffineFunction{Float64},
+    dom :: D) where {D <: MOI.AbstractScalarSet}
 
     N = 1
     conid = allocateconstraints(m,N)
@@ -45,18 +45,18 @@ function MathOptInterface.addconstraint!(
     addbound!(m,conid,conidxs,Float64[axb.constant],dom)
 
 
-    conref = MathOptInterface.ConstraintIndex{MathOptInterface.ScalarAffineFunction{Float64},D}(UInt64(conid) << 1)
-    select(m.constrmap,MathOptInterface.ScalarAffineFunction{Float64},D)[conref.value] = conid
+    conref = MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D}(UInt64(conid) << 1)
+    select(m.constrmap,MOI.ScalarAffineFunction{Float64},D)[conref.value] = conid
 
     conref
 end
 
-function MathOptInterface.addconstraint!(
+function MOI.addconstraint!(
     m   :: MosekModel,
-    axb :: MathOptInterface.VectorAffineFunction{Float64},
-    dom :: D) where { D <: MathOptInterface.AbstractVectorSet }
+    axb :: MOI.VectorAffineFunction{Float64},
+    dom :: D) where { D <: MOI.AbstractVectorSet }
 
-    N = MathOptInterface.dimension(dom)
+    N = MOI.dimension(dom)
     conid = allocateconstraints(m,N)
     addlhsblock!(m,
                  conid,
@@ -69,8 +69,8 @@ function MathOptInterface.addconstraint!(
     m.c_block_slack[conid]
 
     addbound!(m,conid,conidxs,axb.constant,dom)
-    conref = MathOptInterface.ConstraintIndex{MathOptInterface.VectorAffineFunction{Float64},D}(UInt64(conid) << 1)
-    select(m.constrmap,MathOptInterface.VectorAffineFunction{Float64},D)[conref.value] = conid
+    conref = MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},D}(UInt64(conid) << 1)
+    select(m.constrmap,MOI.VectorAffineFunction{Float64},D)[conref.value] = conid
 
     conref
 end
@@ -116,8 +116,8 @@ function sympackedUtoLidx(x::AbstractVector{<:Integer}, n)
     y
 end
 
-function MathOptInterface.addconstraint!(m   :: MosekModel,
-                                         axb :: MathOptInterface.VectorAffineFunction{Float64},
+function MOI.addconstraint!(m   :: MosekModel,
+                                         axb :: MOI.VectorAffineFunction{Float64},
                                          dom :: PSDCone) where { PSDCone <: PositiveSemidefiniteCone }
 
     N = dom.dimension
@@ -134,8 +134,8 @@ function MathOptInterface.addconstraint!(m   :: MosekModel,
     m.c_constant[conidxs] = constant
 
     addbound!(m,conid,conidxs,constant,dom)
-    conref = MathOptInterface.ConstraintIndex{MathOptInterface.VectorAffineFunction{Float64},PSDCone}(UInt64(conid) << 1)
-    select(m.constrmap,MathOptInterface.VectorAffineFunction{Float64},PSDCone)[conref.value] = conid
+    conref = MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},PSDCone}(UInt64(conid) << 1)
+    select(m.constrmap,MOI.VectorAffineFunction{Float64},PSDCone)[conref.value] = conid
     conref
 end
 
@@ -155,56 +155,56 @@ end
 # same as an interval ]-infty;infty[, in that it will define both
 # upper and lower bounds, and not allow those to be set afterwards.
 
-domain_type_mask(dom :: MathOptInterface.Reals)        = (boundflag_lower | boundflag_upper)
-domain_type_mask(dom :: MathOptInterface.Interval)     = (boundflag_lower | boundflag_upper)
-domain_type_mask(dom :: MathOptInterface.EqualTo)      = (boundflag_lower | boundflag_upper)
-domain_type_mask(dom :: MathOptInterface.Zeros)        = (boundflag_lower | boundflag_upper)
-domain_type_mask(dom :: MathOptInterface.GreaterThan)  = boundflag_lower
-domain_type_mask(dom :: MathOptInterface.Nonnegatives) = boundflag_lower
-domain_type_mask(dom :: MathOptInterface.LessThan)     = boundflag_upper
-domain_type_mask(dom :: MathOptInterface.Nonpositives) = boundflag_upper
+domain_type_mask(dom :: MOI.Reals)        = (boundflag_lower | boundflag_upper)
+domain_type_mask(dom :: MOI.Interval)     = (boundflag_lower | boundflag_upper)
+domain_type_mask(dom :: MOI.EqualTo)      = (boundflag_lower | boundflag_upper)
+domain_type_mask(dom :: MOI.Zeros)        = (boundflag_lower | boundflag_upper)
+domain_type_mask(dom :: MOI.GreaterThan)  = boundflag_lower
+domain_type_mask(dom :: MOI.Nonnegatives) = boundflag_lower
+domain_type_mask(dom :: MOI.LessThan)     = boundflag_upper
+domain_type_mask(dom :: MOI.Nonpositives) = boundflag_upper
 
-domain_type_mask(dom :: MathOptInterface.SecondOrderCone)        = boundflag_cone
-domain_type_mask(dom :: MathOptInterface.RotatedSecondOrderCone) = boundflag_cone
-domain_type_mask(dom :: MathOptInterface.ExponentialCone)        = boundflag_cone
-domain_type_mask(dom :: MathOptInterface.PowerCone)              = boundflag_cone
+domain_type_mask(dom :: MOI.SecondOrderCone)        = boundflag_cone
+domain_type_mask(dom :: MOI.RotatedSecondOrderCone) = boundflag_cone
+domain_type_mask(dom :: MOI.ExponentialCone)        = boundflag_cone
+domain_type_mask(dom :: MOI.PowerCone)              = boundflag_cone
 
-domain_type_mask(dom :: MathOptInterface.PositiveSemidefiniteConeTriangle) = 0
+domain_type_mask(dom :: MOI.PositiveSemidefiniteConeTriangle) = 0
 
-domain_type_mask(dom :: MathOptInterface.Integer) = boundflag_int
-domain_type_mask(dom :: MathOptInterface.ZeroOne) = (boundflag_int | boundflag_upper | boundflag_lower)
+domain_type_mask(dom :: MOI.Integer) = boundflag_int
+domain_type_mask(dom :: MOI.ZeroOne) = (boundflag_int | boundflag_upper | boundflag_lower)
 
 is_positivesemidefinite_set(dom :: PositiveSemidefiniteCone) = true
 is_positivesemidefinite_set(dom) = false
 is_conic_set(dom :: VectorCone) = true
 is_conic_set(dom) = false
 
-addvarconstr(m :: MosekModel, subj :: Vector{Int}, dom :: MathOptInterface.Reals) = nothing
-function addvarconstr(m :: MosekModel, subj :: Vector{Int}, dom :: MathOptInterface.Zeros)
+addvarconstr(m :: MosekModel, subj :: Vector{Int}, dom :: MOI.Reals) = nothing
+function addvarconstr(m :: MosekModel, subj :: Vector{Int}, dom :: MOI.Zeros)
     bnd = zeros(Float64,length(subj))
     putvarboundlist(m.task,subj,fill(MSK_BK_FX,length(subj)),bnd,bnd)
 end
-addvarconstr(m :: MosekModel, subj :: Vector{Int}, dom :: MathOptInterface.Interval) = putvarbound(m.task,subj[1],MSK_BK_RA,dom.lower, dom.upper)
-addvarconstr(m :: MosekModel, subj :: Vector{Int}, dom :: MathOptInterface.EqualTo) = putvarbound(m.task,subj[1],MSK_BK_FX,dom.value, dom.value)
-addvarconstr(m :: MosekModel, subj :: Vector{Int}, dom :: MathOptInterface.Integer) = putvartype(m.task,subj[1],MSK_VAR_TYPE_INT)
-function addvarconstr(m :: MosekModel, subj :: Vector{Int}, dom :: MathOptInterface.ZeroOne)
+addvarconstr(m :: MosekModel, subj :: Vector{Int}, dom :: MOI.Interval) = putvarbound(m.task,subj[1],MSK_BK_RA,dom.lower, dom.upper)
+addvarconstr(m :: MosekModel, subj :: Vector{Int}, dom :: MOI.EqualTo) = putvarbound(m.task,subj[1],MSK_BK_FX,dom.value, dom.value)
+addvarconstr(m :: MosekModel, subj :: Vector{Int}, dom :: MOI.Integer) = putvartype(m.task,subj[1],MSK_VAR_TYPE_INT)
+function addvarconstr(m :: MosekModel, subj :: Vector{Int}, dom :: MOI.ZeroOne)
     putvartype(m.task,subj[1],MSK_VAR_TYPE_INT)
     putvarbound(m.task,subj[1],MSK_BK_RA,0.0,1.0)
 end
 
-function addvarconstr(m :: MosekModel, subj :: Vector{Int}, dom :: MathOptInterface.LessThan)
+function addvarconstr(m :: MosekModel, subj :: Vector{Int}, dom :: MOI.LessThan)
     bk,lo,up = getvarbound(m.task,subj[1])
     bk = if (bk == MSK_BK_FR) MSK_BK_UP else MSK_BK_RA end
     putvarbound(m.task,Int32(subj[1]),bk,lo,dom.upper)
 end
 
-function addvarconstr(m :: MosekModel, subj :: Vector{Int}, dom :: MathOptInterface.GreaterThan)
+function addvarconstr(m :: MosekModel, subj :: Vector{Int}, dom :: MOI.GreaterThan)
     bk,lo,up = getvarbound(m.task,subj[1])
     bk = if (bk == MSK_BK_FR) MSK_BK_LO else MSK_BK_RA end
     putvarbound(m.task,Int32(subj[1]),bk,dom.lower,up)
 end
 
-function addvarconstr(m :: MosekModel, subj :: Vector{Int}, dom :: MathOptInterface.Nonnegatives)
+function addvarconstr(m :: MosekModel, subj :: Vector{Int}, dom :: MOI.Nonnegatives)
     bkx = Vector{Boundkey}(length(subj))
     blx = zeros(Float64,length(subj))
     bux = zeros(Float64,length(subj))
@@ -216,7 +216,7 @@ function addvarconstr(m :: MosekModel, subj :: Vector{Int}, dom :: MathOptInterf
     putvarboundlist(m.task,subj,bkx,blx,bux)
 end
 
-function addvarconstr(m :: MosekModel, subj :: Vector{Int}, dom :: MathOptInterface.Nonpositives)
+function addvarconstr(m :: MosekModel, subj :: Vector{Int}, dom :: MOI.Nonpositives)
     bkx = Vector{Boundkey}(length(subj))
     blx = zeros(Float64,length(subj))
     bux = zeros(Float64,length(subj))
@@ -229,12 +229,12 @@ function addvarconstr(m :: MosekModel, subj :: Vector{Int}, dom :: MathOptInterf
 end
 
 
-abstractset2ct(dom::MathOptInterface.SecondOrderCone) = MSK_CT_QUAD
-abstractset2ct(dom::MathOptInterface.RotatedSecondOrderCone) = MSK_CT_RQUAD
-function MathOptInterface.addconstraint!(
+abstractset2ct(dom::MOI.SecondOrderCone) = MSK_CT_QUAD
+abstractset2ct(dom::MOI.RotatedSecondOrderCone) = MSK_CT_RQUAD
+function MOI.addconstraint!(
     m   :: MosekModel,
-    xs  :: MathOptInterface.SingleVariable,
-    dom :: D) where {D <: MathOptInterface.AbstractScalarSet}
+    xs  :: MOI.SingleVariable,
+    dom :: D) where {D <: MOI.AbstractScalarSet}
 
     subj = getindexes(m.x_block, ref2id(xs.variable))
 
@@ -254,14 +254,14 @@ function MathOptInterface.addconstraint!(
 
     m.x_boundflags[subj[1]] .|= mask
 
-    conref = MathOptInterface.ConstraintIndex{MathOptInterface.SingleVariable,D}(UInt64(xcid) << 1)
+    conref = MOI.ConstraintIndex{MOI.SingleVariable,D}(UInt64(xcid) << 1)
 
-    select(m.constrmap,MathOptInterface.SingleVariable,D)[conref.value] = xcid
+    select(m.constrmap,MOI.SingleVariable,D)[conref.value] = xcid
     conref
 end
 
-function MathOptInterface.addconstraint!(m   :: MosekModel,
-                                         xs  :: MathOptInterface.VectorOfVariables,
+function MOI.addconstraint!(m   :: MosekModel,
+                                         xs  :: MOI.VectorOfVariables,
                                          dom :: D) where { D <: PositiveSemidefiniteCone }
     N = dom.dimension
     vars = sympackedUtoL(xs.variables, N)
@@ -315,10 +315,10 @@ function MathOptInterface.addconstraint!(m   :: MosekModel,
     # not, in fact, a real variable constraint, but rather a real
     # constraint, but to resolve return value at compile time we
     # need to disguise it as a variable constraint.
-    #id2cref{MathOptInterface.VectorOfVariables,D}(-id)
+    #id2cref{MOI.VectorOfVariables,D}(-id)
 
-    conref = MathOptInterface.ConstraintIndex{MathOptInterface.VectorOfVariables,MathOptInterface.PositiveSemidefiniteConeTriangle}(UInt64((id << 1) | 1))
-    select(m.constrmap,MathOptInterface.VectorOfVariables,MathOptInterface.PositiveSemidefiniteConeTriangle)[conref.value] = id
+    conref = MOI.ConstraintIndex{MOI.VectorOfVariables,MOI.PositiveSemidefiniteConeTriangle}(UInt64((id << 1) | 1))
+    select(m.constrmap,MOI.VectorOfVariables,MOI.PositiveSemidefiniteConeTriangle)[conref.value] = id
 
     conref
 end
@@ -335,9 +335,9 @@ function aux_setvardom(m :: MosekModel,
     putconename(m.task,coneidx,"$(m.conecounter)")
     m.xc_coneid[xcid] = m.conecounter
 end
-aux_setvardom(m :: MosekModel, xcid :: Int, subj :: Vector{Int},dom :: D) where {D <: MathOptInterface.AbstractSet} = addvarconstr(m,subj,dom)
+aux_setvardom(m :: MosekModel, xcid :: Int, subj :: Vector{Int},dom :: D) where {D <: MOI.AbstractSet} = addvarconstr(m,subj,dom)
 
-function MathOptInterface.addconstraint!{D <: MathOptInterface.AbstractSet}(m :: MosekModel, xs :: MathOptInterface.VectorOfVariables, dom :: D)
+function MOI.addconstraint!{D <: MOI.AbstractSet}(m :: MosekModel, xs :: MOI.VectorOfVariables, dom :: D)
     subj = Vector{Int}(length(xs.variables))
     for i in 1:length(subj)
         getindexes(m.x_block, ref2id(xs.variables[i]),subj,i)
@@ -348,7 +348,7 @@ function MathOptInterface.addconstraint!{D <: MathOptInterface.AbstractSet}(m ::
         error("Cannot multiple bound sets of the same type to a variable")
     end
 
-    N = MathOptInterface.dimension(dom)
+    N = MOI.dimension(dom)
     xcid = allocatevarconstraints(m,N)
     xc_sub = getindexes(m.xc_block,xcid)
 
@@ -359,8 +359,8 @@ function MathOptInterface.addconstraint!{D <: MathOptInterface.AbstractSet}(m ::
 
     m.x_boundflags[subj] .|= mask
 
-    conref = MathOptInterface.ConstraintIndex{MathOptInterface.VectorOfVariables,D}(UInt64(xcid) << 1)
-    select(m.constrmap,MathOptInterface.VectorOfVariables,D)[conref.value] = xcid
+    conref = MOI.ConstraintIndex{MOI.VectorOfVariables,D}(UInt64(xcid) << 1)
+    select(m.constrmap,MOI.VectorOfVariables,D)[conref.value] = xcid
     conref
 end
 
@@ -372,7 +372,7 @@ end
 function addlhsblock!(m        :: MosekModel,
                       conid    :: Int,
                       conidxs  :: Vector{Int},
-                      varidxs  :: Vector{MathOptInterface.VariableIndex},
+                      varidxs  :: Vector{MOI.VariableIndex},
                       cofs     :: Vector{Float64})
     consubi = getindexes(m.c_block,conid)
     subj = Array{Int}(length(varidxs))
@@ -387,17 +387,17 @@ function addlhsblock!(m        :: MosekModel,
 end
 
 
-addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, constant :: Vector{Float64}, dom :: MathOptInterface.Reals)                = putconboundlist(m.task,convert(Vector{Int32},conidxs),fill(MSK_BK_FR,MathOptInterface.dimension(dom)),-constant,-constant)
-addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, constant :: Vector{Float64}, dom :: MathOptInterface.Zeros)                = putconboundlist(m.task,convert(Vector{Int32},conidxs),fill(MSK_BK_FX,MathOptInterface.dimension(dom)),-constant,-constant)
-addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, constant :: Vector{Float64}, dom :: MathOptInterface.Nonnegatives)         = putconboundlist(m.task,convert(Vector{Int32},conidxs),fill(MSK_BK_LO,MathOptInterface.dimension(dom)),-constant,-constant)
-addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, constant :: Vector{Float64}, dom :: MathOptInterface.Nonpositives)         = putconboundlist(m.task,convert(Vector{Int32},conidxs),fill(MSK_BK_UP,MathOptInterface.dimension(dom)),-constant,-constant)
-addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, constant :: Vector{Float64}, dom :: MathOptInterface.GreaterThan{Float64}) = putconbound(m.task,Int32(conidxs[1]),MSK_BK_LO,dom.lower-constant[1],dom.lower-constant[1])
-addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, constant :: Vector{Float64}, dom :: MathOptInterface.LessThan{Float64})    = putconbound(m.task,Int32(conidxs[1]),MSK_BK_UP,dom.upper-constant[1],dom.upper-constant[1])
-addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, constant :: Vector{Float64}, dom :: MathOptInterface.EqualTo{Float64})     = putconbound(m.task,Int32(conidxs[1]),MSK_BK_FX,dom.value-constant[1],dom.value-constant[1])
-addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, constant :: Vector{Float64}, dom :: MathOptInterface.Interval{Float64})    = putconbound(m.task,Int32(conidxs[1]),MSK_BK_RA,dom.lower-constant[1],dom.upper-constant[1])
+addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, constant :: Vector{Float64}, dom :: MOI.Reals)                = putconboundlist(m.task,convert(Vector{Int32},conidxs),fill(MSK_BK_FR,MOI.dimension(dom)),-constant,-constant)
+addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, constant :: Vector{Float64}, dom :: MOI.Zeros)                = putconboundlist(m.task,convert(Vector{Int32},conidxs),fill(MSK_BK_FX,MOI.dimension(dom)),-constant,-constant)
+addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, constant :: Vector{Float64}, dom :: MOI.Nonnegatives)         = putconboundlist(m.task,convert(Vector{Int32},conidxs),fill(MSK_BK_LO,MOI.dimension(dom)),-constant,-constant)
+addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, constant :: Vector{Float64}, dom :: MOI.Nonpositives)         = putconboundlist(m.task,convert(Vector{Int32},conidxs),fill(MSK_BK_UP,MOI.dimension(dom)),-constant,-constant)
+addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, constant :: Vector{Float64}, dom :: MOI.GreaterThan{Float64}) = putconbound(m.task,Int32(conidxs[1]),MSK_BK_LO,dom.lower-constant[1],dom.lower-constant[1])
+addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, constant :: Vector{Float64}, dom :: MOI.LessThan{Float64})    = putconbound(m.task,Int32(conidxs[1]),MSK_BK_UP,dom.upper-constant[1],dom.upper-constant[1])
+addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, constant :: Vector{Float64}, dom :: MOI.EqualTo{Float64})     = putconbound(m.task,Int32(conidxs[1]),MSK_BK_FX,dom.value-constant[1],dom.value-constant[1])
+addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, constant :: Vector{Float64}, dom :: MOI.Interval{Float64})    = putconbound(m.task,Int32(conidxs[1]),MSK_BK_RA,dom.lower-constant[1],dom.upper-constant[1])
 
 function addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, constant :: Vector{Float64}, dom :: D) where { D <: VectorCone }
-    N = MathOptInterface.dimension(dom)
+    N = MOI.dimension(dom)
     nalloc = ensurefree(m.x_block,N)
 
     varid = newblock(m.x_block,N)
@@ -420,7 +420,7 @@ function addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, consta
     m.c_coneid[conid] = m.conecounter
 end
 
-function addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, constant :: Vector{Float64}, dom :: MathOptInterface.PositiveSemidefiniteConeTriangle)
+function addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, constant :: Vector{Float64}, dom :: MOI.PositiveSemidefiniteConeTriangle)
     dim = dom.dimension
     appendbarvars(m.task,Int32[dim])
     barvaridx = getnumbarvar(m.task)
@@ -445,10 +445,10 @@ function addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, consta
     m.c_block_slack[conid] = -barvaridx
 end
 
-#function addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, constant :: Vector{Float64}, dom :: MathOptInterface.PositiveSemidefiniteConeScaled)
-#    dim = MathOptInterface.dimension(dom)
-#    #dim = floor(Int,-.5 + sqrt(.25+2*MathOptInterface.dimension(dom)))
-#    n = MathOptInterface.dimension(dom)
+#function addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, constant :: Vector{Float64}, dom :: MOI.PositiveSemidefiniteConeScaled)
+#    dim = MOI.dimension(dom)
+#    #dim = floor(Int,-.5 + sqrt(.25+2*MOI.dimension(dom)))
+#    n = MOI.dimension(dom)
 #
 #    appendbarvars(m.task,Int32[dim])
 #    barvaridx = getnumbarvar(m.task)
@@ -477,20 +477,20 @@ end
 ##  MODIFY #####################################################################
 ################################################################################
 
-MathOptInterface.canmodifyconstraint(m::MosekModel, c::MathOptInterface.ConstraintIndex{F,D}, dom) where { F <: LinearFunction, D <: VectorCone } = false
-MathOptInterface.canmodifyconstraint(m::MosekModel, c::MathOptInterface.ConstraintIndex{F,D}, dom) where { F <: LinearFunction, D <: PositiveSemidefiniteCone } = false
-MathOptInterface.canmodifyconstraint(m::MosekModel, c::MathOptInterface.ConstraintIndex{F,D}, dom::D) where { F <: LinearFunction, D <: LinearDomain } = haskey(select(m.constrmap,F,D),c.value)
-MathOptInterface.canmodifyconstraint(m::MosekModel, c::MathOptInterface.ConstraintIndex{F,D}, func::F) where { F <: Union{MathOptInterface.SingleVariable,MathOptInterface.ScalarAffineFunction}, D <: ScalarLinearDomain } = haskey(select(m.constrmap,F,D),c.value)
-MathOptInterface.canmodifyconstraint(m::MosekModel, c::MathOptInterface.ConstraintIndex{F,D}, change::MathOptInterface.AbstractFunctionModification) where { F <: AffineFunction, D <: MathOptInterface.AbstractSet } = haskey(select(m.constrmap,F,D),c.value)
+MOI.canmodifyconstraint(m::MosekModel, c::MOI.ConstraintIndex{F,D}, dom) where { F <: LinearFunction, D <: VectorCone } = false
+MOI.canmodifyconstraint(m::MosekModel, c::MOI.ConstraintIndex{F,D}, dom) where { F <: LinearFunction, D <: PositiveSemidefiniteCone } = false
+MOI.canmodifyconstraint(m::MosekModel, c::MOI.ConstraintIndex{F,D}, dom::D) where { F <: LinearFunction, D <: LinearDomain } = haskey(select(m.constrmap,F,D),c.value)
+MOI.canmodifyconstraint(m::MosekModel, c::MOI.ConstraintIndex{F,D}, func::F) where { F <: Union{MOI.SingleVariable,MOI.ScalarAffineFunction}, D <: ScalarLinearDomain } = haskey(select(m.constrmap,F,D),c.value)
+MOI.canmodifyconstraint(m::MosekModel, c::MOI.ConstraintIndex{F,D}, change::MOI.AbstractFunctionModification) where { F <: AffineFunction, D <: MOI.AbstractSet } = haskey(select(m.constrmap,F,D),c.value)
 
-chgbound(bl::Float64,bu::Float64,k::Float64,dom :: MathOptInterface.LessThan{Float64})    = bl,dom.upper-k
-chgbound(bl::Float64,bu::Float64,k::Float64,dom :: MathOptInterface.GreaterThan{Float64}) = dom.lower-k,bu
-chgbound(bl::Float64,bu::Float64,k::Float64,dom :: MathOptInterface.EqualTo{Float64})     = dom.value-k,dom.value-k
-chgbound(bl::Float64,bu::Float64,k::Float64,dom :: MathOptInterface.Interval{Float64})    = dom.lower-k,dom.upper-k
+chgbound(bl::Float64,bu::Float64,k::Float64,dom :: MOI.LessThan{Float64})    = bl,dom.upper-k
+chgbound(bl::Float64,bu::Float64,k::Float64,dom :: MOI.GreaterThan{Float64}) = dom.lower-k,bu
+chgbound(bl::Float64,bu::Float64,k::Float64,dom :: MOI.EqualTo{Float64})     = dom.value-k,dom.value-k
+chgbound(bl::Float64,bu::Float64,k::Float64,dom :: MOI.Interval{Float64})    = dom.lower-k,dom.upper-k
 
-function MathOptInterface.modifyconstraint!(m::MosekModel,
-                                            xcref::MathOptInterface.ConstraintIndex{F,D},
-                                            dom::D) where { F    <: MathOptInterface.SingleVariable,
+function MOI.modifyconstraint!(m::MosekModel,
+                                            xcref::MOI.ConstraintIndex{F,D},
+                                            dom::D) where { F    <: MOI.SingleVariable,
                                                             D    <: ScalarLinearDomain }
     xcid = ref2id(xcref)
     j = m.xc_idxs[getindexes(m.xc_block,xcid)[1]]
@@ -500,9 +500,9 @@ function MathOptInterface.modifyconstraint!(m::MosekModel,
 end
 
 
-function MathOptInterface.modifyconstraint!(m::MosekModel,
-                                            cref::MathOptInterface.ConstraintIndex{F,D},
-                                            dom::D) where { F    <: MathOptInterface.ScalarAffineFunction,
+function MOI.modifyconstraint!(m::MosekModel,
+                                            cref::MOI.ConstraintIndex{F,D},
+                                            dom::D) where { F    <: MOI.ScalarAffineFunction,
                                                             D    <: ScalarLinearDomain }
     cid = ref2id(cref)
     i = getindexes(m.c_block,cid)[1] # since we are in a scalar domain
@@ -511,9 +511,9 @@ function MathOptInterface.modifyconstraint!(m::MosekModel,
     putconbound(m.task,i,bk,bl,bu)
 end
 
-function MathOptInterface.modifyconstraint!(m   ::MosekModel,
-                                            c   ::MathOptInterface.ConstraintIndex{MathOptInterface.ScalarAffineFunction{Float64},D},
-                                            func::MathOptInterface.ScalarConstantChange{Float64}) where {D <: MathOptInterface.AbstractSet}
+function MOI.modifyconstraint!(m   ::MosekModel,
+                                            c   ::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D},
+                                            func::MOI.ScalarConstantChange{Float64}) where {D <: MOI.AbstractSet}
 
     cid = ref2id(c)
 
@@ -525,9 +525,9 @@ function MathOptInterface.modifyconstraint!(m   ::MosekModel,
     putconbound(m.task,i,bk,bl,bu)
 end
 
-function MathOptInterface.modifyconstraint!(m   ::MosekModel,
-                                            c   ::MathOptInterface.ConstraintIndex{MathOptInterface.ScalarAffineFunction{Float64},D},
-                                            func::MathOptInterface.ScalarCoefficientChange{Float64}) where {D <: MathOptInterface.AbstractSet}
+function MOI.modifyconstraint!(m   ::MosekModel,
+                                            c   ::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D},
+                                            func::MOI.ScalarCoefficientChange{Float64}) where {D <: MOI.AbstractSet}
     cid = ref2id(c)
     xid = ref2id(func.variable)
 
@@ -537,9 +537,9 @@ function MathOptInterface.modifyconstraint!(m   ::MosekModel,
     putaij(m.task,i,j,func.new_coefficient)
 end
 
-function MathOptInterface.modifyconstraint!(m::MosekModel,
-                                            c::MathOptInterface.ConstraintIndex{MathOptInterface.VectorAffineFunction{Float64},D},
-                                            func::MathOptInterface.VectorConstantChange{Float64}) where {D <: MathOptInterface.AbstractSet}
+function MOI.modifyconstraint!(m::MosekModel,
+                                            c::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},D},
+                                            func::MOI.VectorConstantChange{Float64}) where {D <: MOI.AbstractSet}
     cid = ref2id(c)
     assert(cid > 0)
 
@@ -556,9 +556,9 @@ function MathOptInterface.modifyconstraint!(m::MosekModel,
     putconboundlist(m.task,convert(Vector{Int32},subi),bk,bl,bu)
 end
 
-function MathOptInterface.modifyconstraint!(m::MosekModel,
-                                            c::MathOptInterface.ConstraintIndex{MathOptInterface.VectorAffineFunction{Float64},D},
-                                            func::MathOptInterface.MultirowChange{Float64}) where {D <: MathOptInterface.AbstractSet}
+function MOI.modifyconstraint!(m::MosekModel,
+                                            c::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},D},
+                                            func::MOI.MultirowChange{Float64}) where {D <: MOI.AbstractSet}
     cid = ref2id(c)
     assert(cid > 0)
 
@@ -571,27 +571,27 @@ end
 
 
 
-MathOptInterface.cantransformconstraint(m::MosekModel, c::MathOptInterface.ConstraintIndex{F,D1}, newdom::D2) where {F <: VariableFunction, D1, D2 } = false
-MathOptInterface.cantransformconstraint(m::MosekModel, c::MathOptInterface.ConstraintIndex{MathOptInterface.VectorAffineFunction,D1}, newdom::D2) where {D1 <: VectorLinearDomain, D2 <: VectorLinearDomain} = false
-function MathOptInterface.cantransformconstraint(m::MosekModel,
-                                                 cref::MathOptInterface.ConstraintIndex{MathOptInterface.ScalarAffineFunction{Float64},D1},
+MOI.cantransformconstraint(m::MosekModel, c::MOI.ConstraintIndex{F,D1}, newdom::D2) where {F <: VariableFunction, D1, D2 } = false
+MOI.cantransformconstraint(m::MosekModel, c::MOI.ConstraintIndex{MOI.VectorAffineFunction,D1}, newdom::D2) where {D1 <: VectorLinearDomain, D2 <: VectorLinearDomain} = false
+function MOI.cantransformconstraint(m::MosekModel,
+                                                 cref::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D1},
                                                  newdom::D2) where {D1 <: ScalarLinearDomain,
                                                                     D2 <: ScalarLinearDomain}
-    haskey(select(m.constrmap,MathOptInterface.ScalarAffineFunction{Float64},D1),cref.value)
+    haskey(select(m.constrmap,MOI.ScalarAffineFunction{Float64},D1),cref.value)
 end
 
-function MathOptInterface.transformconstraint!(m::MosekModel,
-                                               cref::MathOptInterface.ConstraintIndex{F,D},
-                                               newdom::D) where {F  <: MathOptInterface.AbstractFunction, D <: MathOptInterface.AbstractSet}
-    MathOptInterface.modifyconstraint(m,cref,newdom)
+function MOI.transformconstraint!(m::MosekModel,
+                                               cref::MOI.ConstraintIndex{F,D},
+                                               newdom::D) where {F  <: MOI.AbstractFunction, D <: MOI.AbstractSet}
+    MOI.modifyconstraint(m,cref,newdom)
     cref
 end
 
-function MathOptInterface.transformconstraint!(m::MosekModel,
-                                               cref::MathOptInterface.ConstraintIndex{MathOptInterface.ScalarAffineFunction{Float64},D1},
+function MOI.transformconstraint!(m::MosekModel,
+                                               cref::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D1},
                                                newdom::D2) where {D1 <: ScalarLinearDomain,
                                                                   D2 <: ScalarLinearDomain}
-    const F = MathOptInterface.ScalarAffineFunction{Float64}
+    const F = MOI.ScalarAffineFunction{Float64}
 
     cid = ref2id(cref)
 
@@ -599,17 +599,17 @@ function MathOptInterface.transformconstraint!(m::MosekModel,
 
     addbound!(m,cid,subi,m.c_constant[subi], newdom)
 
-    newcref = MathOptInterface.ConstraintIndex{F,D2}(UInt64(cid) << 1)
+    newcref = MOI.ConstraintIndex{F,D2}(UInt64(cid) << 1)
     delete!(select(m.constrmap,F,D1), cref.value)
     select(m.constrmap,F, D2)[newcref.value] = cid
     newcref
 end
 
-function MathOptInterface.transformconstraint!(m::MosekModel,
-                                               cref::MathOptInterface.ConstraintIndex{MathOptInterface.VectorAffineFunction{Float64},D1},
+function MOI.transformconstraint!(m::MosekModel,
+                                               cref::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},D1},
                                                newdom::D2) where {D1 <: VectorLinearDomain,
                                                                   D2 <: VectorLinearDomain}
-    const F = MathOptInterface.VectorAffineFunction{Float64}
+    const F = MOI.VectorAffineFunction{Float64}
 
     cid = ref2id(cref)
 
@@ -617,67 +617,67 @@ function MathOptInterface.transformconstraint!(m::MosekModel,
 
     addbound!(m,cid,subi,m.c_constant[subi], newdom)
 
-    newcref = MathOptInterface.ConstraintIndex{F,D2}(UInt64(cid) << 1)
+    newcref = MOI.ConstraintIndex{F,D2}(UInt64(cid) << 1)
     delete!(select(m.constrmap,F,D1), cref.value)
     select(m.constrmap,F,D2)[newcref.value] = cid
     newcref
 end
 
-#MathOptInterface.transformconstraint!(m::MosekModel, c::MathOptInterface.ConstraintIndex{F,D1}, newdom::D2) where {F <: MathOptInterface.VectorAffineFunction , D1 <: VectorLinearDomain, D2 <: VectorLinearDomain} = false
+#MOI.transformconstraint!(m::MosekModel, c::MOI.ConstraintIndex{F,D1}, newdom::D2) where {F <: MOI.VectorAffineFunction , D1 <: VectorLinearDomain, D2 <: VectorLinearDomain} = false
 
 ################################################################################
 ##  DELETE #####################################################################
 ################################################################################
 
-MathOptInterface.candelete(
+MOI.candelete(
     m   ::MosekModel,
-    cref::MathOptInterface.ConstraintIndex{F,D}) where {F <: Union{MathOptInterface.ScalarAffineFunction,
-                                                                       MathOptInterface.VectorAffineFunction,
-                                                                       MathOptInterface.SingleVariable,
-                                                                       MathOptInterface.VectorOfVariables},
-                                                            D <: Union{MathOptInterface.LessThan,
-                                                                       MathOptInterface.GreaterThan,
-                                                                       MathOptInterface.EqualTo,
-                                                                       MathOptInterface.Interval,
-                                                                       MathOptInterface.Zeros,
-                                                                       MathOptInterface.Nonpositives,
-                                                                       MathOptInterface.Nonnegatives,
-                                                                       MathOptInterface.Reals}} = MathOptInterface.isvalid(m,cref)
+    cref::MOI.ConstraintIndex{F,D}) where {F <: Union{MOI.ScalarAffineFunction,
+                                                                       MOI.VectorAffineFunction,
+                                                                       MOI.SingleVariable,
+                                                                       MOI.VectorOfVariables},
+                                                            D <: Union{MOI.LessThan,
+                                                                       MOI.GreaterThan,
+                                                                       MOI.EqualTo,
+                                                                       MOI.Interval,
+                                                                       MOI.Zeros,
+                                                                       MOI.Nonpositives,
+                                                                       MOI.Nonnegatives,
+                                                                       MOI.Reals}} = MOI.isvalid(m,cref)
 
-MathOptInterface.candelete(
+MOI.candelete(
     m   ::MosekModel,
-    cref::MathOptInterface.ConstraintIndex{F,D}) where {F <: MathOptInterface.AbstractFunction,
-                                                            D <: Union{MathOptInterface.SecondOrderCone,
-                                                                       MathOptInterface.RotatedSecondOrderCone,
-                                                                       MathOptInterface.ExponentialCone,
-                                                                       MathOptInterface.DualExponentialCone,
-                                                                       MathOptInterface.PowerCone,
-                                                                       MathOptInterface.DualPowerCone}} = false
+    cref::MOI.ConstraintIndex{F,D}) where {F <: MOI.AbstractFunction,
+                                                            D <: Union{MOI.SecondOrderCone,
+                                                                       MOI.RotatedSecondOrderCone,
+                                                                       MOI.ExponentialCone,
+                                                                       MOI.DualExponentialCone,
+                                                                       MOI.PowerCone,
+                                                                       MOI.DualPowerCone}} = false
 
-MathOptInterface.candelete(
+MOI.candelete(
     m   ::MosekModel,
-    cref::MathOptInterface.ConstraintIndex{F,D}) where {F <: Union{MathOptInterface.SingleVariable,
-                                                                       MathOptInterface.VectorOfVariables},
-                                                            D <: Union{MathOptInterface.SecondOrderCone,
-                                                                       MathOptInterface.RotatedSecondOrderCone,
-                                                                       MathOptInterface.ExponentialCone,
-                                                                       MathOptInterface.DualExponentialCone,
-                                                                       MathOptInterface.PowerCone,
-                                                                       MathOptInterface.DualPowerCone}} = true
+    cref::MOI.ConstraintIndex{F,D}) where {F <: Union{MOI.SingleVariable,
+                                                                       MOI.VectorOfVariables},
+                                                            D <: Union{MOI.SecondOrderCone,
+                                                                       MOI.RotatedSecondOrderCone,
+                                                                       MOI.ExponentialCone,
+                                                                       MOI.DualExponentialCone,
+                                                                       MOI.PowerCone,
+                                                                       MOI.DualPowerCone}} = true
 
 
 function Base.delete!(
     m::MosekModel,
-    cref::MathOptInterface.ConstraintIndex{F,D}) where {F <: Union{MathOptInterface.ScalarAffineFunction,
-                                                                       MathOptInterface.VectorAffineFunction},
-                                                            D <: Union{MathOptInterface.LessThan,
-                                                                       MathOptInterface.GreaterThan,
-                                                                       MathOptInterface.EqualTo,
-                                                                       MathOptInterface.Interval,
-                                                                       MathOptInterface.Zeros,
-                                                                       MathOptInterface.Nonpositives,
-                                                                       MathOptInterface.Nonnegatives,
-                                                                       MathOptInterface.Reals}}
+    cref::MOI.ConstraintIndex{F,D}) where {F <: Union{MOI.ScalarAffineFunction,
+                                                                       MOI.VectorAffineFunction},
+                                                            D <: Union{MOI.LessThan,
+                                                                       MOI.GreaterThan,
+                                                                       MOI.EqualTo,
+                                                                       MOI.Interval,
+                                                                       MOI.Zeros,
+                                                                       MOI.Nonpositives,
+                                                                       MOI.Nonnegatives,
+                                                                       MOI.Reals}}
 
     delete!(select(m.constrmap, F, D), cref.value)
 
@@ -697,13 +697,13 @@ end
 
 function Base.delete!(
     m::MosekModel,
-    cref::MathOptInterface.ConstraintIndex{F,D}) where {F <: Union{MathOptInterface.VectorAffineFunction},
-                                                            D <: Union{MathOptInterface.SecondOrderCone,
-                                                                       MathOptInterface.RotatedSecondOrderCone,
-                                                                       MathOptInterface.ExponentialCone,
-                                                                       MathOptInterface.DualExponentialCone,
-                                                                       MathOptInterface.PowerCone,
-                                                                       MathOptInterface.DualPowerCone}}
+    cref::MOI.ConstraintIndex{F,D}) where {F <: Union{MOI.VectorAffineFunction},
+                                                            D <: Union{MOI.SecondOrderCone,
+                                                                       MOI.RotatedSecondOrderCone,
+                                                                       MOI.ExponentialCone,
+                                                                       MOI.DualExponentialCone,
+                                                                       MOI.PowerCone,
+                                                                       MOI.DualPowerCone}}
 
     delete!(select(m.constrmap, F, D), cref.value)
     xcid = ref2id(cref)
@@ -726,18 +726,18 @@ end
 
 function Base.delete!(
     m::MosekModel,
-    cref::MathOptInterface.ConstraintIndex{F,D}) where {F <: Union{MathOptInterface.SingleVariable,
-                                                                       MathOptInterface.VectorOfVariables},
-                                                            D <: Union{MathOptInterface.LessThan,
-                                                                       MathOptInterface.GreaterThan,
-                                                                       MathOptInterface.EqualTo,
-                                                                       MathOptInterface.Interval,
-                                                                       MathOptInterface.Zeros,
-                                                                       MathOptInterface.Nonpositives,
-                                                                       MathOptInterface.Nonnegatives,
-                                                                       MathOptInterface.Reals,
-                                                                       MathOptInterface.ZeroOne,
-                                                                       MathOptInterface.Integer}}
+    cref::MOI.ConstraintIndex{F,D}) where {F <: Union{MOI.SingleVariable,
+                                                                       MOI.VectorOfVariables},
+                                                            D <: Union{MOI.LessThan,
+                                                                       MOI.GreaterThan,
+                                                                       MOI.EqualTo,
+                                                                       MOI.Interval,
+                                                                       MOI.Zeros,
+                                                                       MOI.Nonpositives,
+                                                                       MOI.Nonnegatives,
+                                                                       MOI.Reals,
+                                                                       MOI.ZeroOne,
+                                                                       MOI.Integer}}
     delete!(select(m.constrmap, F, D), cref.value)
 
     xcid = ref2id(cref)
@@ -850,8 +850,8 @@ function allocatevariable(m :: MosekModel,N :: Int)
     newblock(m.x_block,N)
 end
 
-MathOptInterface.isvalid(m::MosekModel, ref::MathOptInterface.ConstraintIndex{F,D}) where { F,D } = haskey(select(m.constrmap,F,D),ref.value)
-MathOptInterface.isvalid(m::MosekModel, ref::MathOptInterface.VariableIndex) = allocated(m.x_block,ref2id(ref))
+MOI.isvalid(m::MosekModel, ref::MOI.ConstraintIndex{F,D}) where { F,D } = haskey(select(m.constrmap,F,D),ref.value)
+MOI.isvalid(m::MosekModel, ref::MOI.VariableIndex) = allocated(m.x_block,ref2id(ref))
 
 
 function getvarboundlist(t::Mosek.Task, subj :: Vector{Int32})

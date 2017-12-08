@@ -1,9 +1,9 @@
 
-MathOptInterface.candelete(m::MosekModel,ref::MathOptInterface.VariableIndex) = isvalid(m,ref) && m.x_numxc[ref2id(ref)] == 0
-isvalid(m::MosekModel, ref::MathOptInterface.VariableIndex) = allocated(m.x_block,ref2id(ref))
+MOI.candelete(m::MosekModel,ref::MOI.VariableIndex) = isvalid(m,ref) && m.x_numxc[ref2id(ref)] == 0
+isvalid(m::MosekModel, ref::MOI.VariableIndex) = allocated(m.x_block,ref2id(ref))
 
-MathOptInterface.addvariables!(m::MosekModel, N :: I) where { I <: Integer } = MathOptInterface.addvariables!(m,UInt(N))
-function MathOptInterface.addvariables!(m::MosekModel, N :: UInt)
+MOI.addvariables!(m::MosekModel, N :: I) where { I <: Integer } = MOI.addvariables!(m,UInt(N))
+function MOI.addvariables!(m::MosekModel, N :: UInt)
     ids = [ allocatevariable(m,1) for i in 1:N ]
 
     m.publicnumvar += N
@@ -29,7 +29,7 @@ function MathOptInterface.addvariables!(m::MosekModel, N :: UInt)
     [ id2vref(id) for id in ids]
 end
 
-function MathOptInterface.addvariable!(m::MosekModel)
+function MOI.addvariable!(m::MosekModel)
     N = 1
     id = allocatevariable(m,1)
     m.publicnumvar += N
@@ -50,12 +50,12 @@ function MathOptInterface.addvariable!(m::MosekModel)
 end
 
 
-function Base.delete!(m::MosekModel, refs::Vector{MathOptInterface.VariableIndex})
+function Base.delete!(m::MosekModel, refs::Vector{MOI.VariableIndex})
     ids = Int[ ref2id(ref) for ref in refs ]
 
     if ! all(id -> m.x_numxc[id] == 0, idxs)
         error("Cannot delete a variable while a bound constraint is defined on it")
-    elseif ! all(r -> MathOptInterface.candelete(m,ref),refs)
+    elseif ! all(r -> MOI.candelete(m,ref),refs)
         throw(CannotDelete())
     else
         sizes = Int[blocksize(m.x_block,id) for id in ids]
@@ -95,10 +95,10 @@ function Base.delete!(m::MosekModel, refs::Vector{MathOptInterface.VariableIndex
     end
 end
 
-function Base.delete!(m::MosekModel, ref::MathOptInterface.VariableIndex)
+function Base.delete!(m::MosekModel, ref::MOI.VariableIndex)
     if m.x_numxc[ref2id(ref)] != 0
         error("Cannot delete a variable while a bound constraint is defined on it")
-    elseif ! MathOptInterface.candelete(m,ref)
+    elseif ! MOI.candelete(m,ref)
         throw(CannotDelete())
     else
         id = ref2id(ref)
