@@ -383,6 +383,7 @@ function addlhsblock!(m        :: MosekModel,
     N = length(consubi)
 
     At = sparse(subj, conidxs, cofs, getnumvar(m.task), N)
+    dropzeros!(At)
     putarowlist(m.task,convert(Vector{Int32},consubi),At)
 end
 
