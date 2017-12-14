@@ -24,7 +24,7 @@ end
 @testset "Continuous conic problems" begin
     # lin1 and soc1 are failing because ListOfConstraints is not implemented
     # sdp2 is failing because MOI.get(instance, MOI.ConstraintPrimal(), c1) returns -10 instead of 0
-    MOIT.contconictest(solver, config, ["lin1", "soc1", "geomean", "exp", "sdp2", "logdet"])
+    MOIT.contconictest(solver, config, ["lin1v", "lin1f", "soc1", "geomean", "exp", "sdp2", "logdet"])
     MOIT.geomeantest(solver, configgeomean)
 end
 
