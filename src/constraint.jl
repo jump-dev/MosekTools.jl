@@ -117,8 +117,8 @@ function sympackedUtoLidx(x::AbstractVector{<:Integer}, n)
 end
 
 function MOI.addconstraint!(m   :: MosekModel,
-                                         axb :: MOI.VectorAffineFunction{Float64},
-                                         dom :: PSDCone) where { PSDCone <: PositiveSemidefiniteCone }
+                            axb :: MOI.VectorAffineFunction{Float64},
+                            dom :: PSDCone) where { PSDCone <: PositiveSemidefiniteCone }
 
     N = dom.dimension
     NN = sympackedlen(N)
