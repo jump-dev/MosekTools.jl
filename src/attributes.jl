@@ -263,8 +263,8 @@ function MOI.get!{D}(
 end
 
 function MOI.get{D}(m     ::MosekModel,
-                                          attr  ::MOI.ConstraintPrimal,
-                                          cref  ::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D})
+                    attr  ::MOI.ConstraintPrimal,
+                    cref  ::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D})
     cid = ref2id(cref)
     subi = getindexes(m.c_block,cid)[1]
     m.solutions[attr.N].xc[subi]
