@@ -267,7 +267,7 @@ function MOI.get{D}(m     ::MosekModel,
                     cref  ::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D})
     cid = ref2id(cref)
     subi = getindexes(m.c_block,cid)[1]
-    m.solutions[attr.N].xc[subi]
+    m.solutions[attr.N].xc[subi] + m.c_constant[subi]
 end
 
 
@@ -282,7 +282,7 @@ function MOI.get!{D}(
     subi = getindexes(m.c_block,cid)
 
     if     m.c_block_slack[cid] == 0 # no slack
-        output[1:length(output)] = m.solutions[attr.N].xc[subi]
+        output[1:length(output)] = m.solutions[attr.N].xc[subi] + m.c_constant[subi]
     elseif m.c_block_slack[cid] >  0 # qcone slack
         xid = m.c_block_slack[cid]
         xsubj = getindexes(m.x_block, xid)
