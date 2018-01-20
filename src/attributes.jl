@@ -173,8 +173,7 @@ MOI.canset(m::MosekModel,attr::MOI.ConstraintDualStart) = false
 MOI.canget(m::MosekModel,attr::MOI.VariablePrimal) = attr.N > 0 && attr.N <= length(m.solutions)
 MOI.canget(m::MosekSolver,attr::MOI.VariablePrimal) = true
 
-MOI.canget(m::MosekModel,attr::MOI.VariablePrimal,vs::Vector{MOI.VariableIndex}) = MOI.canget(m,attr)
-MOI.canget(m::MosekModel,attr::MOI.VariablePrimal,v::MOI.VariableIndex) = MOI.canget(m,attr)
+MOI.canget(m::MosekModel,attr::MOI.VariablePrimal,::Type{MOI.VariableIndex}) = MOI.canget(m,attr)
 
 
 function MOI.get!(output::Vector{Float64},m::MosekModel,attr::MOI.VariablePrimal, vs::Vector{MOI.VariableIndex})
@@ -214,8 +213,7 @@ function canget(m::MosekModel,attr::MOI.ConstraintPrimal)
     attr.N > 0 && attr.N <= num
 end
 
-MOI.canget(m::MosekModel,attr::MOI.ConstraintPrimal, cref::MOI.ConstraintIndex) = canget(m,attr)
-MOI.canget(m::MosekModel,attr::MOI.ConstraintPrimal, cref::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},MOI.LessThan{Float64}}) = canget(m,attr)
+MOI.canget(m::MosekModel,attr::MOI.ConstraintPrimal, ::Type{<:MOI.ConstraintIndex}) = canget(m,attr)
 
 function MOI.get{D}(
     m     ::MosekModel,
@@ -306,10 +304,7 @@ end
 
 
 MOI.canget(m::MosekModel,attr::MOI.ConstraintDual) = attr.N > 0 && attr.N <= length(m.solutions)
-MOI.canget(m::MosekModel,attr::MOI.ConstraintDual, crefs::Vector{MOI.ConstraintIndex}) = MOI.canget(m,attr)
-MOI.canget(m::MosekModel,
-                                 attr::MOI.ConstraintDual,
-                                 cref::MOI.ConstraintIndex{F,D}) where {F,D} = MOI.canget(m,attr)
+MOI.canget(m::MosekModel,attr::MOI.ConstraintDual,::Type{<:MOI.ConstraintIndex}) = MOI.canget(m,attr)
 
 
 function MOI.get(
