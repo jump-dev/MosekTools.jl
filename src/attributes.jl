@@ -50,7 +50,7 @@ function MOI.set!(m::MosekModel,attr::MOI.ObjectiveSense, sense::MOI.Optimizatio
     else
         @assert sense == MOI.FeasibilitySense
         putobjsense(m.task,MSK_OBJECTIVE_SENSE_MINIMIZE)
-        MOI.set!(m, MOI.ObjectiveFunction(), MOI.ScalarAffineFunction(MOI.VariableIndex[], Float64[], 0.))
+        MOI.set!(m, MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(), MOI.ScalarAffineFunction(MOI.VariableIndex[], Float64[], 0.))
     end
 end
 
