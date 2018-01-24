@@ -268,7 +268,7 @@ function MosekInstance(; kws...)
                    ConstraintMap(), # public constraints
                    LinkedInts(),# c_block
                    Int[], # x_boundflags
-                   Int[], # x_boundflags
+                   Int[], # x_numxc
                    LinkedInts(), # xc_block
                    UInt8[], # xc_bounds
                    Int[], # xc_coneid
