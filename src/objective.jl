@@ -1,4 +1,9 @@
-function MathOptInterface.get(m::MosekModel, ::MathOptInterface.ObjectiveFunction)
+const ObjF = Union{MOI.SingleVariable, MOI.ScalarAffineFunction{Float64}}
+
+MOI.canget(::MosekModel, ::MOI.ObjectiveFunction{<:ObjF}) = true
+
+# TODO get with SingleVariable
+function MathOptInterface.get(m::MosekModel, ::MathOptInterface.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}})
     vid = allocatedlist(m.x_block)
     subj = getindexes(m.x_block, vid)
     coeffs = getclist(m.task, subj)
@@ -6,7 +11,7 @@ function MathOptInterface.get(m::MosekModel, ::MathOptInterface.ObjectiveFunctio
     MOI.ScalarAffineFunction(MOI.VariableIndex.(vid), coeffs, constant)
 end
 
-MOI.canget(::MosekModel, ::MOI.ObjectiveFunction) = true
+MOI.canset(m::MosekModel,attr::MOI.ObjectiveFunction{<:ObjF})  = true
 
 function MOI.set!(m::MosekModel, ::MOI.ObjectiveFunction, func::MOI.SingleVariable)
     numvar = getnumvar(m.task)
