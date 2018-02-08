@@ -2,6 +2,8 @@
 MOI.candelete(m::MosekModel,ref::MOI.VariableIndex) = isvalid(m,ref) && m.x_numxc[ref2id(ref)] == 0
 isvalid(m::MosekModel, ref::MOI.VariableIndex) = allocated(m.x_block,ref2id(ref))
 
+MOI.canaddvariable(m::MosekModel) = true
+
 MOI.addvariables!(m::MosekModel, N :: I) where { I <: Integer } = MOI.addvariables!(m,UInt(N))
 function MOI.addvariables!(m::MosekModel, N :: UInt)
     ids = [ allocatevariable(m,1) for i in 1:N ]
