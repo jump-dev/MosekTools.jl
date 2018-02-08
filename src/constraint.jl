@@ -27,6 +27,9 @@ const LinearDomain = Union{ScalarLinearDomain,VectorLinearDomain}
 # ADD CONSTRAINT ###############################################################
 ################################################################################
 
+MOI.canaddconstraint(m::MosekModel, ::Type{<:Union{MOI.SingleVariable, MOI.ScalarAffineFunction}}, ::Type{<:ScalarLinearDomain}) = true
+MOI.canaddconstraint(m::MosekModel, ::Type{<:Union{MOI.VectorOfVariables, MOI.VectorAffineFunction}}, ::Type{<:Union{VectorCone, PositiveSemidefiniteCone, VectorLinearDomain}}) = true
+
 function MOI.addconstraint!(
     m   :: MosekModel,
     axb :: MOI.ScalarAffineFunction{Float64},
@@ -480,9 +483,9 @@ end
 
 MOI.canmodifyconstraint(m::MosekModel, c::MOI.ConstraintIndex{F,D}, dom) where { F <: LinearFunction, D <: VectorCone } = false
 MOI.canmodifyconstraint(m::MosekModel, c::MOI.ConstraintIndex{F,D}, dom) where { F <: LinearFunction, D <: PositiveSemidefiniteCone } = false
-MOI.canmodifyconstraint(m::MosekModel, c::MOI.ConstraintIndex{F,D}, dom::D) where { F <: LinearFunction, D <: LinearDomain } = haskey(select(m.constrmap,F,D),c.value)
-MOI.canmodifyconstraint(m::MosekModel, c::MOI.ConstraintIndex{F,D}, func::F) where { F <: Union{MOI.SingleVariable,MOI.ScalarAffineFunction}, D <: ScalarLinearDomain } = haskey(select(m.constrmap,F,D),c.value)
-MOI.canmodifyconstraint(m::MosekModel, c::MOI.ConstraintIndex{F,D}, change::MOI.AbstractFunctionModification) where { F <: AffineFunction, D <: MOI.AbstractSet } = haskey(select(m.constrmap,F,D),c.value)
+MOI.canmodifyconstraint(m::MosekModel, c::MOI.ConstraintIndex{F,D}, ::Type{D}) where { F <: LinearFunction, D <: LinearDomain } = haskey(select(m.constrmap,F,D),c.value)
+MOI.canmodifyconstraint(m::MosekModel, c::MOI.ConstraintIndex{F,D}, ::Type{F}) where { F <: Union{MOI.SingleVariable,MOI.ScalarAffineFunction}, D <: ScalarLinearDomain } = haskey(select(m.constrmap,F,D),c.value)
+MOI.canmodifyconstraint(m::MosekModel, c::MOI.ConstraintIndex{F,D}, ::Type{<:MOI.AbstractFunctionModification}) where { F <: AffineFunction, D <: MOI.AbstractSet } = haskey(select(m.constrmap,F,D),c.value)
 
 chgbound(bl::Float64,bu::Float64,k::Float64,dom :: MOI.LessThan{Float64})    = bl,dom.upper-k
 chgbound(bl::Float64,bu::Float64,k::Float64,dom :: MOI.GreaterThan{Float64}) = dom.lower-k,bu
