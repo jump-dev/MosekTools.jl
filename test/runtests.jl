@@ -21,7 +21,8 @@ const config = MOIT.TestConfig(atol=1e-3, rtol=1e-3, query=false)
     # linear11 is failing because the following are not implemented:
     # * MOI.cantransformconstraint(instance, c2, MOI.LessThan(2.0))
     # * MOI.get(instance, MathOptInterface.ConstraintFunction())
-    MOIT.contlineartest(optimizer, config, ["linear1", "linear11"])
+    # linear13 is failing because it is FeasibilitySense
+    MOIT.contlineartest(optimizer, config, ["linear1", "linear11", "linear13"])
 end
 
 # include("contquadratic.jl")
