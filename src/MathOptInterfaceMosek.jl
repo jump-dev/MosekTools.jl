@@ -5,7 +5,7 @@ const MOI = MathOptInterface
 using Mosek
 #using Mosek.Ext
 
-export MosekInstance
+export MosekOptimizer
 
 
 include("LinkedInts.jl")
@@ -138,7 +138,7 @@ some (currently between 1 and 3) Int64s that a `delete!` will not
 remove. This ensures that Indices (Variable and constraint) that
 are deleted are thereafter invalid.
 """
-mutable struct MosekModel  <: MOI.AbstractSolverInstance
+mutable struct MosekModel  <: MOI.AbstractOptimizer
     task :: Mosek.MSKtask
 
 
@@ -227,12 +227,7 @@ mutable struct MosekModel  <: MOI.AbstractSolverInstance
     solutions :: Vector{MosekSolution}
 end
 
-using MathOptInterfaceUtilities
-const MOIU = MathOptInterfaceUtilities
-@bridge GeoMean MOIU.GeoMeanBridge () () (GeometricMeanCone,) () () () (VectorOfVariables,) (VectorAffineFunction,)
-@bridge RootDet MOIU.RootDetBridge () () (RootDetConeTriangle,) () () () (VectorOfVariables,) (VectorAffineFunction,)
-
-function MosekInstance(; kws...)
+function MosekOptimizer(; kws...)
     t = maketask()
     try
         be_quiet = false
@@ -262,7 +257,6 @@ function MosekInstance(; kws...)
         if ! be_quiet
             Mosek.putstreamfunc(t,Mosek.MSK_STREAM_LOG,m -> print(m))
         end
-        RootDet{Float64}(GeoMean{Float64}(
         MosekModel(t,# task
                    0, # public numvar
                    ConstraintMap(), # public constraints
@@ -280,7 +274,6 @@ function MosekInstance(; kws...)
                    0, # cone counter
                    Mosek.MSK_RES_OK,
                    MosekSolution[]) # trm
-        ))
     catch
         Mosek.deletetask(t)
         rethrow()
