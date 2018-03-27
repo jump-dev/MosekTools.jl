@@ -17,18 +17,23 @@ const VariableFunction = Union{MOI.ScalarAffineFunction,
 const ScalarLinearDomain = Union{MOI.LessThan{Float64},
                                  MOI.GreaterThan{Float64},
                                  MOI.EqualTo{Float64},
-                                 MOI.Interval{Float64} }
+                                 MOI.Interval{Float64}}
 const VectorLinearDomain = Union{MOI.Nonpositives,
                                  MOI.Nonnegatives,
                                  MOI.Reals,
                                  MOI.Zeros}
 const LinearDomain = Union{ScalarLinearDomain,VectorLinearDomain}
+const ScalarIntegerDomain = Union{MOI.ZeroOne, MOI.Integer}
 ################################################################################
 # ADD CONSTRAINT ###############################################################
 ################################################################################
 
+MOI.supportsconstraint(m::MosekModel, ::Type{<:Union{MOI.SingleVariable, MOI.ScalarAffineFunction}}, ::Type{<:ScalarLinearDomain}) = true
+MOI.supportsconstraint(m::MosekModel, ::Type{<:Union{MOI.VectorOfVariables, MOI.VectorAffineFunction}}, ::Type{<:Union{VectorCone, PositiveSemidefiniteCone, VectorLinearDomain}}) = true
+MOI.supportsconstraint(m::MosekModel, ::Type{MOI.SingleVariable}, ::Type{<:ScalarIntegerDomain}) = true
 MOI.canaddconstraint(m::MosekModel, ::Type{<:Union{MOI.SingleVariable, MOI.ScalarAffineFunction}}, ::Type{<:ScalarLinearDomain}) = true
 MOI.canaddconstraint(m::MosekModel, ::Type{<:Union{MOI.VectorOfVariables, MOI.VectorAffineFunction}}, ::Type{<:Union{VectorCone, PositiveSemidefiniteCone, VectorLinearDomain}}) = true
+MOI.canaddconstraint(m::MosekModel, ::Type{MOI.SingleVariable}, ::Type{<:ScalarIntegerDomain}) = true
 
 function MOI.addconstraint!(
     m   :: MosekModel,
@@ -731,17 +736,10 @@ end
 function Base.delete!(
     m::MosekModel,
     cref::MOI.ConstraintIndex{F,D}) where {F <: Union{MOI.SingleVariable,
-                                                                       MOI.VectorOfVariables},
-                                                            D <: Union{MOI.LessThan,
-                                                                       MOI.GreaterThan,
-                                                                       MOI.EqualTo,
-                                                                       MOI.Interval,
-                                                                       MOI.Zeros,
-                                                                       MOI.Nonpositives,
-                                                                       MOI.Nonnegatives,
-                                                                       MOI.Reals,
-                                                                       MOI.ZeroOne,
-                                                                       MOI.Integer}}
+                                                      MOI.VectorOfVariables},
+                                           D <: Union{ScalarLinearDomain,
+                                                      VectorLinearDomain,
+                                                      ScalarIntegerDomain}}
     delete!(select(m.constrmap, F, D), cref.value)
 
     xcid = ref2id(cref)

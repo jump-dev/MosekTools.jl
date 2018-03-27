@@ -11,7 +11,8 @@ function MathOptInterface.get(m::MosekModel, ::MathOptInterface.ObjectiveFunctio
     MOI.ScalarAffineFunction(MOI.VariableIndex.(vid), coeffs, constant)
 end
 
-MOI.canset(m::MosekModel,attr::MOI.ObjectiveFunction{<:ObjF})  = true
+MOI.supports(::MosekModel,::MOI.ObjectiveFunction{<:ObjF})  = true
+MOI.canset(::MosekModel,::MOI.ObjectiveFunction{<:ObjF})  = true
 
 function MOI.set!(m::MosekModel, ::MOI.ObjectiveFunction, func::MOI.SingleVariable)
     numvar = getnumvar(m.task)
