@@ -55,9 +55,9 @@ end
 function Base.delete!(m::MosekModel, refs::Vector{MOI.VariableIndex})
     ids = Int[ ref2id(ref) for ref in refs ]
 
-    if ! all(id -> m.x_numxc[id] == 0, idxs)
+    if ! all(id -> m.x_numxc[id] == 0, ids)
         error("Cannot delete a variable while a bound constraint is defined on it")
-    elseif ! all(r -> MOI.candelete(m,ref),refs)
+    elseif ! all(ref -> MOI.candelete(m,ref),refs)
         throw(CannotDelete())
     else
         sizes = Int[blocksize(m.x_block,id) for id in ids]
@@ -86,13 +86,13 @@ function Base.delete!(m::MosekModel, refs::Vector{MOI.VariableIndex})
                         bnd,bnd)
 
         if DEBUG
-            for i in idxs
-                putvarname(m.task,Int32(idxs),"deleted$i")
+            for i in ids
+                putvarname(m.task,Int32(ids),"deleted$i")
             end
         end
 
         for i in 1:length(ids)
-            deleteblock(s.x_block,ids[i])
+            deleteblock(m.x_block,ids[i])
         end
     end
 end
