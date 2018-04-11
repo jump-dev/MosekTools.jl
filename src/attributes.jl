@@ -8,12 +8,7 @@
 #MOI.get(m::Union{MosekSolver,MosekModel},::MOI.SupportsConicThroughQuadratic) = false # though actually the solver does
 
 #### objective
-MOI.get(m::MosekModel,attr::MOI.ObjectiveValue) =
-    begin
-        #showall(m.task)
-        #showall(m.task[Sol(MSK_SOL_ITR)])
-        getprimalobj(m.task,m.solutions[attr.resultindex].whichsol)
-    end
+MOI.get(m::MosekModel,attr::MOI.ObjectiveValue) = getprimalobj(m.task,m.solutions[attr.resultindex].whichsol)
 MOI.canget(m::MosekSolver,attr::MOI.ObjectiveValue) = true
 MOI.canget(m::MosekModel,attr::MOI.ObjectiveValue) = attr.resultindex > 0 && attr.resultindex <= length(m.solutions)
 
@@ -141,6 +136,13 @@ function MOI.set!(m::MosekModel,attr::MOI.VariablePrimalStart, vs::Vector{MOI.Va
     end
 end
 
+
+function MOI.set!(m::MosekModel, attr::MOI.VariableName, index :: MOI.VariableIndex, value :: String)
+    subj = getindexes(m.x_block, ref2id(index))
+    putvarname(m.task,subj[1],value)
+end
+
+
 MOI.canset(m::MosekSolver,attr::MOI.ConstraintPrimalStart) = false # not sure what exactly this would be...
 MOI.canset(m::MosekModel,attr::MOI.ConstraintPrimalStart) = false
 
@@ -169,12 +171,10 @@ MOI.canset(m::MosekModel,attr::MOI.ConstraintDualStart) = false
 
 
 #### Variable solution values
-
 MOI.canget(m::MosekModel,attr::MOI.VariablePrimal) = attr.N > 0 && attr.N <= length(m.solutions)
 MOI.canget(m::MosekSolver,attr::MOI.VariablePrimal) = true
 
 MOI.canget(m::MosekModel,attr::MOI.VariablePrimal,::Type{MOI.VariableIndex}) = MOI.canget(m,attr)
-
 
 function MOI.get!(output::Vector{Float64},m::MosekModel,attr::MOI.VariablePrimal, vs::Vector{MOI.VariableIndex})
     subj = Array{Int}(length(vs))

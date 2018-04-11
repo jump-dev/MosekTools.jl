@@ -127,7 +127,6 @@ end
 function MOI.addconstraint!(m   :: MosekModel,
                             axb :: MOI.VectorAffineFunction{Float64},
                             dom :: PSDCone) where { PSDCone <: PositiveSemidefiniteCone }
-
     N = dom.dimension
     NN = sympackedlen(N)
 
@@ -269,8 +268,8 @@ function MOI.addconstraint!(
 end
 
 function MOI.addconstraint!(m   :: MosekModel,
-                                         xs  :: MOI.VectorOfVariables,
-                                         dom :: D) where { D <: PositiveSemidefiniteCone }
+                            xs  :: MOI.VectorOfVariables,
+                            dom :: D) where { D <: PositiveSemidefiniteCone }
     N = dom.dimension
     vars = sympackedUtoL(xs.variables, N)
     subj = Vector{Int}(length(vars))
@@ -295,11 +294,7 @@ function MOI.addconstraint!(m   :: MosekModel,
 
     id = allocateconstraints(m,NN)
 
-    #appendbarvars(m.task,Int32[N])
-    #barvaridx = getnumbarvar(m.task)
-
     subi = getindexes(m.c_block,id)
-    #m.c_block_slack[id] = -barvaridx
 
     subii32 = convert(Vector{Int32},subi)
     putaijlist(m.task,
@@ -360,7 +355,7 @@ function MOI.addconstraint!{D <: MOI.AbstractSet}(m :: MosekModel, xs :: MOI.Vec
     xcid = allocatevarconstraints(m,N)
     xc_sub = getindexes(m.xc_block,xcid)
 
-    m.xc_bounds[xcid]  = mask
+    m.xc_bounds[xcid] = mask
     m.xc_idxs[xc_sub] = subj
 
     aux_setvardom(m,xcid,subj,dom)
@@ -389,10 +384,35 @@ function addlhsblock!(m        :: MosekModel,
     end
 
     N = length(consubi)
+    nnz = length(varidxs)
 
-    At = sparse(subj, conidxs, cofs, getnumvar(m.task), N)
-    dropzeros!(At)
-    putarowlist(m.task,convert(Vector{Int32},consubi),At)
+    msk_subi = convert(Vector{Int32},consubi)
+
+    msk_rowptr = zeros(Int64, N+1)
+    for i in conidxs
+        msk_rowptr[i+1] += 1
+    end
+    msk_rowptr[1] = 1
+    for i in 2:N+1
+        msk_rowptr[i] += msk_rowptr[i-1]
+    end
+
+    msk_subj = Array{Int32}(nnz)
+    msk_cof  = Array{Float64}(nnz)
+
+    # sort by row
+    for i in 1:nnz
+        msk_subj[msk_rowptr[conidxs[i]]] = subj[i]
+        msk_cof[msk_rowptr[conidxs[i]]]  = cofs[i]
+        msk_rowptr[conidxs[i]] += 1
+    end
+
+    for i in N:-1:1
+        msk_rowptr[i+1] = msk_rowptr[i]
+    end
+    msk_rowptr[1] = 1
+
+    putarowlist(m.task, msk_subi, msk_rowptr[1:N], msk_rowptr[2:N+1], msk_subj, msk_cof)
 end
 
 

@@ -141,7 +141,6 @@ are deleted are thereafter invalid.
 mutable struct MosekModel  <: MOI.AbstractOptimizer
     task :: Mosek.MSKtask
 
-
     """
     Number of variables explicitly created by user
     """
@@ -152,7 +151,7 @@ mutable struct MosekModel  <: MOI.AbstractOptimizer
     constrmap :: ConstraintMap
 
     """
-    The total length of `x_block` matches the number of variables in
+        The total length of `x_block` matches the number of variables in
     the underlying task, and the number of blocks corresponds to the
     number variables allocated in the Model.
     """
@@ -284,6 +283,10 @@ function MOI.free!(m::MosekModel)
     Mosek.deletetask(m.task)
 end
 
+function MOI.isempty(m::MosekModel)
+    getnumvar(m.task) == 0 && getnumcon(m.task) == 0 && getnumcone(m.task) == 0 && getnumbarvar(m.task) == 0
+end
+
 function MOI.optimize!(m::MosekModel)
     m.trm = optimize(m.task)
     m.solutions = MosekSolution[]
@@ -337,6 +340,72 @@ function MOI.optimize!(m::MosekModel)
                             gety(m.task,MSK_SOL_ITR)))
     end
 end
+
+
+function MOI.empty!(m::MosekModel)
+    m.task          = maketask()
+    m.publicnumvar  = 0
+    m.constrmap     = ConstraintMap()
+    m.x_block       = LinkedInts()
+    m.x_boundflags  = Int[]
+    m.x_numxc       = Int[]
+    m.xc_block      = LinkedInts()
+    m.xc_bounds     = UInt8[]
+    m.xc_coneid     = Int[]
+    m.xc_idxs       = Int[]
+    m.c_block       = LinkedInts()
+    m.c_constant    = Float64[]
+    m.c_block_slack = Int[]
+    m.c_coneid      = Int[]
+    m.conecounter   = 0
+    m.trm           = Mosek.MSK_RES_OK
+    m.solutions     = MosekSolution[]
+end
+
+function MOI.Utilities.copyconstraints!(dest::MosekModel, src::MOI.ModelLike, idxmap::MOI.Utilities.IndexMap, ::Type{F}, ::Type{S}) where {F<:MOI.AbstractFunction, S<:MOI.AbstractSet}
+    # Copy constraints
+    cis_src = MOI.get(src, MOI.ListOfConstraintIndices{F, S}())
+    for ci_src in cis_src
+        f_src  = MOI.get(src, MOI.ConstraintFunction(), ci_src)
+        f_dest = MOI.Utilities.mapvariables(idxmap, f_src) # appears to be expensive
+        s = MOI.get(src, MOI.ConstraintSet(), ci_src)
+        ci_dest = MOI.addconstraint!(dest, f_dest, s)
+        idxmap.conmap[ci_src] = ci_dest
+    end
+
+    nothing
+    #return passattributes!(dest, src, idxmap, cis_src)
+end
+
+
+function MOI.copy!(dest::MosekModel, src::MOI.ModelLike)
+    if ! MOI.isempty(dest)
+        MOI.empty!(dest)
+    end
+
+    idxmap = MOI.Utilities.IndexMap()
+
+    vis_src = MOI.get(src, MOI.ListOfVariableIndices())
+    for vi in vis_src
+        idxmap.varmap[vi] = MOI.addvariable!(dest)
+    end
+
+    MOI.set!(dest, MOI.ObjectiveSense(), MOI.get(src,MOI.ObjectiveSense()))
+    MOI.set!(dest,
+             MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
+             MOI.get(src,MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}()))
+
+    # Copy constraints
+    for (F, S) in MOI.get(src, MOI.ListOfConstraints()) # expensive?!
+        # do the rest in copyconstraints! which is type stable
+        res = MOI.Utilities.copyconstraints!(dest, src, idxmap, F, S)
+        #res.status == MOI.CopySuccess || return res
+    end
+
+    return MOI.CopyResult(MOI.CopySuccess, "", idxmap)
+end
+
+
 
 function MOI.write(m::MosekModel, filename :: String)
     putintparam(m.task,MSK_IPAR_OPF_WRITE_SOLUTIONS, MSK_ON)

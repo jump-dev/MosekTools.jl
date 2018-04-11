@@ -114,10 +114,10 @@ function newblock(s::LinkedInts, N :: Int) :: Int
 
     id = length(s.block)
 
-    if ! checkconsistency(s)
-        println("List = ",s)
-        assert(false)
-    end
+    #if ! checkconsistency(s)
+    #    println("List = ",s)
+    #    assert(false)
+    #end
 
     id
 end
