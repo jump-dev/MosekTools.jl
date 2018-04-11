@@ -175,6 +175,8 @@ domain_type_mask(dom :: MOI.SecondOrderCone)        = boundflag_cone
 domain_type_mask(dom :: MOI.RotatedSecondOrderCone) = boundflag_cone
 domain_type_mask(dom :: MOI.ExponentialCone)        = boundflag_cone
 domain_type_mask(dom :: MOI.PowerCone)              = boundflag_cone
+domain_type_mask(dom :: MOI.DualExponentialCone)    = boundflag_cone
+domain_type_mask(dom :: MOI.DualPowerCone)          = boundflag_cone
 
 domain_type_mask(dom :: MOI.PositiveSemidefiniteConeTriangle) = 0
 
@@ -235,9 +237,13 @@ function addvarconstr(m :: MosekModel, subj :: Vector{Int}, dom :: MOI.Nonpositi
     putvarboundlist(m.task,subj,bkx,blx,bux)
 end
 
-
-abstractset2ct(dom::MOI.SecondOrderCone) = MSK_CT_QUAD
+abstractset2ct(dom::MOI.ExponentialCone)        = MSK_CT_PEXP
+abstractset2ct(dom::MOI.DualExponentialCone)    = MSK_CT_DEXP
+abstractset2ct(dom::MOI.PowerCone)              = MSK_CT_PPOW
+abstractset2ct(dom::MOI.DualPowerCone)          = MSK_CT_DPOW
+abstractset2ct(dom::MOI.SecondOrderCone)        = MSK_CT_QUAD
 abstractset2ct(dom::MOI.RotatedSecondOrderCone) = MSK_CT_RQUAD
+
 function MOI.addconstraint!(
     m   :: MosekModel,
     xs  :: MOI.SingleVariable,
@@ -425,6 +431,34 @@ addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, constant :: Vec
 addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, constant :: Vector{Float64}, dom :: MOI.EqualTo{Float64})     = putconbound(m.task,Int32(conidxs[1]),MSK_BK_FX,dom.value-constant[1],dom.value-constant[1])
 addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, constant :: Vector{Float64}, dom :: MOI.Interval{Float64})    = putconbound(m.task,Int32(conidxs[1]),MSK_BK_RA,dom.lower-constant[1],dom.upper-constant[1])
 
+# need a special case for this since MOI's variable order in PEXP cone is the reverse if Mosek's
+function addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, constant :: Vector{Float64}, dom :: D) where { D <: Union{MOI.ExponentialCone, MOI.DualExponentialCone} }
+    N = MOI.dimension(dom)
+    nalloc = ensurefree(m.x_block,N)
+
+    varid = newblock(m.x_block,N)
+    numvar = getnumvar(m.task)
+    if length(m.x_block) > numvar
+        appendvars(m.task, length(m.x_block) - numvar)
+    end
+    subj = getindexes(m.x_block,varid)
+    subj = [ subj[3], subj[2], subj[1] ]
+
+    putaijlist(m.task,conidxs,subj,-ones(Float64,N))
+    putvarboundlist(m.task,subj,fill(MSK_BK_FR,N),zeros(Float64,N),zeros(Float64,N))
+    putconboundlist(m.task,convert(Vector{Int32},conidxs),fill(MSK_BK_FX,N),-constant,-constant)
+
+    m.c_block_slack[conid] = varid
+
+    appendcone(m.task,abstractset2ct(dom),0.0,subj)
+    coneidx = getnumcone(m.task)
+    m.conecounter += 1
+    #putconename(m.task,coneidx,"$(m.conecounter)")
+    m.c_coneid[conid] = m.conecounter
+end
+
+
+
 function addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, constant :: Vector{Float64}, dom :: D) where { D <: VectorCone }
     N = MOI.dimension(dom)
     nalloc = ensurefree(m.x_block,N)
@@ -445,7 +479,7 @@ function addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, consta
     appendcone(m.task,abstractset2ct(dom),0.0,subj)
     coneidx = getnumcone(m.task)
     m.conecounter += 1
-    putconename(m.task,coneidx,"$(m.conecounter)")
+    #putconename(m.task,coneidx,"$(m.conecounter)")
     m.c_coneid[conid] = m.conecounter
 end
 
