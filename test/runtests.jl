@@ -5,12 +5,7 @@ using Base.Test
 using MathOptInterface
 const MOI = MathOptInterface
 const MOIT = MOI.Test
-
-using MathOptInterfaceBridges
-const MOIB = MathOptInterfaceBridges
-
-MOIB.@bridge GeoMean MOIB.GeoMeanBridge () () (GeometricMeanCone,) () () () (VectorOfVariables,) (VectorAffineFunction,)
-MOIB.@bridge RootDet MOIB.RootDetBridge () () (RootDetConeTriangle,) () () () (VectorOfVariables,) (VectorAffineFunction,)
+const MOIB = MOI.Bridges
 
 const optimizer = MosekOptimizer(QUIET = true)
 # 1e-3 needed for rotatedsoc3 test
@@ -32,7 +27,7 @@ end
 
 @testset "Continuous conic problems" begin
     # lin1 and soc1 are failing because ListOfConstraints is not implemented
-    MOIT.contconictest(RootDet{Float64}(GeoMean{Float64}(optimizer)), config, ["lin1v", "lin1f", "soc1v", "soc1f", "exp", "psds", "rootdets", "logdet"])
+    MOIT.contconictest(MOIB.RootDet{Float64}(MOIB.GeoMean{Float64}(optimizer)), config, ["lin1v", "lin1f", "soc1v", "soc1f", "exp", "psds", "rootdets", "logdet"])
 end
 
 @testset "Mixed-integer linear problems" begin
