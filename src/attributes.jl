@@ -548,18 +548,11 @@ function MOI.canget(m::MosekModel,attr::MOI.PrimalStatus)
         elseif solsta == MSK_SOL_STA_PRIM_FEAS true
         elseif solsta == MSK_SOL_STA_DUAL_FEAS true
         elseif solsta == MSK_SOL_STA_PRIM_AND_DUAL_FEAS true
-        elseif solsta == MSK_SOL_STA_NEAR_OPTIMAL true
-        elseif solsta == MSK_SOL_STA_NEAR_PRIM_FEAS true
-        elseif solsta == MSK_SOL_STA_NEAR_DUAL_FEAS true
-        elseif solsta == MSK_SOL_STA_NEAR_PRIM_AND_DUAL_FEAS true
         elseif solsta == MSK_SOL_STA_PRIM_INFEAS_CER false
         elseif solsta == MSK_SOL_STA_DUAL_INFEAS_CER true
-        elseif solsta == MSK_SOL_STA_NEAR_PRIM_INFEAS_CER false
-        elseif solsta == MSK_SOL_STA_NEAR_DUAL_INFEAS_CER true
         elseif solsta == MSK_SOL_STA_PRIM_ILLPOSED_CER false
         elseif solsta == MSK_SOL_STA_DUAL_ILLPOSED_CER true
         elseif solsta == MSK_SOL_STA_INTEGER_OPTIMAL true
-        elseif solsta == MSK_SOL_STA_NEAR_INTEGER_OPTIMAL true
         else false
         end
     end
@@ -576,30 +569,16 @@ function MOI.get(m::MosekModel,attr::MOI.PrimalStatus)
         MOI.UnknownResultStatus
     elseif solsta == MSK_SOL_STA_PRIM_AND_DUAL_FEAS
         MOI.FeasiblePoint
-    elseif solsta == MSK_SOL_STA_NEAR_OPTIMAL
-        MOI.NearlyFeasiblePoint
-    elseif solsta == MSK_SOL_STA_NEAR_PRIM_FEAS
-        MOI.NearlyFeasiblePoint
-    elseif solsta == MSK_SOL_STA_NEAR_DUAL_FEAS
-        MOI.UnknownResultStatus
-    elseif solsta == MSK_SOL_STA_NEAR_PRIM_AND_DUAL_FEAS
-        MOI.NearFeasiblePoint
     elseif solsta == MSK_SOL_STA_PRIM_INFEAS_CER
         MOI.UnknownResultStatus
     elseif solsta == MSK_SOL_STA_DUAL_INFEAS_CER
         MOI.InfeasibilityCertificate
-    elseif solsta == MSK_SOL_STA_NEAR_PRIM_INFEAS_CER
-        MOI.UnknownResultStatus
-    elseif solsta == MSK_SOL_STA_NEAR_DUAL_INFEAS_CER
-        MOI.NearlyInfeasibilityCertificate
     elseif solsta == MSK_SOL_STA_PRIM_ILLPOSED_CER
         MOI.UnknownResultStatus
     elseif solsta == MSK_SOL_STA_DUAL_ILLPOSED_CER
         MOI.ReductionCertificate
     elseif solsta == MSK_SOL_STA_INTEGER_OPTIMAL
         MOI.FeasiblePoint
-    elseif solsta == MSK_SOL_STA_NEAR_INTEGER_OPTIMAL
-        MOI.NearlyFeasiblePoint
     else
         MOI.UnknownResultStatus
     end
@@ -615,18 +594,11 @@ function MOI.canget(m::MosekModel,attr::MOI.DualStatus)
         elseif solsta == MSK_SOL_STA_PRIM_FEAS true
         elseif solsta == MSK_SOL_STA_DUAL_FEAS true
         elseif solsta == MSK_SOL_STA_PRIM_AND_DUAL_FEAS true
-        elseif solsta == MSK_SOL_STA_NEAR_OPTIMAL true
-        elseif solsta == MSK_SOL_STA_NEAR_PRIM_FEAS true
-        elseif solsta == MSK_SOL_STA_NEAR_DUAL_FEAS true
-        elseif solsta == MSK_SOL_STA_NEAR_PRIM_AND_DUAL_FEAS true
         elseif solsta == MSK_SOL_STA_PRIM_INFEAS_CER true
         elseif solsta == MSK_SOL_STA_DUAL_INFEAS_CER false
-        elseif solsta == MSK_SOL_STA_NEAR_PRIM_INFEAS_CER true
-        elseif solsta == MSK_SOL_STA_NEAR_DUAL_INFEAS_CER false
         elseif solsta == MSK_SOL_STA_PRIM_ILLPOSED_CER true
         elseif solsta == MSK_SOL_STA_DUAL_ILLPOSED_CER false
         elseif solsta == MSK_SOL_STA_INTEGER_OPTIMAL false
-        elseif solsta == MSK_SOL_STA_NEAR_INTEGER_OPTIMAL false
         else false
         end
     end
@@ -643,21 +615,9 @@ function MOI.get(m::MosekModel,attr::MOI.DualStatus)
         MOI.FeasiblePoint
     elseif solsta == MSK_SOL_STA_PRIM_AND_DUAL_FEAS
         MOI.FeasiblePoint
-    elseif solsta == MSK_SOL_STA_NEAR_OPTIMAL
-        MOI.NearlyFeasiblePoint
-    elseif solsta == MSK_SOL_STA_NEAR_PRIM_FEAS
-        MOI.UnknownResultStatus
-    elseif solsta == MSK_SOL_STA_NEAR_DUAL_FEAS
-        MOI.NearlyFeasiblePoint
-    elseif solsta == MSK_SOL_STA_NEAR_PRIM_AND_DUAL_FEAS
-        MOI.NearFeasiblePoint
     elseif solsta == MSK_SOL_STA_PRIM_INFEAS_CER
         MOI.InfeasibilityCertificate
     elseif solsta == MSK_SOL_STA_DUAL_INFEAS_CER
-        MOI.UnknownResultStatus
-    elseif solsta == MSK_SOL_STA_NEAR_PRIM_INFEAS_CER
-        MOI.NearlyInfeasibilityCertificate
-    elseif solsta == MSK_SOL_STA_NEAR_DUAL_INFEAS_CER
         MOI.UnknownResultStatus
     elseif solsta == MSK_SOL_STA_PRIM_ILLPOSED_CER
         MOI.ReductionCertificate
@@ -665,8 +625,6 @@ function MOI.get(m::MosekModel,attr::MOI.DualStatus)
         MOI.UnknownResultStatus
     elseif solsta == MSK_SOL_STA_INTEGER_OPTIMAL
         MOI.FeasiblePoint
-    elseif solsta == MSK_SOL_STA_NEAR_INTEGER_OPTIMAL
-        MOI.NearlyFeasiblePoint
     else
         MOI.UnknownResultStatus
     end
