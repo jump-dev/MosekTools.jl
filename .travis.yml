@@ -12,5 +12,5 @@ before-install:
   - sudo apt-get install curl
 script:
   - julia -e 'Pkg.clone(pwd());'
-  - julia -e 'import MathOptInterfaceMosek'
+  - julia -e 'Pkg.test("Mosek")'
 
