@@ -629,7 +629,7 @@ function MOI.modifyconstraint!(m::MosekModel,
     xid = ref2id(func.variable)
     j = getindexes(m.x_block,xid)[1]
 
-    putaijlist(m.task,convert(Vector{Int32},subi),fill(j,length(subi)),fund.new_coefficients)
+    putaijlist(m.task,convert(Vector{Int32},subi),fill(j,length(subi)),func.new_coefficients)
 end
 
 
