@@ -29,9 +29,9 @@ end
 function MOI.set!(m::MosekModel, ::MOI.ObjectiveFunction, func::MOI.ScalarAffineFunction{Float64})
     numvar = getnumvar(m.task)
     c = zeros(Float64,numvar)
-    subj = getindexes(m.x_block, ref2id.(func.variables))
+    subj = getindexes(m.x_block, ref2id.(map(t -> t.variable_index, func.terms)))
     for i in 1:length(subj)
-        c[subj[i]] += func.coefficients[i]
+        c[subj[i]] += func.terms[i].coefficient
     end
 
     putclist(m.task,Int32[1:numvar...],c)

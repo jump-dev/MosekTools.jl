@@ -378,7 +378,7 @@ function MOI.Utilities.copyconstraints!(dest::MosekModel, src::MOI.ModelLike, id
 end
 
 
-function MOI.copy!(dest::MosekModel, src::MOI.ModelLike)
+function MOI.copy!(dest::MosekModel, src::MOI.ModelLike; copynames=true)
     if ! MOI.isempty(dest)
         MOI.empty!(dest)
     end

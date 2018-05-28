@@ -42,7 +42,7 @@ function MOI.addconstraint!(
 
     N = 1
     conid = allocateconstraints(m,N)
-    addlhsblock!(m, conid, fill(1,length(axb.variables)),axb.variables, axb.coefficients)
+    addlhsblock!(m, conid, fill(1,length(axb.terms)),axb.terms)
 
     if length(m.c_constant) < length(m.c_block)
         append!(m.c_constant,zeros(Float64,length(m.c_block) - length(m.c_constant)))
@@ -68,15 +68,14 @@ function MOI.addconstraint!(
     conid = allocateconstraints(m,N)
     addlhsblock!(m,
                  conid,
-                 axb.outputindex,
-                 axb.variables,
-                 axb.coefficients)
+                 map(t -> t.output_index, axb.terms),
+                 map(t -> t.scalar_term, axb.terms))
     conidxs = getindexes(m.c_block,conid)
-    m.c_constant[conidxs] = axb.constant
+    m.c_constant[conidxs] = axb.constants
 
     m.c_block_slack[conid]
 
-    addbound!(m,conid,conidxs,axb.constant,dom)
+    addbound!(m,conid,conidxs,axb.constants,dom)
     conref = MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},D}(UInt64(conid) << 1)
     select(m.constrmap,MOI.VectorAffineFunction{Float64},D)[conref.value] = conid
 
@@ -133,11 +132,10 @@ function MOI.addconstraint!(m   :: MosekModel,
     conid = allocateconstraints(m,NN)
     addlhsblock!(m,
                  conid,
-                 sympackedUtoLidx(axb.outputindex, N),
-                 axb.variables,
-                 axb.coefficients)
+                 sympackedUtoLidx(map(t -> t.output_index, axb.terms), N),
+                 map(t -> t.scalar_term, axb.terms))
     conidxs = getindexes(m.c_block,conid)
-    constant = sympackedUtoL(axb.constant, N)
+    constant = sympackedUtoL(axb.constants, N)
     m.c_constant[conidxs] = constant
 
     addbound!(m,conid,conidxs,constant,dom)
@@ -381,16 +379,15 @@ end
 function addlhsblock!(m        :: MosekModel,
                       conid    :: Int,
                       conidxs  :: Vector{Int},
-                      varidxs  :: Vector{MOI.VariableIndex},
-                      cofs     :: Vector{Float64})
+                      terms    :: Vector{MOI.ScalarAffineTerm{Float64}})
     consubi = getindexes(m.c_block,conid)
-    subj = Array{Int}(length(varidxs))
+    subj = Array{Int}(length(terms))
     for i in 1:length(subj)
-        getindexes(m.x_block,ref2id(varidxs[i]),subj,i)
+        getindexes(m.x_block,ref2id(terms[i].variable_index),subj,i)
     end
 
     N = length(consubi)
-    nnz = length(varidxs)
+    nnz = length(terms)
 
     msk_subi = convert(Vector{Int32},consubi)
 
@@ -409,7 +406,7 @@ function addlhsblock!(m        :: MosekModel,
     # sort by row
     for i in 1:nnz
         msk_subj[msk_rowptr[conidxs[i]]] = subj[i]
-        msk_cof[msk_rowptr[conidxs[i]]]  = cofs[i]
+        msk_cof[msk_rowptr[conidxs[i]]]  = terms[i].coefficient
         msk_rowptr[conidxs[i]] += 1
     end
 
@@ -625,11 +622,11 @@ function MOI.modifyconstraint!(m::MosekModel,
     cid = ref2id(c)
     assert(cid > 0)
 
-    subi = getindexes(m.c_block, cid)[func.rows]
+    subi = getindexes(m.c_block, cid)[getindex.(func.new_coefficients, 1)]
     xid = ref2id(func.variable)
     j = getindexes(m.x_block,xid)[1]
 
-    putaijlist(m.task,convert(Vector{Int32},subi),fill(j,length(subi)),func.new_coefficients)
+    putaijlist(m.task,convert(Vector{Int32},subi),fill(j,length(subi)),getindex.(func.new_coefficients,2))
 end
 
 
