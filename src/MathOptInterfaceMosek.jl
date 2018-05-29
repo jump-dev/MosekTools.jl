@@ -391,9 +391,17 @@ function MOI.copy!(dest::MosekModel, src::MOI.ModelLike; copynames=true)
     end
 
     MOI.set!(dest, MOI.ObjectiveSense(), MOI.get(src,MOI.ObjectiveSense()))
-    MOI.set!(dest,
-             MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
-             MOI.get(src,MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}()))
+    if MOI.canget(src,MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}})
+        MOI.set!(dest,
+                 MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
+                 MOI.get(src,MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}()))
+    elseif MOI.canget(src,MOI.ObjectiveFunction{MOI.SingleVariable})
+        MOI.set!(dest,
+                 MOI.ObjectiveFunction{MOI.SingleVariable}(),
+                 MOI.get(src,MOI.ObjectiveFunction{MOI.SingleVariable}()))
+    else
+        # no objective functrion
+    end
 
     # Copy constraints
     for (F, S) in MOI.get(src, MOI.ListOfConstraints()) # expensive?!
