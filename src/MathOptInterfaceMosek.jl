@@ -391,11 +391,11 @@ function MOI.copy!(dest::MosekModel, src::MOI.ModelLike; copynames=true)
     end
 
     MOI.set!(dest, MOI.ObjectiveSense(), MOI.get(src,MOI.ObjectiveSense()))
-    if MOI.canget(src,MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}})
+    if MOI.canget(src,MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}())
         MOI.set!(dest,
                  MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
                  MOI.get(src,MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}()))
-    elseif MOI.canget(src,MOI.ObjectiveFunction{MOI.SingleVariable})
+    elseif MOI.canget(src,MOI.ObjectiveFunction{MOI.SingleVariable}())
         MOI.set!(dest,
                  MOI.ObjectiveFunction{MOI.SingleVariable}(),
                  MOI.get(src,MOI.ObjectiveFunction{MOI.SingleVariable}()))
