@@ -36,11 +36,11 @@ function chainsing1(M :: Model,n :: Int)
         # s[j] >= (x[i] + 10*x[i+1])^2
         @constraint(M, [ 0.5, s[j], x[i]+10*x[i+1] ]            in MOI.RotatedSecondOrderCone(3))
         # t[j] >= 5*(x[i+2] - x[i+3])^2
-        @constraint(M, [ 0.5, t[j], sqrt(5)*(x[i+2] - x[i+3]) ] in MOI.RotatedSecondOrderCone(3))
+        @constraint(M, [ 0.5, t[j], sqrt(5.0)*(x[i+2] - x[i+3]) ] in MOI.RotatedSecondOrderCone(3))
         # r[j] >= (x[i+1] - 2*x[i+2])^2
-        @constraint(M, [ 0.5, r[j], x[i+1] - 2*x[i+2] ]         in MOI.RotatedSecondOrderCone(3))
+        @constraint(M, [ 0.5, r[j], x[i+1] - 2.0*x[i+2] ]         in MOI.RotatedSecondOrderCone(3))
         # 1/10 * u[j] >= (x[i] - 10*x[i+3])^2
-        @constraint(M, [ 0.5 * 10^(-1), u[j], x[i] - 10*x[i+3] ] in MOI.RotatedSecondOrderCone(3))
+        @constraint(M, [ 0.5 * 10^(-1.0), u[j], x[i] - 10.0*x[i+3] ] in MOI.RotatedSecondOrderCone(3))
         # p[j] >= r[j]^2
         @constraint(M, [ 0.5, p[j], r[j] ]                      in MOI.RotatedSecondOrderCone(3))
         # q[j] >= u[j]^2
@@ -72,9 +72,10 @@ function chainsing2(M :: Model,n :: Int)
     se = Array{Any}(2 * m + 2)
     
 
-    @constraint(M, [ 0.5, s,
-                     @expression(M,    x[i]   + 10*x[i+1]  for i in 1:2:n-3 )...,
-                     @expression(M, 5*(x[i+2] -    x[i+3]) for i in 1:2:n-3 )... ] in MOI.RotatedSecondOrderCone(2*m+2))
+    #@constraint(M, [ 0.5, s,
+    #                 @expression(M,    x[i]   + 10*x[i+1]  for i in 1:2:n-3 )...,
+    #                 @expression(M, 5*(x[i+2] -    x[i+3]) for i in 1:2:n-3 )... ] in MOI.RotatedSecondOrderCone(2*m+2))
+    @constraint(M, @expression(M,  [ 0.5; s; [ x[i]   + 10*x[i+1]  for i in 1:2:n-3 ] ; [ 5*(x[i+2] -    x[i+3]) for i in 1:2:n-3 ] ] ) in MOI.RotatedSecondOrderCone(2*m+2))
     for j in 1:m
         i = ((j - 1) << 1) + 1
 
@@ -111,11 +112,10 @@ function chainsing3(M :: Model,n :: Int)
     se = Array{Any}(2 * m + 2)
     
 
-    @constraint(M, [ 0.5, s,
-                     @expression(M,    x[i]   + 10*x[i+1]  for i in 1:2:n-3 )...,
-                     @expression(M, 5*(x[i+2] -    x[i+3]) for i in 1:2:n-3 )...,
-                     p...,
-                     q... ] in MOI.RotatedSecondOrderCone(4*m+2))
+    @constraint(M, @expression(M, [ 0.5; s;
+                                    [ x[i]   + 10*x[i+1]  for i in 1:2:n-3 ] ;
+                                    [ 5*(x[i+2] -    x[i+3]) for i in 1:2:n-3 ] ;
+                                    p ; q ]) in MOI.RotatedSecondOrderCone(4*m+2))
     for j in 1:m
         i = ((j - 1) << 1) + 1
 
@@ -185,7 +185,7 @@ function main(argv :: Vector{String})
                 println("\t\tgeneric Use generic backend, then copy to MOSEK optimizer")
                 println("\t\tmosek   Use mosek as backend")
                 println("\t\tmock    Use generic backend, then copy to JuMP mock optimizer")
-                println("\t--out=[1|2|3] Which formulation to use")
+                println("\t--out=filename Write task to this file")
                 println("\t--optimize Call optimizer")
                 return
             end
