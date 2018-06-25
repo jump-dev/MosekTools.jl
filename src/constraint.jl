@@ -537,21 +537,20 @@ end
 ##  MODIFY #####################################################################
 ################################################################################
 
-MOI.canmodifyconstraint(m::MosekModel, c::MOI.ConstraintIndex{F,D}, dom) where { F <: LinearFunction, D <: VectorCone } = false
-MOI.canmodifyconstraint(m::MosekModel, c::MOI.ConstraintIndex{F,D}, dom) where { F <: LinearFunction, D <: PositiveSemidefiniteCone } = false
-MOI.canmodifyconstraint(m::MosekModel, c::MOI.ConstraintIndex{F,D}, ::Type{D}) where { F <: LinearFunction, D <: LinearDomain } = haskey(select(m.constrmap,F,D),c.value)
-MOI.canmodifyconstraint(m::MosekModel, c::MOI.ConstraintIndex{F,D}, ::Type{F}) where { F <: Union{MOI.SingleVariable,MOI.ScalarAffineFunction}, D <: ScalarLinearDomain } = haskey(select(m.constrmap,F,D),c.value)
-MOI.canmodifyconstraint(m::MosekModel, c::MOI.ConstraintIndex{F,D}, ::Type{<:MOI.AbstractFunctionModification}) where { F <: AffineFunction, D <: MOI.AbstractSet } = haskey(select(m.constrmap,F,D),c.value)
+MOI.canset(m::MosekModel, ::MOI.ConstraintSet, ::Type{MOI.ConstraintIndex{F,D}}) where { F <: LinearFunction, D <: LinearDomain } = true
+MOI.canset(m::MosekModel, ::MOI.ConstraintFunction, ::Type{MOI.ConstraintIndex{F,D}}) where { F <: Union{MOI.SingleVariable,MOI.ScalarAffineFunction}, D <: ScalarLinearDomain } = true
+MOI.canmodify(m::MosekModel, ::Type{MOI.ConstraintIndex{F,D}}, ::Type{<:MOI.AbstractFunctionModification}) where { F <: AffineFunction, D <: MOI.AbstractSet } = true
 
 chgbound(bl::Float64,bu::Float64,k::Float64,dom :: MOI.LessThan{Float64})    = bl,dom.upper-k
 chgbound(bl::Float64,bu::Float64,k::Float64,dom :: MOI.GreaterThan{Float64}) = dom.lower-k,bu
 chgbound(bl::Float64,bu::Float64,k::Float64,dom :: MOI.EqualTo{Float64})     = dom.value-k,dom.value-k
 chgbound(bl::Float64,bu::Float64,k::Float64,dom :: MOI.Interval{Float64})    = dom.lower-k,dom.upper-k
 
-function MOI.modifyconstraint!(m::MosekModel,
-                                            xcref::MOI.ConstraintIndex{F,D},
-                                            dom::D) where { F    <: MOI.SingleVariable,
-                                                            D    <: ScalarLinearDomain }
+function MOI.set!(m::MosekModel,
+                  ::MOI.ConstraintSet,
+                  xcref::MOI.ConstraintIndex{F,D},
+                  dom::D) where { F    <: MOI.SingleVariable,
+                                  D    <: ScalarLinearDomain }
     xcid = ref2id(xcref)
     j = m.xc_idxs[getindexes(m.xc_block,xcid)[1]]
     bk,bl,bu = getvarbound(m.task,j)
@@ -560,10 +559,11 @@ function MOI.modifyconstraint!(m::MosekModel,
 end
 
 
-function MOI.modifyconstraint!(m::MosekModel,
-                                            cref::MOI.ConstraintIndex{F,D},
-                                            dom::D) where { F    <: MOI.ScalarAffineFunction,
-                                                            D    <: ScalarLinearDomain }
+function MOI.set!(m::MosekModel,
+                  ::MOI.ConstraintSet,
+                  cref::MOI.ConstraintIndex{F,D},
+                  dom::D) where { F    <: MOI.ScalarAffineFunction,
+                                  D    <: ScalarLinearDomain }
     cid = ref2id(cref)
     i = getindexes(m.c_block,cid)[1] # since we are in a scalar domain
     bk,bl,bu = getconbound(m.task,i)
@@ -571,9 +571,9 @@ function MOI.modifyconstraint!(m::MosekModel,
     putconbound(m.task,i,bk,bl,bu)
 end
 
-function MOI.modifyconstraint!(m   ::MosekModel,
-                                            c   ::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D},
-                                            func::MOI.ScalarConstantChange{Float64}) where {D <: MOI.AbstractSet}
+function MOI.modify!(m   ::MosekModel,
+                     c   ::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D},
+                     func::MOI.ScalarConstantChange{Float64}) where {D <: MOI.AbstractSet}
 
     cid = ref2id(c)
 
@@ -585,9 +585,9 @@ function MOI.modifyconstraint!(m   ::MosekModel,
     putconbound(m.task,i,bk,bl,bu)
 end
 
-function MOI.modifyconstraint!(m   ::MosekModel,
-                                            c   ::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D},
-                                            func::MOI.ScalarCoefficientChange{Float64}) where {D <: MOI.AbstractSet}
+function MOI.modify!(m   ::MosekModel,
+                     c   ::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D},
+                     func::MOI.ScalarCoefficientChange{Float64}) where {D <: MOI.AbstractSet}
     cid = ref2id(c)
     xid = ref2id(func.variable)
 
@@ -597,9 +597,9 @@ function MOI.modifyconstraint!(m   ::MosekModel,
     putaij(m.task,i,j,func.new_coefficient)
 end
 
-function MOI.modifyconstraint!(m::MosekModel,
-                                            c::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},D},
-                                            func::MOI.VectorConstantChange{Float64}) where {D <: MOI.AbstractSet}
+function MOI.modify!(m::MosekModel,
+                     c::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},D},
+                     func::MOI.VectorConstantChange{Float64}) where {D <: MOI.AbstractSet}
     cid = ref2id(c)
     assert(cid > 0)
 
@@ -616,9 +616,9 @@ function MOI.modifyconstraint!(m::MosekModel,
     putconboundlist(m.task,convert(Vector{Int32},subi),bk,bl,bu)
 end
 
-function MOI.modifyconstraint!(m::MosekModel,
-                                            c::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},D},
-                                            func::MOI.MultirowChange{Float64}) where {D <: MOI.AbstractSet}
+function MOI.modify!(m::MosekModel,
+                     c::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},D},
+                     func::MOI.MultirowChange{Float64}) where {D <: MOI.AbstractSet}
     cid = ref2id(c)
     assert(cid > 0)
 
@@ -631,23 +631,23 @@ end
 
 
 
-MOI.cantransformconstraint(m::MosekModel, c::MOI.ConstraintIndex{F,D1}, newdom::D2) where {F <: VariableFunction, D1, D2 } = false
-MOI.cantransformconstraint(m::MosekModel, c::MOI.ConstraintIndex{MOI.VectorAffineFunction,D1}, newdom::D2) where {D1 <: VectorLinearDomain, D2 <: VectorLinearDomain} = false
-function MOI.cantransformconstraint(m::MosekModel,
+MOI.cantransform(m::MosekModel, c::MOI.ConstraintIndex{F,D1}, newdom::D2) where {F <: VariableFunction, D1, D2 } = false
+MOI.cantransform(m::MosekModel, c::MOI.ConstraintIndex{MOI.VectorAffineFunction,D1}, newdom::D2) where {D1 <: VectorLinearDomain, D2 <: VectorLinearDomain} = false
+function MOI.cantransform(m::MosekModel,
                                                  cref::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D1},
                                                  newdom::D2) where {D1 <: ScalarLinearDomain,
                                                                     D2 <: ScalarLinearDomain}
     haskey(select(m.constrmap,MOI.ScalarAffineFunction{Float64},D1),cref.value)
 end
 
-function MOI.transformconstraint!(m::MosekModel,
-                                               cref::MOI.ConstraintIndex{F,D},
-                                               newdom::D) where {F  <: MOI.AbstractFunction, D <: MOI.AbstractSet}
-    MOI.modifyconstraint(m,cref,newdom)
+function MOI.transform!(m::MosekModel,
+                                  cref::MOI.ConstraintIndex{F,D},
+                                  newdom::D) where {F  <: MOI.AbstractFunction, D <: MOI.AbstractSet}
+    MOI.modify!(m,cref,newdom)
     cref
 end
 
-function MOI.transformconstraint!(m::MosekModel,
+function MOI.transform!(m::MosekModel,
                                                cref::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D1},
                                                newdom::D2) where {D1 <: ScalarLinearDomain,
                                                                   D2 <: ScalarLinearDomain}
@@ -665,7 +665,7 @@ function MOI.transformconstraint!(m::MosekModel,
     newcref
 end
 
-function MOI.transformconstraint!(m::MosekModel,
+function MOI.transform!(m::MosekModel,
                                                cref::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},D1},
                                                newdom::D2) where {D1 <: VectorLinearDomain,
                                                                   D2 <: VectorLinearDomain}
@@ -683,7 +683,7 @@ function MOI.transformconstraint!(m::MosekModel,
     newcref
 end
 
-#MOI.transformconstraint!(m::MosekModel, c::MOI.ConstraintIndex{F,D1}, newdom::D2) where {F <: MOI.VectorAffineFunction , D1 <: VectorLinearDomain, D2 <: VectorLinearDomain} = false
+#MOI.transform!(m::MosekModel, c::MOI.ConstraintIndex{F,D1}, newdom::D2) where {F <: MOI.VectorAffineFunction , D1 <: VectorLinearDomain, D2 <: VectorLinearDomain} = false
 
 ################################################################################
 ##  DELETE #####################################################################
