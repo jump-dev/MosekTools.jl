@@ -38,14 +38,14 @@ function MOI.set!(m::MosekModel, ::MOI.ObjectiveFunction, func::MOI.ScalarAffine
     putcfix(m.task,func.constant)
 end
 
-MOI.canmodifyobjective(m::MosekModel, change :: MOI.ScalarConstantChange) = true
-MOI.canmodifyobjective(m::MosekModel, change :: MOI.ScalarCoefficientChange) = true
+MOI.canmodify(m::MosekModel, ::MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}, change :: MOI.ScalarConstantChange) = true
+MOI.canmodify(m::MosekModel, ::MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}, change :: MOI.ScalarCoefficientChange) = true
 
-function MOI.modifyobjective!(m::MosekModel, change :: MOI.ScalarConstantChange)
+function MOI.modify!(m::MosekModel, ::MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}, change :: MOI.ScalarConstantChange)
     putcfix(m.task,change.new_constant)
 end
 
-function MOI.modifyobjective!(m::MosekModel, change :: MOI.ScalarCoefficientChange)
+function MOI.modify!(m::MosekModel, ::MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}, change :: MOI.ScalarCoefficientChange)
     vid = ref2id(change.variable)
     subj = getindexes(m.x_block,vid)
     putcj(m.task,Int32(subj[1]),change.new_coefficient)
