@@ -26,6 +26,7 @@ numblocks(s::LinkedInts) = length(s.block)
 function Base.show(f::IO, s::LinkedInts)
     print(f,"LinkedInts(\n")
     @printf(f,"  Number of blocks: %d\n", length(s.block))
+    @printf(f,"  Number of elements: %d\n", length(s.next))
     print(f,"  Blocks:\n")
     for i in 1:length(s.block)
         if s.block[i] > 0

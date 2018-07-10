@@ -332,11 +332,15 @@ end
 
 
 
+coneparfromset(dom :: MOI.PowerCone{Float64})     = dom.exponent
+coneparfromset(dom :: MOI.DualPowerCone{Float64}) = dom.exponent
+coneparfromset(dom :: C) where C <: MOI.AbstractSet = 0.0
+
 function aux_setvardom(m :: MosekModel,
                        xcid :: Int,
                        subj :: Vector{Int},
                        dom :: D) where { D <: VectorCone }
-    appendcone(m.task,abstractset2ct(dom),  0.0, subj)
+    appendcone(m.task,abstractset2ct(dom),  coneparfromset(dom), subj)
     coneidx = getnumcone(m.task)
     m.conecounter += 1
     putconename(m.task,coneidx,"$(m.conecounter)")
@@ -351,7 +355,8 @@ function MOI.addconstraint!{D <: MOI.AbstractSet}(m :: MosekModel, xs :: MOI.Vec
     end
 
     mask = domain_type_mask(dom)
-    if any(mask .& m.x_boundflags[subj[1]] .> 0)
+    println("subj = $(subj), $(m.x_block)")
+    if any(mask .& m.x_boundflags[subj] .> 0)
         error("Cannot multiple bound sets of the same type to a variable")
     end
 
@@ -432,11 +437,13 @@ addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, constant :: Vec
 function addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, constant :: Vector{Float64}, dom :: D) where { D <: Union{MOI.ExponentialCone, MOI.DualExponentialCone} }
     N = MOI.dimension(dom)
     nalloc = ensurefree(m.x_block,N)
-
+    
     varid = newblock(m.x_block,N)
     numvar = getnumvar(m.task)
-    if length(m.x_block) > numvar
+    if nalloc > 0
         appendvars(m.task, length(m.x_block) - numvar)
+        append!(m.x_boundflags, zeros(Int,length(m.x_block) - numvar))
+        append!(m.x_numxc, zeros(Int,length(m.x_block) - numvar))
     end
     subj = getindexes(m.x_block,varid)
     subj = [ subj[3], subj[2], subj[1] ]
@@ -447,7 +454,7 @@ function addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, consta
 
     m.c_block_slack[conid] = varid
 
-    appendcone(m.task,abstractset2ct(dom),0.0,subj)
+    appendcone(m.task,abstractset2ct(dom),coneparfromset(dom),subj)
     coneidx = getnumcone(m.task)
     m.conecounter += 1
     #putconename(m.task,coneidx,"$(m.conecounter)")
@@ -462,8 +469,10 @@ function addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, consta
 
     varid = newblock(m.x_block,N)
     numvar = getnumvar(m.task)
-    if length(m.x_block) > numvar
+    if nalloc > 0
         appendvars(m.task, length(m.x_block) - numvar)
+        append!(m.x_boundflags, zeros(Int,length(m.x_block) - numvar))
+        append!(m.x_numxc, zeros(Int,length(m.x_block) - numvar))
     end
     subj = getindexes(m.x_block,varid)
 
@@ -473,7 +482,7 @@ function addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, consta
 
     m.c_block_slack[conid] = varid
 
-    appendcone(m.task,abstractset2ct(dom),0.0,subj)
+    appendcone(m.task,abstractset2ct(dom),coneparfromset(dom),subj)
     coneidx = getnumcone(m.task)
     m.conecounter += 1
     #putconename(m.task,coneidx,"$(m.conecounter)")
@@ -893,9 +902,10 @@ function allocatevarconstraints(m :: MosekModel,
 end
 
 function allocatevariable(m :: MosekModel,N :: Int)
+    @assert(length(m.x_boundflags) == length(m.x_block))
     numvar = getnumvar(m.task)
     alloced = ensurefree(m.x_block,N)
-    if alloced > 0
+    if alloced > 0        
         appendvars(m.task, length(m.x_block) - numvar)
         append!(m.x_boundflags, zeros(Int,length(m.x_block) - numvar))
         append!(m.x_numxc, zeros(Int,length(m.x_block) - numvar))
