@@ -355,7 +355,6 @@ function MOI.addconstraint!{D <: MOI.AbstractSet}(m :: MosekModel, xs :: MOI.Vec
     end
 
     mask = domain_type_mask(dom)
-    println("subj = $(subj), $(m.x_block)")
     if any(mask .& m.x_boundflags[subj] .> 0)
         error("Cannot multiple bound sets of the same type to a variable")
     end
