@@ -48,7 +48,7 @@ function MOI.addconstraint!(
         append!(m.c_constant,zeros(Float64,length(m.c_block) - length(m.c_constant)))
     end
     conidxs = getindexes(m.c_block,conid)
-    m.c_constant[conidxs] = axb.constant
+    m.c_constant[conidxs] .= axb.constant
 
     addbound!(m,conid,conidxs,Float64[axb.constant],dom)
 
@@ -212,7 +212,7 @@ function addvarconstr(m :: MosekModel, subj :: Vector{Int}, dom :: MOI.GreaterTh
 end
 
 function addvarconstr(m :: MosekModel, subj :: Vector{Int}, dom :: MOI.Nonnegatives)
-    bkx = Vector{Boundkey}(length(subj))
+    bkx = Vector{Boundkey}(undef,length(subj))
     blx = zeros(Float64,length(subj))
     bux = zeros(Float64,length(subj))
     for (i,j) in enumerate(subj)
@@ -224,7 +224,7 @@ function addvarconstr(m :: MosekModel, subj :: Vector{Int}, dom :: MOI.Nonnegati
 end
 
 function addvarconstr(m :: MosekModel, subj :: Vector{Int}, dom :: MOI.Nonpositives)
-    bkx = Vector{Boundkey}(length(subj))
+    bkx = Vector{Boundkey}(undef,length(subj))
     blx = zeros(Float64,length(subj))
     bux = zeros(Float64,length(subj))
     for (i,j) in enumerate(subj)
@@ -276,7 +276,7 @@ function MOI.addconstraint!(m   :: MosekModel,
                             dom :: D) where { D <: PositiveSemidefiniteCone }
     N = dom.dimension
     vars = sympackedUtoL(xs.variables, N)
-    subj = Vector{Int}(length(vars))
+    subj = Vector{Int}(undef,length(vars))
     for i in 1:length(subj)
         getindexes(m.x_block, ref2id(vars[i]),subj,i)
     end
@@ -348,8 +348,8 @@ function aux_setvardom(m :: MosekModel,
 end
 aux_setvardom(m :: MosekModel, xcid :: Int, subj :: Vector{Int},dom :: D) where {D <: MOI.AbstractSet} = addvarconstr(m,subj,dom)
 
-function MOI.addconstraint!{D <: MOI.AbstractSet}(m :: MosekModel, xs :: MOI.VectorOfVariables, dom :: D)
-    subj = Vector{Int}(length(xs.variables))
+function MOI.addconstraint!(m :: MosekModel, xs :: MOI.VectorOfVariables, dom :: D) where {D <: MOI.AbstractSet}
+    subj = Vector{Int}(undef,length(xs.variables))
     for i in 1:length(subj)
         getindexes(m.x_block, ref2id(xs.variables[i]),subj,i)
     end
@@ -385,7 +385,7 @@ function addlhsblock!(m        :: MosekModel,
                       conidxs  :: Vector{Int},
                       terms    :: Vector{MOI.ScalarAffineTerm{Float64}})
     consubi = getindexes(m.c_block,conid)
-    subj = Array{Int}(length(terms))
+    subj = Vector{Int}(undef,length(terms))
     for i in 1:length(subj)
         getindexes(m.x_block,ref2id(terms[i].variable_index),subj,i)
     end
@@ -404,8 +404,8 @@ function addlhsblock!(m        :: MosekModel,
         msk_rowptr[i] += msk_rowptr[i-1]
     end
 
-    msk_subj = Array{Int32}(nnz)
-    msk_cof  = Array{Float64}(nnz)
+    msk_subj = Array{Int32}(undef,nnz)
+    msk_cof  = Array{Float64}(undef,nnz)
 
     # sort by row
     for i in 1:nnz
@@ -609,12 +609,12 @@ function MOI.modify!(m::MosekModel,
                      c::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},D},
                      func::MOI.VectorConstantChange{Float64}) where {D <: MOI.AbstractSet}
     cid = ref2id(c)
-    assert(cid > 0)
+    @assert(cid > 0)
 
     subi = getindexes(m.c_block, cid)
-    bk = Vector{Int32}(length(subi))
-    bl = Vector{Float64}(length(subi))
-    bu = Vector{Float64}(length(subi))
+    bk = Vector{Int32}(undef,length(subi))
+    bl = Vector{Float64}(undef,length(subi))
+    bu = Vector{Float64}(undef,length(subi))
 
     bk,bl,bu = getconboundlist(m.task,convert(Vector{Int32},subi))
     bl += m.c_constant[subi] - func.new_constant
@@ -628,7 +628,7 @@ function MOI.modify!(m::MosekModel,
                      c::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},D},
                      func::MOI.MultirowChange{Float64}) where {D <: MOI.AbstractSet}
     cid = ref2id(c)
-    assert(cid > 0)
+    @assert(cid > 0)
 
     subi = getindexes(m.c_block, cid)[getindex.(func.new_coefficients, 1)]
     xid = ref2id(func.variable)
@@ -659,7 +659,7 @@ function MOI.transform!(m::MosekModel,
                                                cref::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D1},
                                                newdom::D2) where {D1 <: ScalarLinearDomain,
                                                                   D2 <: ScalarLinearDomain}
-    const F = MOI.ScalarAffineFunction{Float64}
+    F = MOI.ScalarAffineFunction{Float64}
 
     cid = ref2id(cref)
 
@@ -677,7 +677,7 @@ function MOI.transform!(m::MosekModel,
                                                cref::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},D1},
                                                newdom::D2) where {D1 <: VectorLinearDomain,
                                                                   D2 <: VectorLinearDomain}
-    const F = MOI.VectorAffineFunction{Float64}
+    F = MOI.VectorAffineFunction{Float64}
 
     cid = ref2id(cref)
 
@@ -759,7 +759,7 @@ function Base.delete!(
     b = fill(0.0,n)
     putconboundlist(m.task,subi_i32,fill(MSK_BK_FX,n),b,b)
 
-    m.c_constant[subi] = 0.0
+    m.c_constant[subi] .= 0.0
     deleteblock(m.c_block,cid)
 end
 
@@ -844,7 +844,7 @@ function Base.delete!(
 
         putvarboundlist(m.task,convert(Vector{Int32},subj),bk,bl,bu)
     else
-        assert(false)
+        @assert(false)
         # should not happen
     end
 
@@ -918,9 +918,9 @@ MOI.isvalid(m::MosekModel, ref::MOI.VariableIndex) = allocated(m.x_block,ref2id(
 
 function getvarboundlist(t::Mosek.Task, subj :: Vector{Int32})
     n = length(subj)
-    bk = Vector{Boundkey}(n)
-    bl = Vector{Float64}(n)
-    bu = Vector{Float64}(n)
+    bk = Vector{Boundkey}(undef,n)
+    bl = Vector{Float64}(undef,n)
+    bu = Vector{Float64}(undef,n)
     for i in 1:n
         bki,bli,bui = getvarbound(t,subj[i])
         bk[i] = bki
@@ -932,9 +932,9 @@ end
 
 function getconboundlist(t::Mosek.Task, subj :: Vector{Int32})
     n = length(subj)
-    bk = Vector{Boundkey}(n)
-    bl = Vector{Float64}(n)
-    bu = Vector{Float64}(n)
+    bk = Vector{Boundkey}(undef,n)
+    bl = Vector{Float64}(undef,n)
+    bu = Vector{Float64}(undef,n)
     for i in 1:n
         bki,bli,bui = getconbound(t,subj[i])
         bk[i] = bki

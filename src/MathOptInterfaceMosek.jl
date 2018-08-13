@@ -122,7 +122,7 @@ select(cm::ConstraintMap,::Type{MOI.VectorAffineFunction{Float64}},::Type{MOI.Du
 select(cm::ConstraintMap,::Type{MOI.VectorAffineFunction{Float64}},::Type{MOI.ExponentialCone}) =                  cm.axbs_pexpcone
 select(cm::ConstraintMap,::Type{MOI.VectorAffineFunction{Float64}},::Type{MOI.DualExponentialCone}) =              cm.axbs_dexpcone
 
-Base.getindex{F,D}(cm::ConstraintMap,r :: MOI.ConstraintIndex{F,D}) = select(cm,F,D)[r.value]
+Base.getindex(cm::ConstraintMap,r :: MOI.ConstraintIndex{F,D}) where {F,D} = select(cm,F,D)[r.value]
 
 
 struct MosekSolution
@@ -487,7 +487,7 @@ ref2id(ref :: MOI.ConstraintIndex) :: Int =
     end
 
 function id2vref(id :: Int) :: MOI.VariableIndex
-    assert(id > 0)
+    @assert(id > 0)
     MOI.VariableIndex(id)
 end
 

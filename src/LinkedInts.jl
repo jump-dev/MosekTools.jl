@@ -1,3 +1,4 @@
+using Printf                    # 
 
 mutable struct LinkedInts
     next :: Vector{Int}
@@ -86,7 +87,7 @@ end
 Add a new block in list `idx`
 """
 function newblock(s::LinkedInts, N :: Int) :: Int
-    assert(N>0)
+    @assert(N>0)
     ensurefree(s,N)
     # remove from free list
     ptre = s.free_ptr
@@ -164,7 +165,7 @@ end
 """
 function getindexes(s::LinkedInts, id :: Int)
     N = s.size[id]
-    r = Array{Int}(N)
+    r = Array{Int}(undef,N)
     p = s.block[id]
     for i in 1:N
         r[i] = p
@@ -186,7 +187,7 @@ end
 
 function getindexes(s::LinkedInts, ids::Vector{Int})
     N = sum(map(id -> s.size[id], ids))
-    r = Vector{Int}(N)
+    r = Vector{Int}(undef,N)
     offset = 1
     for id in ids
         offset += getindexes(s, id, r, offset)
@@ -209,7 +210,7 @@ Get a list if the currently free elements.
 """
 function getfreeindexes(s::LinkedInts)
     N = s.free_cap
-    r = Array{Int}(N)
+    r = Array{Int}(undef,N)
     ptr = s.free_ptr
     for i in 1:N
         r[N-i+1] = ptr
@@ -225,7 +226,7 @@ Get a list if the currently used elements.
 """
 function getusedindexes(s::LinkedInts)
     N = length(s.next) - s.free_cap
-    r = Array{Int}(N)
+    r = Array{Int}(undef,N)
     ptr = s.root
     for i in 1:N
         r[N-i+1] = ptr
@@ -249,7 +250,7 @@ function checkconsistency(s::LinkedInts) :: Bool
 
     if ! (all(i -> s.prev[i] == 0 || s.next[s.prev[i]] == i, 1:N) &&
           all(i -> s.next[i] == 0 || s.prev[s.next[i]] == i, 1:N))
-        assert(false)
+        @assert(false)
     end
 
     mark = fill(false,length(s.prev))
@@ -262,7 +263,7 @@ function checkconsistency(s::LinkedInts) :: Bool
 
     p = s.root
     while p != 0
-        assert(!mark[p])
+        @assert(!mark[p])
         mark[p] = true
         p = s.prev[p]
     end
@@ -270,7 +271,7 @@ function checkconsistency(s::LinkedInts) :: Bool
     if !all(mark)
         println(s)
         println(mark)
-        assert(all(mark))
+        @assert(all(mark))
     end
 
     return true

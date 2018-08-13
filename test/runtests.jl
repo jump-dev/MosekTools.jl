@@ -1,4 +1,3 @@
-
 # To ensure that tests can run on travis we have to do a little
 # hackadoodle here. The tests require a license file. We include
 # a license file that is only valid for one day (the day when
@@ -22,7 +21,7 @@ end
 using MathOptInterfaceMosek
 
 
-using Base.Test
+using Test
 
 using MathOptInterface
 const MOI = MathOptInterface

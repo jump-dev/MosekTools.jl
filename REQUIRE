@@ -1,3 +1,4 @@
-julia 0.6
+julia 0.7
 MathOptInterface 0.4 0.5
-Mosek 0.8.3
+#Mosek 0.9
+Mosek

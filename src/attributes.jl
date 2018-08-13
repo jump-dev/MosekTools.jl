@@ -9,7 +9,7 @@
 
 #### objective
 MOI.get(m::MosekModel,attr::MOI.ObjectiveValue) = getprimalobj(m.task,m.solutions[attr.resultindex].whichsol)
-MOI.canget(m::MosekSolver,attr::MOI.ObjectiveValue) = true
+#MOI.canget(m::MosekSolver,attr::MOI.ObjectiveValue) = true
 MOI.canget(m::MosekModel,attr::MOI.ObjectiveValue) = attr.resultindex > 0 && attr.resultindex <= length(m.solutions)
 
 MOI.canget(m::MosekModel,attr::MOI.ObjectiveBound) = getintinf(m.task,MSK_IINF_MIO_NUM_RELAX) > 0
@@ -18,13 +18,13 @@ MOI.get(m::MosekModel,attr::MOI.ObjectiveBound) = getdouinf(m.task,MSK_DINF_MIO_
 MOI.canget(m::MosekModel,attr::MOI.RelativeGap) = getdouinf(m.task,MSK_DINF_MIO_OBJ_REL_GAP) > -1.0
 MOI.get(m::MosekModel,attr::MOI.RelativeGap) = getdouinf(m.task,MSK_DINF_MIO_OBJ_REL_GAP)
 
-MOI.canget(m::MosekSolver,attr::MOI.SolveTime) = true
+#MOI.canget(m::MosekSolver,attr::MOI.SolveTime) = true
 MOI.canget(m::MosekModel,attr::MOI.SolveTime) = true
 MOI.get(m::MosekModel,attr::MOI.SolveTime) = getdouinf(m.task,MSK_DINF_OPTIMIZER_TIME)
 
-MOI.canget(m::MosekSolver,attr::MOI.ObjectiveSense) = true
+#MOI.canget(m::MosekSolver,attr::MOI.ObjectiveSense) = true
 MOI.canget(m::MosekModel,attr::MOI.ObjectiveSense)  = true
-MOI.canset(m::MosekSolver,attr::MOI.ObjectiveSense) = true
+#MOI.canset(m::MosekSolver,attr::MOI.ObjectiveSense) = true
 MOI.canset(m::MosekModel,attr::MOI.ObjectiveSense)  = true
 
 # NOTE: The MOSEK interface currently only supports Min and Max
@@ -51,7 +51,7 @@ end
 
 #### Solver/Solution information
 
-MOI.canget(m::MosekSolver,attr::MOI.SimplexIterations) = true
+#MOI.canget(m::MosekSolver,attr::MOI.SimplexIterations) = true
 MOI.canget(m::MosekModel,attr::MOI.SimplexIterations) = true
 function MOI.get(m::MosekModel,attr::MOI.SimplexIterations)
     miosimiter = getlintinf(m.task,MSK_LIINF_MIO_SIMPLEX_ITER)
@@ -62,7 +62,7 @@ function MOI.get(m::MosekModel,attr::MOI.SimplexIterations)
     end
 end
 
-MOI.canget(m::MosekSolver,attr::MOI.BarrierIterations) = true
+#MOI.canget(m::MosekSolver,attr::MOI.BarrierIterations) = true
 MOI.canget(m::MosekModel,attr::MOI.BarrierIterations) = true
 function MOI.get(m::MosekModel,attr::MOI.BarrierIterations)
     miosimiter = getlintinf(m.task,MSK_LIINF_MIO_INTPNT_ITER)
@@ -73,41 +73,41 @@ function MOI.get(m::MosekModel,attr::MOI.BarrierIterations)
     end
 end
 
-MOI.canget(m::MosekSolver,attr::MOI.NodeCount) = true
+#MOI.canget(m::MosekSolver,attr::MOI.NodeCount) = true
 MOI.canget(m::MosekModel,attr::MOI.NodeCount) = true
 function MOI.get(m::MosekModel,attr::MOI.NodeCount)
         Int(getintinf(m.task,MSK_IINF_MIO_NUM_BRANCH))
 end
 
-MOI.canget(m::MosekSolver,attr::MOI.RawSolver) = true
+#MOI.canget(m::MosekSolver,attr::MOI.RawSolver) = true
 MOI.canget(m::MosekModel,attr::MOI.RawSolver) = true
 MOI.get(m::MosekModel,attr::MOI.RawSolver) = m.task
 
-MOI.canget(m::MosekSolver,attr::MOI.ResultCount) = true
+#MOI.canget(m::MosekSolver,attr::MOI.ResultCount) = true
 MOI.canget(m::MosekModel,attr::MOI.ResultCount) = true
 MOI.get(m::MosekModel,attr::MOI.ResultCount) = length(m.solutions)
 
 #### Problem information
 
-MOI.canget(m::MosekSolver,attr::MOI.NumberOfVariables) = true
+#MOI.canget(m::MosekSolver,attr::MOI.NumberOfVariables) = true
 MOI.canget(m::MosekModel,attr::MOI.NumberOfVariables) = true
 MOI.get(m::MosekModel,attr::MOI.NumberOfVariables) = m.publicnumvar
 
-MOI.canget(m::MosekSolver,attr::MOI.NumberOfConstraints) = true
-MOI.canget{F,D}(m::MosekModel,attr::MOI.NumberOfConstraints{F,D}) = true
-MOI.get{F,D}(m::MosekModel,attr::MOI.NumberOfConstraints{F,D}) = length(select(m.constrmap,F,D))
+#MOI.canget(m::MosekSolver,attr::MOI.NumberOfConstraints) = true
+MOI.canget(m::MosekModel,attr::MOI.NumberOfConstraints{F,D}) where {F,D} = true
+MOI.get(m::MosekModel,attr::MOI.NumberOfConstraints{F,D}) where {F,D} = length(select(m.constrmap,F,D))
 
 #MOI.canget(m::MosekSolver,attr::MOI.ListOfVariableIndices) = false
 #MOI.canget(m::MosekSolver,attr::MOI.ListOfConstraints) = false
 
-MOI.canget{F,D}(m::MosekSolver,attr::MOI.ListOfConstraintIndices{F,D}) = true
-MOI.get{F,D}(m::MosekSolver,attr::MOI.ListOfConstraintIndices{F,D}) = keys(select(m.constrmap,F,D))
+#MOI.canget{F,D}(m::MosekSolver,attr::MOI.ListOfConstraintIndices{F,D}) = true
+#MOI.get{F,D}(m::MosekSolver,attr::MOI.ListOfConstraintIndices{F,D}) = keys(select(m.constrmap,F,D))
 
 
 #### Warm start values
 
-MOI.canset(m::MosekSolver,attr::MOI.VariablePrimalStart) = true
-MOI.canset(m::MosekModel,attr::MOI.VariablePrimalStart) = true
+#MOI.canset(m::MosekSolver,attr::MOI.VariablePrimalStart) = true
+#MOI.canset(m::MosekModel,attr::MOI.VariablePrimalStart) = true
 function MOI.set!(m::MosekModel,attr::MOI.VariablePrimalStart, v :: MOI.VariableIndex, val::Float64)
     subj = getindexes(m.x_block,ref2id(v))
 
@@ -118,7 +118,7 @@ function MOI.set!(m::MosekModel,attr::MOI.VariablePrimalStart, v :: MOI.Variable
 end
 
 function MOI.set!(m::MosekModel,attr::MOI.VariablePrimalStart, vs::Vector{MOI.VariableIndex}, vals::Vector{Float64})
-    subj = Array{Int}(length(vs))
+    subj = Array{Int}(undef,length(vs))
     for i in 1:length(subj)
         getindexes(m.x_block,ref2id(vs[i]),subj,i)
     end
@@ -143,10 +143,10 @@ function MOI.set!(m::MosekModel, attr::MOI.VariableName, index :: MOI.VariableIn
 end
 
 
-MOI.canset(m::MosekSolver,attr::MOI.ConstraintPrimalStart) = false # not sure what exactly this would be...
+#MOI.canset(m::MosekSolver,attr::MOI.ConstraintPrimalStart) = false # not sure what exactly this would be...
 MOI.canset(m::MosekModel,attr::MOI.ConstraintPrimalStart) = false
 
-MOI.canset(m::MosekSolver,attr::MOI.ConstraintDualStart) = false # for now
+#MOI.canset(m::MosekSolver,attr::MOI.ConstraintDualStart) = false # for now
 MOI.canset(m::MosekModel,attr::MOI.ConstraintDualStart) = false
 
 # function MOI.set!(m::MosekModel,attr::MOI.ConstraintDualStart, vs::Vector{MOI.ConstraintIndex}, vals::Vector{Float64})
@@ -172,12 +172,12 @@ MOI.canset(m::MosekModel,attr::MOI.ConstraintDualStart) = false
 
 #### Variable solution values
 MOI.canget(m::MosekModel,attr::MOI.VariablePrimal) = attr.N > 0 && attr.N <= length(m.solutions)
-MOI.canget(m::MosekSolver,attr::MOI.VariablePrimal) = true
+#MOI.canget(m::MosekSolver,attr::MOI.VariablePrimal) = true
 
 MOI.canget(m::MosekModel,attr::MOI.VariablePrimal,::Type{MOI.VariableIndex}) = MOI.canget(m,attr)
 
 function MOI.get!(output::Vector{Float64},m::MosekModel,attr::MOI.VariablePrimal, vs::Vector{MOI.VariableIndex})
-    subj = Array{Int}(length(vs))
+    subj = Array{Int}(undef,length(vs))
     for i in 1:length(subj)
         getindexes(m.x_block,ref2id(vs[i]),subj,i)
     end
@@ -186,7 +186,7 @@ function MOI.get!(output::Vector{Float64},m::MosekModel,attr::MOI.VariablePrimal
 end
 
 function MOI.get(m::MosekModel,attr::MOI.VariablePrimal, vs::Vector{MOI.VariableIndex})
-    output = Vector{Float64}(length(vs))
+    output = Vector{Float64}(undef,length(vs))
     MOI.get!(output,m,attr,vs)
     output
 end
@@ -201,7 +201,7 @@ end
 
 
 
-MOI.canget(m::MosekSolver,attr::MOI.VariableBasisStatus) = false # is a solution selector missing?
+#MOI.canget(m::MosekSolver,attr::MOI.VariableBasisStatus) = false # is a solution selector missing?
 MOI.canget(m::MosekModel,attr::MOI.VariableBasisStatus)  = false
 
 #### Constraint solution values
@@ -215,10 +215,10 @@ end
 
 MOI.canget(m::MosekModel,attr::MOI.ConstraintPrimal, ::Type{<:MOI.ConstraintIndex}) = canget(m,attr)
 
-function MOI.get{D}(
+function MOI.get(
     m     ::MosekModel,
     attr  ::MOI.ConstraintPrimal,
-    cref  ::MOI.ConstraintIndex{MOI.SingleVariable,D})
+    cref  ::MOI.ConstraintIndex{MOI.SingleVariable,D}) where D
 
     conid = ref2id(cref)
     idxs  = getindexes(m.xc_block,conid)
@@ -236,7 +236,7 @@ function MOI.get!(
 
     whichsol = getsolcode(m,attr.N)
     cid = ref2id(cref)
-    assert(cid < 0)
+    @assert(cid < 0)
 
     # It is in fact a real constraint and cid is the id of an ordinary constraint
     barvaridx = - m.c_block_slack[-cid]
@@ -244,14 +244,14 @@ function MOI.get!(
 end
 
 # Any other domain for variable vector
-function MOI.get!{D}(
+function MOI.get!(
     output::Vector{Float64},
     m     ::MosekModel,
     attr  ::MOI.ConstraintPrimal,
-    cref  ::MOI.ConstraintIndex{MOI.VectorOfVariables,D})
+    cref  ::MOI.ConstraintIndex{MOI.VectorOfVariables,D}) where D
 
     xcid = ref2id(cref)
-    assert(xcid > 0)
+    @assert(xcid > 0)
 
     mask = m.xc_bounds[xcid]
     idxs = getindexes(m.xc_block,xcid)
@@ -260,9 +260,9 @@ function MOI.get!{D}(
     output[1:length(output)] = m.solutions[attr.N].xx[subj]
 end
 
-function MOI.get{D}(m     ::MosekModel,
-                    attr  ::MOI.ConstraintPrimal,
-                    cref  ::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D})
+function MOI.get(m     ::MosekModel,
+                 attr  ::MOI.ConstraintPrimal,
+                 cref  ::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D}) where D
     cid = ref2id(cref)
     subi = getindexes(m.c_block,cid)[1]
     m.solutions[attr.N].xc[subi] + m.c_constant[subi]
@@ -270,11 +270,11 @@ end
 
 
 
-function MOI.get!{D}(
+function MOI.get!(
     output::Vector{Float64},
     m     ::MosekModel,
     attr  ::MOI.ConstraintPrimal,
-    cref  ::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},D})
+    cref  ::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},D}) where D
 
     cid = ref2id(cref)
     subi = getindexes(m.c_block,cid)
@@ -316,7 +316,7 @@ function MOI.get(
     xcid = ref2id(cref)
     idxs = getindexes(m.xc_block,xcid) # variable ids
 
-    assert(blocksize(m.xc_block,xcid) > 0)
+    @assert(blocksize(m.xc_block,xcid) > 0)
 
     subj  = getindexes(m.x_block, m.xc_idxs[idxs][1])[1]
     if (getobjsense(m.task) == MSK_OBJECTIVE_SENSE_MINIMIZE)
@@ -357,7 +357,7 @@ function MOI.get!(
 
     whichsol = getsolcode(m,attr.N)
     cid = ref2id(cref)
-    assert(cid < 0)
+    @assert(cid < 0)
 
     # It is in fact a real constraint and cid is the id of an ordinary constraint
     barvaridx = - m.c_block_slack[-cid]
@@ -370,14 +370,14 @@ function MOI.get!(
 end
 
 # Any other domain for variable vector
-function MOI.get!{D}(
+function MOI.get!(
     output::Vector{Float64},
     m     ::MosekModel,
     attr  ::MOI.ConstraintDual,
-    cref  ::MOI.ConstraintIndex{MOI.VectorOfVariables,D})
+    cref  ::MOI.ConstraintIndex{MOI.VectorOfVariables,D}) where D
 
     xcid = ref2id(cref)
-    assert(xcid > 0)
+    @assert(xcid > 0)
 
     mask = m.xc_bounds[xcid]
     idxs = getindexes(m.xc_block,xcid)
@@ -410,9 +410,10 @@ function MOI.get!{D}(
     end
 end
 
-function MOI.get{D}(m     ::MosekModel,
-                                          attr  ::MOI.ConstraintDual,
-                                          cref  ::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D})
+function MOI.get(m     ::MosekModel,
+                 attr  ::MOI.ConstraintDual,
+                 cref  ::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D}) where D
+    
     cid = ref2id(cref)
     subi = getindexes(m.c_block,cid)[1]
 
@@ -488,9 +489,9 @@ function solsize(m::MosekModel, cref :: MOI.ConstraintIndex{<:MOI.VectorAffineFu
     blocksize(m.c_block,cid)
 end
 
-function MOI.get{F <: MOI.AbstractVectorFunction,D}(m::MosekModel, attr::Union{MOI.ConstraintPrimal, MOI.ConstraintDual}, cref :: MOI.ConstraintIndex{F,D})
+function MOI.get(m::MosekModel, attr::Union{MOI.ConstraintPrimal, MOI.ConstraintDual}, cref :: MOI.ConstraintIndex{F,D}) where {F <: MOI.AbstractVectorFunction,D}
     cid = ref2id(cref)
-    output = Vector{Float64}(solsize(m,cref))
+    output = Vector{Float64}(undef,solsize(m,cref))
     MOI.get!(output,m,attr,cref)
     output
 end

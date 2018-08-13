@@ -10,7 +10,7 @@ function MOI.addvariables!(m::MosekModel, N :: UInt)
 
     m.publicnumvar += N
 
-    idxs = Vector{Int}(N)
+    idxs = Vector{Int}(undef,N)
     for i in 1:Int(N)
         getindexes(m.x_block,ids[i],idxs,i)
     end
@@ -35,7 +35,7 @@ function MOI.addvariable!(m::MosekModel)
     N = 1
     id = allocatevariable(m,1)
     m.publicnumvar += N
-    bnd = Vector{Float64}(N)
+    bnd = Vector{Float64}(undef,N)
     subj = convert(Vector{Int32}, getindexes(m.x_block, id))
     putvarboundlist(m.task,
                     subj,
@@ -63,7 +63,7 @@ function Base.delete!(m::MosekModel, refs::Vector{MOI.VariableIndex})
         sizes = Int[blocksize(m.x_block,id) for id in ids]
         N = sum(sizes)
         m.publicnumvar -= length(refs)
-        indexes = Array{Int}(N)
+        indexes = Array{Int}(undef,N)
         offset = 1
         for i in 1:length(ids)
             getindexes(m.x_block,ids[i],indexes,offset)
