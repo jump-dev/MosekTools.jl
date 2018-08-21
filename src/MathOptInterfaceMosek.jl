@@ -295,13 +295,7 @@ function MosekOptimizer(; kws...)
     end
 end
 
-function MOI.free!(m::MosekModel)
-    Mosek.deletetask(m.task)
-end
 
-function MOI.isempty(m::MosekModel)
-    getnumvar(m.task) == 0 && getnumcon(m.task) == 0 && getnumcone(m.task) == 0 && getnumbarvar(m.task) == 0
-end
 
 function MOI.optimize!(m::MosekModel)
     m.trm = optimize(m.task)
@@ -357,6 +351,9 @@ function MOI.optimize!(m::MosekModel)
     end
 end
 
+function MOI.isempty(m::MosekModel)
+    getnumvar(m.task) == 0 && getnumcon(m.task) == 0 && getnumcone(m.task) == 0 && getnumbarvar(m.task) == 0
+end
 
 function MOI.empty!(m::MosekModel)
     m.task          = maketask()

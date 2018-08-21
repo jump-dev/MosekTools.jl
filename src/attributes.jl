@@ -22,10 +22,6 @@ MOI.get(m::MosekModel,attr::MOI.RelativeGap) = getdouinf(m.task,MSK_DINF_MIO_OBJ
 MOI.canget(m::MosekModel,attr::MOI.SolveTime) = true
 MOI.get(m::MosekModel,attr::MOI.SolveTime) = getdouinf(m.task,MSK_DINF_OPTIMIZER_TIME)
 
-#MOI.canget(m::MosekSolver,attr::MOI.ObjectiveSense) = true
-MOI.canget(m::MosekModel,attr::MOI.ObjectiveSense)  = true
-#MOI.canset(m::MosekSolver,attr::MOI.ObjectiveSense) = true
-MOI.canset(m::MosekModel,attr::MOI.ObjectiveSense)  = true
 
 # NOTE: The MOSEK interface currently only supports Min and Max
 function MOI.get(m::MosekModel,attr::MOI.ObjectiveSense)
@@ -106,8 +102,6 @@ MOI.get(m::MosekModel,attr::MOI.NumberOfConstraints{F,D}) where {F,D} = length(s
 
 #### Warm start values
 
-#MOI.canset(m::MosekSolver,attr::MOI.VariablePrimalStart) = true
-#MOI.canset(m::MosekModel,attr::MOI.VariablePrimalStart) = true
 function MOI.set!(m::MosekModel,attr::MOI.VariablePrimalStart, v :: MOI.VariableIndex, val::Float64)
     subj = getindexes(m.x_block,ref2id(v))
 
@@ -141,13 +135,6 @@ function MOI.set!(m::MosekModel, attr::MOI.VariableName, index :: MOI.VariableIn
     subj = getindexes(m.x_block, ref2id(index))
     putvarname(m.task,subj[1],value)
 end
-
-
-#MOI.canset(m::MosekSolver,attr::MOI.ConstraintPrimalStart) = false # not sure what exactly this would be...
-MOI.canset(m::MosekModel,attr::MOI.ConstraintPrimalStart) = false
-
-#MOI.canset(m::MosekSolver,attr::MOI.ConstraintDualStart) = false # for now
-MOI.canset(m::MosekModel,attr::MOI.ConstraintDualStart) = false
 
 # function MOI.set!(m::MosekModel,attr::MOI.ConstraintDualStart, vs::Vector{MOI.ConstraintIndex}, vals::Vector{Float64})
 #     subj = Array{Int}(length(vs))

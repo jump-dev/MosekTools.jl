@@ -12,7 +12,8 @@ function MathOptInterface.get(m::MosekModel, ::MathOptInterface.ObjectiveFunctio
 end
 
 MOI.supports(::MosekModel,::MOI.ObjectiveFunction{<:ObjF})  = true
-MOI.canset(::MosekModel,::MOI.ObjectiveFunction{<:ObjF})  = true
+MOI.supports(::MosekModel,::MOI.ObjectiveSense) = true
+    
 
 function MOI.set!(m::MosekModel, ::MOI.ObjectiveFunction, func::MOI.SingleVariable)
     numvar = getnumvar(m.task)
@@ -37,9 +38,6 @@ function MOI.set!(m::MosekModel, ::MOI.ObjectiveFunction, func::MOI.ScalarAffine
     putclist(m.task,Int32[1:numvar...],c)
     putcfix(m.task,func.constant)
 end
-
-MOI.canmodify(m::MosekModel, ::MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}, change :: MOI.ScalarConstantChange) = true
-MOI.canmodify(m::MosekModel, ::MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}, change :: MOI.ScalarCoefficientChange) = true
 
 function MOI.modify!(m::MosekModel, ::MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}, change :: MOI.ScalarConstantChange)
     putcfix(m.task,change.new_constant)

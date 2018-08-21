@@ -1,8 +1,7 @@
 
-MOI.candelete(m::MosekModel,ref::MOI.VariableIndex) = isvalid(m,ref) && m.x_numxc[ref2id(ref)] == 0
+candelete(m::MosekModel,ref::MOI.VariableIndex) = isvalid(m,ref) && m.x_numxc[ref2id(ref)] == 0
 isvalid(m::MosekModel, ref::MOI.VariableIndex) = allocated(m.x_block,ref2id(ref))
 
-MOI.canaddvariable(m::MosekModel) = true
 
 MOI.addvariables!(m::MosekModel, N :: I) where { I <: Integer } = MOI.addvariables!(m,UInt(N))
 function MOI.addvariables!(m::MosekModel, N :: UInt)
@@ -57,7 +56,7 @@ function Base.delete!(m::MosekModel, refs::Vector{MOI.VariableIndex})
 
     if ! all(id -> m.x_numxc[id] == 0, ids)
         error("Cannot delete a variable while a bound constraint is defined on it")
-    elseif ! all(ref -> MOI.candelete(m,ref),refs)
+    elseif ! all(ref -> candelete(m,ref),refs)
         throw(CannotDelete())
     else
         sizes = Int[blocksize(m.x_block,id) for id in ids]
@@ -100,7 +99,7 @@ end
 function Base.delete!(m::MosekModel, ref::MOI.VariableIndex)
     if m.x_numxc[ref2id(ref)] != 0
         error("Cannot delete a variable while a bound constraint is defined on it")
-    elseif ! MOI.candelete(m,ref)
+    elseif ! candelete(m,ref)
         throw(CannotDelete())
     else
         id = ref2id(ref)

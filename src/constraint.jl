@@ -31,9 +31,9 @@ const ScalarIntegerDomain = Union{MOI.ZeroOne, MOI.Integer}
 MOI.supportsconstraint(m::MosekModel, ::Type{<:Union{MOI.SingleVariable, MOI.ScalarAffineFunction}}, ::Type{<:ScalarLinearDomain}) = true
 MOI.supportsconstraint(m::MosekModel, ::Type{<:Union{MOI.VectorOfVariables, MOI.VectorAffineFunction}}, ::Type{<:Union{VectorCone, PositiveSemidefiniteCone, VectorLinearDomain}}) = true
 MOI.supportsconstraint(m::MosekModel, ::Type{MOI.SingleVariable}, ::Type{<:ScalarIntegerDomain}) = true
-MOI.canaddconstraint(m::MosekModel, ::Type{<:Union{MOI.SingleVariable, MOI.ScalarAffineFunction}}, ::Type{<:ScalarLinearDomain}) = true
-MOI.canaddconstraint(m::MosekModel, ::Type{<:Union{MOI.VectorOfVariables, MOI.VectorAffineFunction}}, ::Type{<:Union{VectorCone, PositiveSemidefiniteCone, VectorLinearDomain}}) = true
-MOI.canaddconstraint(m::MosekModel, ::Type{MOI.SingleVariable}, ::Type{<:ScalarIntegerDomain}) = true
+#MOI.canaddconstraint(m::MosekModel, ::Type{<:Union{MOI.SingleVariable, MOI.ScalarAffineFunction}}, ::Type{<:ScalarLinearDomain}) = true
+#MOI.canaddconstraint(m::MosekModel, ::Type{<:Union{MOI.VectorOfVariables, MOI.VectorAffineFunction}}, ::Type{<:Union{VectorCone, PositiveSemidefiniteCone, VectorLinearDomain}}) = true
+#MOI.canaddconstraint(m::MosekModel, ::Type{MOI.SingleVariable}, ::Type{<:ScalarIntegerDomain}) = true
 
 function MOI.addconstraint!(
     m   :: MosekModel,
@@ -126,7 +126,7 @@ end
 function MOI.addconstraint!(m   :: MosekModel,
                             axb :: MOI.VectorAffineFunction{Float64},
                             dom :: PSDCone) where { PSDCone <: PositiveSemidefiniteCone }
-    N = dom.dimension
+    N = dom.side_dimension
     NN = sympackedlen(N)
 
     conid = allocateconstraints(m,NN)
@@ -263,7 +263,7 @@ function MOI.addconstraint!(
 
     addvarconstr(m,subj,dom)
 
-    m.x_boundflags[subj[1]] .|= mask
+    m.x_boundflags[subj[1]] |= mask
 
     conref = MOI.ConstraintIndex{MOI.SingleVariable,D}(UInt64(xcid) << 1)
 
@@ -274,7 +274,7 @@ end
 function MOI.addconstraint!(m   :: MosekModel,
                             xs  :: MOI.VectorOfVariables,
                             dom :: D) where { D <: PositiveSemidefiniteCone }
-    N = dom.dimension
+    N = dom.side_dimension
     vars = sympackedUtoL(xs.variables, N)
     subj = Vector{Int}(undef,length(vars))
     for i in 1:length(subj)
@@ -489,7 +489,7 @@ function addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, consta
 end
 
 function addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, constant :: Vector{Float64}, dom :: MOI.PositiveSemidefiniteConeTriangle)
-    dim = dom.dimension
+    dim = dom.side_dimension
     appendbarvars(m.task,Int32[dim])
     barvaridx = getnumbarvar(m.task)
 
@@ -545,9 +545,9 @@ end
 ##  MODIFY #####################################################################
 ################################################################################
 
-MOI.canset(m::MosekModel, ::MOI.ConstraintSet, ::Type{MOI.ConstraintIndex{F,D}}) where { F <: LinearFunction, D <: LinearDomain } = true
-MOI.canset(m::MosekModel, ::MOI.ConstraintFunction, ::Type{MOI.ConstraintIndex{F,D}}) where { F <: Union{MOI.SingleVariable,MOI.ScalarAffineFunction}, D <: ScalarLinearDomain } = true
-MOI.canmodify(m::MosekModel, ::Type{MOI.ConstraintIndex{F,D}}, ::Type{<:MOI.AbstractFunctionModification}) where { F <: AffineFunction, D <: MOI.AbstractSet } = true
+#MOI.canset(m::MosekModel, ::MOI.ConstraintSet, ::Type{MOI.ConstraintIndex{F,D}}) where { F <: LinearFunction, D <: LinearDomain } = true
+#MOI.canset(m::MosekModel, ::MOI.ConstraintFunction, ::Type{MOI.ConstraintIndex{F,D}}) where { F <: Union{MOI.SingleVariable,MOI.ScalarAffineFunction}, D <: ScalarLinearDomain } = true
+#MOI.canmodify(m::MosekModel, ::Type{MOI.ConstraintIndex{F,D}}, ::Type{<:MOI.AbstractFunctionModification}) where { F <: AffineFunction, D <: MOI.AbstractSet } = true
 
 chgbound(bl::Float64,bu::Float64,k::Float64,dom :: MOI.LessThan{Float64})    = bl,dom.upper-k
 chgbound(bl::Float64,bu::Float64,k::Float64,dom :: MOI.GreaterThan{Float64}) = dom.lower-k,bu
@@ -639,14 +639,15 @@ end
 
 
 
-MOI.cantransform(m::MosekModel, c::MOI.ConstraintIndex{F,D1}, newdom::D2) where {F <: VariableFunction, D1, D2 } = false
-MOI.cantransform(m::MosekModel, c::MOI.ConstraintIndex{MOI.VectorAffineFunction,D1}, newdom::D2) where {D1 <: VectorLinearDomain, D2 <: VectorLinearDomain} = false
-function MOI.cantransform(m::MosekModel,
-                                                 cref::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D1},
-                                                 newdom::D2) where {D1 <: ScalarLinearDomain,
-                                                                    D2 <: ScalarLinearDomain}
-    haskey(select(m.constrmap,MOI.ScalarAffineFunction{Float64},D1),cref.value)
-end
+#MOI.cantransform(m::MosekModel, c::MOI.ConstraintIndex{F,D1}, newdom::D2) where {F <: VariableFunction, D1, D2 } = false
+#MOI.cantransform(m::MosekModel, c::MOI.ConstraintIndex{MOI.VectorAffineFunction,D1}, newdom::D2) where {D1 <: VectorLinearDomain, D2 <: VectorLinearDomain} = false
+#function MOI.cantransform(m::MosekModel,
+#                          cref::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D1},
+#                          newdom::D2) where {D1 <: ScalarLinearDomain,
+#                                             D2 <: ScalarLinearDomain}
+#    haskey(select(m.constrmap,MOI.ScalarAffineFunction{Float64},D1),cref.value)
+#end
+
 
 function MOI.transform!(m::MosekModel,
                                   cref::MOI.ConstraintIndex{F,D},
@@ -656,9 +657,9 @@ function MOI.transform!(m::MosekModel,
 end
 
 function MOI.transform!(m::MosekModel,
-                                               cref::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D1},
-                                               newdom::D2) where {D1 <: ScalarLinearDomain,
-                                                                  D2 <: ScalarLinearDomain}
+                        cref::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D1},
+                        newdom::D2) where {D1 <: ScalarLinearDomain,
+                                           D2 <: ScalarLinearDomain}
     F = MOI.ScalarAffineFunction{Float64}
 
     cid = ref2id(cref)
@@ -697,42 +698,43 @@ end
 ##  DELETE #####################################################################
 ################################################################################
 
-MOI.candelete(
-    m   ::MosekModel,
-    cref::MOI.ConstraintIndex{F,D}) where {F <: Union{MOI.ScalarAffineFunction,
-                                                                       MOI.VectorAffineFunction,
-                                                                       MOI.SingleVariable,
-                                                                       MOI.VectorOfVariables},
-                                                            D <: Union{MOI.LessThan,
-                                                                       MOI.GreaterThan,
-                                                                       MOI.EqualTo,
-                                                                       MOI.Interval,
-                                                                       MOI.Zeros,
-                                                                       MOI.Nonpositives,
-                                                                       MOI.Nonnegatives,
-                                                                       MOI.Reals}} = MOI.isvalid(m,cref)
 
-MOI.candelete(
-    m   ::MosekModel,
-    cref::MOI.ConstraintIndex{F,D}) where {F <: MOI.AbstractFunction,
-                                                            D <: Union{MOI.SecondOrderCone,
-                                                                       MOI.RotatedSecondOrderCone,
-                                                                       MOI.ExponentialCone,
-                                                                       MOI.DualExponentialCone,
-                                                                       MOI.PowerCone,
-                                                                       MOI.DualPowerCone}} = false
-
-MOI.candelete(
-    m   ::MosekModel,
-    cref::MOI.ConstraintIndex{F,D}) where {F <: Union{MOI.SingleVariable,
-                                                                       MOI.VectorOfVariables},
-                                                            D <: Union{MOI.SecondOrderCone,
-                                                                       MOI.RotatedSecondOrderCone,
-                                                                       MOI.ExponentialCone,
-                                                                       MOI.DualExponentialCone,
-                                                                       MOI.PowerCone,
-                                                                       MOI.DualPowerCone}} = true
-
+#MOI.candelete(
+#    m   ::MosekModel,
+#    cref::MOI.ConstraintIndex{F,D}) where {F <: Union{MOI.ScalarAffineFunction,
+#                                                                       MOI.VectorAffineFunction,
+#                                                                       MOI.SingleVariable,
+#                                                                       MOI.VectorOfVariables},
+#                                                            D <: Union{MOI.LessThan,
+#                                                                       MOI.GreaterThan,
+#                                                                       MOI.EqualTo,
+#                                                                       MOI.Interval,
+#                                                                       MOI.Zeros,
+#                                                                       MOI.Nonpositives,
+#                                                                       MOI.Nonnegatives,
+#                                                                       MOI.Reals}} = MOI.isvalid(m,cref)
+#
+#MOI.candelete(
+#    m   ::MosekModel,
+#    cref::MOI.ConstraintIndex{F,D}) where {F <: MOI.AbstractFunction,
+#                                                            D <: Union{MOI.SecondOrderCone,
+#                                                                       MOI.RotatedSecondOrderCone,
+#                                                                       MOI.ExponentialCone,
+#                                                                       MOI.DualExponentialCone,
+#                                                                       MOI.PowerCone,
+#                                                                       MOI.DualPowerCone}} = false
+#
+#MOI.candelete(
+#    m   ::MosekModel,
+#    cref::MOI.ConstraintIndex{F,D}) where {F <: Union{MOI.SingleVariable,
+#                                                                       MOI.VectorOfVariables},
+#                                                            D <: Union{MOI.SecondOrderCone,
+#                                                                       MOI.RotatedSecondOrderCone,
+#                                                                       MOI.ExponentialCone,
+#                                                                       MOI.DualExponentialCone,
+#                                                                       MOI.PowerCone,
+#                                                                       MOI.DualPowerCone}} = true
+#
 
 function Base.delete!(
     m::MosekModel,
