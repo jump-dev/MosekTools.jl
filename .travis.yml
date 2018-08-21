@@ -3,7 +3,7 @@ language: julia
 os:
   - linux
 julia:
-  - 0.6
+  - 0.7
 notifications:
   email: false
 git:
@@ -11,6 +11,6 @@ git:
 before-install:
   - sudo apt-get install curl
 script:
-  - julia -e 'Pkg.clone(pwd());'
-  - julia -e 'Pkg.test("MathOptInterfaceMosek")'
+  - julia -e 'import Pkg; Pkg.add(PackageSpec(url=pwd()));'
+  - julia -e 'import Pkg; Pkg.test("MathOptInterfaceMosek")'
 
