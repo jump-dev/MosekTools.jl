@@ -423,7 +423,7 @@ function MOI.copy!(dest::MosekModel, src::MOI.ModelLike; copynames=true)
         #res.status == MOI.CopySuccess || return res
     end
 
-    return MOI.CopyResult(MOI.CopySuccess, "", idxmap)
+    return idxmap
 end
 
 
