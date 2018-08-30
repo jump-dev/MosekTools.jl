@@ -9,17 +9,11 @@
 
 #### objective
 MOI.get(m::MosekModel,attr::MOI.ObjectiveValue) = getprimalobj(m.task,m.solutions[attr.resultindex].whichsol)
-#MOI.canget(m::MosekSolver,attr::MOI.ObjectiveValue) = true
-MOI.canget(m::MosekModel,attr::MOI.ObjectiveValue) = attr.resultindex > 0 && attr.resultindex <= length(m.solutions)
 
-MOI.canget(m::MosekModel,attr::MOI.ObjectiveBound) = getintinf(m.task,MSK_IINF_MIO_NUM_RELAX) > 0
 MOI.get(m::MosekModel,attr::MOI.ObjectiveBound) = getdouinf(m.task,MSK_DINF_MIO_OBJ_BOUND)
 
-MOI.canget(m::MosekModel,attr::MOI.RelativeGap) = getdouinf(m.task,MSK_DINF_MIO_OBJ_REL_GAP) > -1.0
 MOI.get(m::MosekModel,attr::MOI.RelativeGap) = getdouinf(m.task,MSK_DINF_MIO_OBJ_REL_GAP)
 
-#MOI.canget(m::MosekSolver,attr::MOI.SolveTime) = true
-MOI.canget(m::MosekModel,attr::MOI.SolveTime) = true
 MOI.get(m::MosekModel,attr::MOI.SolveTime) = getdouinf(m.task,MSK_DINF_OPTIMIZER_TIME)
 
 
@@ -33,7 +27,7 @@ function MOI.get(m::MosekModel,attr::MOI.ObjectiveSense)
     end
 end
 
-function MOI.set!(m::MosekModel,attr::MOI.ObjectiveSense, sense::MOI.OptimizationSense)
+function MOI.set(m::MosekModel,attr::MOI.ObjectiveSense, sense::MOI.OptimizationSense)
     if sense == MOI.MinSense
         putobjsense(m.task,MSK_OBJECTIVE_SENSE_MINIMIZE)
     elseif sense == MOI.MaxSense
@@ -41,14 +35,12 @@ function MOI.set!(m::MosekModel,attr::MOI.ObjectiveSense, sense::MOI.Optimizatio
     else
         @assert sense == MOI.FeasibilitySense
         putobjsense(m.task,MSK_OBJECTIVE_SENSE_MINIMIZE)
-        MOI.set!(m, MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(), MOI.ScalarAffineFunction(MOI.VariableIndex[], Float64[], 0.))
+        MOI.set(m, MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(), MOI.ScalarAffineFunction(MOI.VariableIndex[], Float64[], 0.))
     end
 end
 
 #### Solver/Solution information
 
-#MOI.canget(m::MosekSolver,attr::MOI.SimplexIterations) = true
-MOI.canget(m::MosekModel,attr::MOI.SimplexIterations) = true
 function MOI.get(m::MosekModel,attr::MOI.SimplexIterations)
     miosimiter = getlintinf(m.task,MSK_LIINF_MIO_SIMPLEX_ITER)
     if miosimiter > 0
@@ -58,8 +50,6 @@ function MOI.get(m::MosekModel,attr::MOI.SimplexIterations)
     end
 end
 
-#MOI.canget(m::MosekSolver,attr::MOI.BarrierIterations) = true
-MOI.canget(m::MosekModel,attr::MOI.BarrierIterations) = true
 function MOI.get(m::MosekModel,attr::MOI.BarrierIterations)
     miosimiter = getlintinf(m.task,MSK_LIINF_MIO_INTPNT_ITER)
     if miosimiter > 0
@@ -69,40 +59,26 @@ function MOI.get(m::MosekModel,attr::MOI.BarrierIterations)
     end
 end
 
-#MOI.canget(m::MosekSolver,attr::MOI.NodeCount) = true
-MOI.canget(m::MosekModel,attr::MOI.NodeCount) = true
 function MOI.get(m::MosekModel,attr::MOI.NodeCount)
         Int(getintinf(m.task,MSK_IINF_MIO_NUM_BRANCH))
 end
 
-#MOI.canget(m::MosekSolver,attr::MOI.RawSolver) = true
-MOI.canget(m::MosekModel,attr::MOI.RawSolver) = true
 MOI.get(m::MosekModel,attr::MOI.RawSolver) = m.task
 
-#MOI.canget(m::MosekSolver,attr::MOI.ResultCount) = true
-MOI.canget(m::MosekModel,attr::MOI.ResultCount) = true
 MOI.get(m::MosekModel,attr::MOI.ResultCount) = length(m.solutions)
 
 #### Problem information
 
-#MOI.canget(m::MosekSolver,attr::MOI.NumberOfVariables) = true
-MOI.canget(m::MosekModel,attr::MOI.NumberOfVariables) = true
 MOI.get(m::MosekModel,attr::MOI.NumberOfVariables) = m.publicnumvar
 
-#MOI.canget(m::MosekSolver,attr::MOI.NumberOfConstraints) = true
-MOI.canget(m::MosekModel,attr::MOI.NumberOfConstraints{F,D}) where {F,D} = true
 MOI.get(m::MosekModel,attr::MOI.NumberOfConstraints{F,D}) where {F,D} = length(select(m.constrmap,F,D))
 
-#MOI.canget(m::MosekSolver,attr::MOI.ListOfVariableIndices) = false
-#MOI.canget(m::MosekSolver,attr::MOI.ListOfConstraints) = false
-
-#MOI.canget{F,D}(m::MosekSolver,attr::MOI.ListOfConstraintIndices{F,D}) = true
 #MOI.get{F,D}(m::MosekSolver,attr::MOI.ListOfConstraintIndices{F,D}) = keys(select(m.constrmap,F,D))
 
 
 #### Warm start values
 
-function MOI.set!(m::MosekModel,attr::MOI.VariablePrimalStart, v :: MOI.VariableIndex, val::Float64)
+function MOI.set(m::MosekModel,attr::MOI.VariablePrimalStart, v :: MOI.VariableIndex, val::Float64)
     subj = getindexes(m.x_block,ref2id(v))
 
     xx = Float64[val]
@@ -111,7 +87,7 @@ function MOI.set!(m::MosekModel,attr::MOI.VariablePrimalStart, v :: MOI.Variable
     end
 end
 
-function MOI.set!(m::MosekModel,attr::MOI.VariablePrimalStart, vs::Vector{MOI.VariableIndex}, vals::Vector{Float64})
+function MOI.set(m::MosekModel,attr::MOI.VariablePrimalStart, vs::Vector{MOI.VariableIndex}, vals::Vector{Float64})
     subj = Array{Int}(undef,length(vs))
     for i in 1:length(subj)
         getindexes(m.x_block,ref2id(vs[i]),subj,i)
@@ -131,12 +107,12 @@ function MOI.set!(m::MosekModel,attr::MOI.VariablePrimalStart, vs::Vector{MOI.Va
 end
 
 
-function MOI.set!(m::MosekModel, attr::MOI.VariableName, index :: MOI.VariableIndex, value :: String)
+function MOI.set(m::MosekModel, attr::MOI.VariableName, index :: MOI.VariableIndex, value :: String)
     subj = getindexes(m.x_block, ref2id(index))
     putvarname(m.task,subj[1],value)
 end
 
-# function MOI.set!(m::MosekModel,attr::MOI.ConstraintDualStart, vs::Vector{MOI.ConstraintIndex}, vals::Vector{Float64})
+# function MOI.set(m::MosekModel,attr::MOI.ConstraintDualStart, vs::Vector{MOI.ConstraintIndex}, vals::Vector{Float64})
 #     subj = Array{Int}(length(vs))
 #     for i in 1:length(subj)
 #         getindexes(m.x_block,ref2id(vs[i]),subj,i)
@@ -158,10 +134,6 @@ end
 
 
 #### Variable solution values
-MOI.canget(m::MosekModel,attr::MOI.VariablePrimal) = attr.N > 0 && attr.N <= length(m.solutions)
-#MOI.canget(m::MosekSolver,attr::MOI.VariablePrimal) = true
-
-MOI.canget(m::MosekModel,attr::MOI.VariablePrimal,::Type{MOI.VariableIndex}) = MOI.canget(m,attr)
 
 function MOI.get!(output::Vector{Float64},m::MosekModel,attr::MOI.VariablePrimal, vs::Vector{MOI.VariableIndex})
     subj = Array{Int}(undef,length(vs))
@@ -188,19 +160,7 @@ end
 
 
 
-#MOI.canget(m::MosekSolver,attr::MOI.VariableBasisStatus) = false # is a solution selector missing?
-MOI.canget(m::MosekModel,attr::MOI.VariableBasisStatus)  = false
-
 #### Constraint solution values
-function canget(m::MosekModel,attr::MOI.ConstraintPrimal)
-    num = 0
-    if solutiondef(m.task,MSK_SOL_ITG) num += 1 end
-    if solutiondef(m.task,MSK_SOL_BAS) num += 1 end
-    if solutiondef(m.task,MSK_SOL_ITR) num += 1 end
-    attr.N > 0 && attr.N <= num
-end
-
-MOI.canget(m::MosekModel,attr::MOI.ConstraintPrimal, ::Type{<:MOI.ConstraintIndex}) = canget(m,attr)
 
 function MOI.get(
     m     ::MosekModel,
@@ -288,10 +248,6 @@ end
 
 
 
-
-
-MOI.canget(m::MosekModel,attr::MOI.ConstraintDual) = attr.N > 0 && attr.N <= length(m.solutions)
-MOI.canget(m::MosekModel,attr::MOI.ConstraintDual,::Type{<:MOI.ConstraintIndex}) = MOI.canget(m,attr)
 
 
 function MOI.get(
@@ -400,7 +356,7 @@ end
 function MOI.get(m     ::MosekModel,
                  attr  ::MOI.ConstraintDual,
                  cref  ::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D}) where D
-    
+
     cid = ref2id(cref)
     subi = getindexes(m.c_block,cid)[1]
 
@@ -489,7 +445,6 @@ end
 
 
 #### Status codes
-MOI.canget(m::MosekModel,attr::MOI.TerminationStatus) = true
 function MOI.get(m::MosekModel,attr::MOI.TerminationStatus)
     if     m.trm == MSK_RES_OK
         MOI.Success
@@ -526,26 +481,7 @@ function MOI.get(m::MosekModel,attr::MOI.TerminationStatus)
     end
 end
 
-function MOI.canget(m::MosekModel,attr::MOI.PrimalStatus)
-    if attr.N < 0 || attr.N > length(m.solutions)
-        false
-    else
-        solsta = m.solutions[attr.N].solsta
-        if     solsta == MSK_SOL_STA_UNKNOWN true
-        elseif solsta == MSK_SOL_STA_OPTIMAL true
-        elseif solsta == MSK_SOL_STA_PRIM_FEAS true
-        elseif solsta == MSK_SOL_STA_DUAL_FEAS true
-        elseif solsta == MSK_SOL_STA_PRIM_AND_DUAL_FEAS true
-        elseif solsta == MSK_SOL_STA_PRIM_INFEAS_CER false
-        elseif solsta == MSK_SOL_STA_DUAL_INFEAS_CER true
-        elseif solsta == MSK_SOL_STA_PRIM_ILLPOSED_CER false
-        elseif solsta == MSK_SOL_STA_DUAL_ILLPOSED_CER true
-        elseif solsta == MSK_SOL_STA_INTEGER_OPTIMAL true
-        else false
-        end
-    end
-end
-function MOI.get(m::MosekModel,attr::MOI.PrimalStatus)
+function MOI.get(m::MosekModel, attr::MOI.PrimalStatus)
     solsta = m.solutions[attr.N].solsta
     if     solsta == MSK_SOL_STA_UNKNOWN
         MOI.UnknownResultStatus
@@ -558,11 +494,11 @@ function MOI.get(m::MosekModel,attr::MOI.PrimalStatus)
     elseif solsta == MSK_SOL_STA_PRIM_AND_DUAL_FEAS
         MOI.FeasiblePoint
     elseif solsta == MSK_SOL_STA_PRIM_INFEAS_CER
-        MOI.UnknownResultStatus
+        MOI.NoSolution
     elseif solsta == MSK_SOL_STA_DUAL_INFEAS_CER
         MOI.InfeasibilityCertificate
     elseif solsta == MSK_SOL_STA_PRIM_ILLPOSED_CER
-        MOI.UnknownResultStatus
+        MOI.NoSolution
     elseif solsta == MSK_SOL_STA_DUAL_ILLPOSED_CER
         MOI.ReductionCertificate
     elseif solsta == MSK_SOL_STA_INTEGER_OPTIMAL
@@ -572,25 +508,6 @@ function MOI.get(m::MosekModel,attr::MOI.PrimalStatus)
     end
 end
 
-function MOI.canget(m::MosekModel,attr::MOI.DualStatus)
-    if attr.N < 0 || attr.N > length(m.solutions)
-        false
-    else
-        solsta = m.solutions[attr.N].solsta
-        if     solsta == MSK_SOL_STA_UNKNOWN true
-        elseif solsta == MSK_SOL_STA_OPTIMAL true
-        elseif solsta == MSK_SOL_STA_PRIM_FEAS true
-        elseif solsta == MSK_SOL_STA_DUAL_FEAS true
-        elseif solsta == MSK_SOL_STA_PRIM_AND_DUAL_FEAS true
-        elseif solsta == MSK_SOL_STA_PRIM_INFEAS_CER true
-        elseif solsta == MSK_SOL_STA_DUAL_INFEAS_CER false
-        elseif solsta == MSK_SOL_STA_PRIM_ILLPOSED_CER true
-        elseif solsta == MSK_SOL_STA_DUAL_ILLPOSED_CER false
-        elseif solsta == MSK_SOL_STA_INTEGER_OPTIMAL false
-        else false
-        end
-    end
-end
 function MOI.get(m::MosekModel,attr::MOI.DualStatus)
     solsta = m.solutions[attr.N].solsta
     if     solsta == MSK_SOL_STA_UNKNOWN
@@ -606,13 +523,13 @@ function MOI.get(m::MosekModel,attr::MOI.DualStatus)
     elseif solsta == MSK_SOL_STA_PRIM_INFEAS_CER
         MOI.InfeasibilityCertificate
     elseif solsta == MSK_SOL_STA_DUAL_INFEAS_CER
-        MOI.UnknownResultStatus
+        MOI.NoSolution
     elseif solsta == MSK_SOL_STA_PRIM_ILLPOSED_CER
         MOI.ReductionCertificate
     elseif solsta == MSK_SOL_STA_DUAL_ILLPOSED_CER
-        MOI.UnknownResultStatus
+        MOI.NoSolution
     elseif solsta == MSK_SOL_STA_INTEGER_OPTIMAL
-        MOI.FeasiblePoint
+        MOI.NoSolution
     else
         MOI.UnknownResultStatus
     end

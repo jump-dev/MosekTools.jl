@@ -2,6 +2,7 @@ module MathOptInterfaceMosek
 
 import MathOptInterface
 const MOI = MathOptInterface
+const MOIU = MOI.Utilities
 using Mosek
 #using Mosek.Ext
 
@@ -351,7 +352,7 @@ function MOI.optimize!(m::MosekModel)
     end
 end
 
-function MOI.isempty(m::MosekModel)
+function MOI.is_empty(m::MosekModel)
     getnumvar(m.task) == 0 && getnumcon(m.task) == 0 && getnumcone(m.task) == 0 && getnumbarvar(m.task) == 0
 end
 
@@ -375,60 +376,11 @@ function MOI.empty!(m::MosekModel)
     m.solutions     = MosekSolution[]
 end
 
-function MOI.Utilities.copyconstraints!(dest::MosekModel, src::MOI.ModelLike, idxmap::MOI.Utilities.IndexMap, ::Type{F}, ::Type{S}) where {F<:MOI.AbstractFunction, S<:MOI.AbstractSet}
-    # Copy constraints
-    cis_src = MOI.get(src, MOI.ListOfConstraintIndices{F, S}())
-    for ci_src in cis_src
-        f_src  = MOI.get(src, MOI.ConstraintFunction(), ci_src)
-        f_dest = MOI.Utilities.mapvariables(idxmap, f_src) # appears to be expensive
-        s = MOI.get(src, MOI.ConstraintSet(), ci_src)
-        ci_dest = MOI.addconstraint!(dest, f_dest, s)
-        idxmap.conmap[ci_src] = ci_dest
-    end
-
-    nothing
-    #return passattributes!(dest, src, idxmap, cis_src)
+function MOI.copy_to(dest::MosekModel, src::MOI.ModelLike; copy_names=true)
+    return MOIU.default_copy_to(dest, srt, copy_names)
 end
 
-
-function MOI.copy!(dest::MosekModel, src::MOI.ModelLike; copynames=true)
-    if ! MOI.isempty(dest)
-        MOI.empty!(dest)
-    end
-
-    idxmap = MOI.Utilities.IndexMap()
-
-    vis_src = MOI.get(src, MOI.ListOfVariableIndices())
-    for vi in vis_src
-        idxmap.varmap[vi] = MOI.addvariable!(dest)
-    end
-
-    MOI.set!(dest, MOI.ObjectiveSense(), MOI.get(src,MOI.ObjectiveSense()))
-    if MOI.canget(src,MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}())
-        MOI.set!(dest,
-                 MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
-                 MOI.get(src,MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}()))
-    elseif MOI.canget(src,MOI.ObjectiveFunction{MOI.SingleVariable}())
-        MOI.set!(dest,
-                 MOI.ObjectiveFunction{MOI.SingleVariable}(),
-                 MOI.get(src,MOI.ObjectiveFunction{MOI.SingleVariable}()))
-    else
-        # no objective functrion
-    end
-
-    # Copy constraints
-    for (F, S) in MOI.get(src, MOI.ListOfConstraints()) # expensive?!
-        # do the rest in copyconstraints! which is type stable
-        res = MOI.Utilities.copyconstraints!(dest, src, idxmap, F, S)
-        #res.status == MOI.CopySuccess || return res
-    end
-
-    return idxmap
-end
-
-
-
-function MOI.write(m::MosekModel, filename :: String)
+function MOI.write_to_file(m::MosekModel, filename :: String)
     putintparam(m.task,MSK_IPAR_OPF_WRITE_SOLUTIONS, MSK_ON)
     writedata(m.task,filename)
 end
