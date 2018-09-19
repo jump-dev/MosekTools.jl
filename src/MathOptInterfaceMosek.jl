@@ -377,7 +377,7 @@ function MOI.empty!(m::MosekModel)
 end
 
 function MOI.copy_to(dest::MosekModel, src::MOI.ModelLike; copy_names=true)
-    return MOIU.default_copy_to(dest, srt, copy_names)
+    return MOIU.default_copy_to(dest, src, copy_names)
 end
 
 function MOI.write_to_file(m::MosekModel, filename :: String)
