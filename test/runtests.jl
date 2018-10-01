@@ -26,11 +26,26 @@ using Test
 using MathOptInterface
 const MOI = MathOptInterface
 const MOIT = MOI.Test
+const MOIU = MOI.Utilities
 const MOIB = MOI.Bridges
 
 const optimizer = MosekOptimizer(QUIET = true)
 # 1e-3 needed for rotatedsoc3 test
 const config = MOIT.TestConfig(atol=1e-3, rtol=1e-3, query=false)
+
+# Mosek does not support names
+MOIU.@model(Model,
+            (),
+            (MOI.EqualTo, MOI.LessThan),
+            (MOI.Zeros, MOI.Nonnegatives,),
+            (),
+            (MOI.SingleVariable,),
+            (MOI.ScalarAffineFunction,),
+            (MOI.VectorOfVariables,),
+            (MOI.VectorAffineFunction,))
+@testset "Continuous linear problems" begin
+    MOIT.copytest(optimizer, Model{Float64}())
+end
 
 @testset "Continuous linear problems" begin
     # linear1 is failing because NumberOfConstraints does not take deletion into account
