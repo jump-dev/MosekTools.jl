@@ -1,4 +1,4 @@
-using Printf                    # 
+using Printf                    #
 
 mutable struct LinkedInts
     next :: Vector{Int}
@@ -18,7 +18,7 @@ LinkedInts(capacity=128) =
                Int[],
                Int[])
 
-allocatedlist(s::LinkedInts) = find(s.block .> 0)
+allocatedlist(s::LinkedInts) = findall(s.block .> 0)
 allocated(s::LinkedInts, id :: Int) = id > 0 && id <= length(s.block) && s.block[id] > 0
 blocksize(s::LinkedInts, id :: Int) = s.size[id]
 Base.length(s::LinkedInts) = length(s.next)

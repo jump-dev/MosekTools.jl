@@ -18,24 +18,35 @@ MOI.get(m::MosekModel,attr::MOI.SolveTime) = getdouinf(m.task,MSK_DINF_OPTIMIZER
 
 
 # NOTE: The MOSEK interface currently only supports Min and Max
-function MOI.get(m::MosekModel,attr::MOI.ObjectiveSense)
-    sense = getobjsense(m.task)
-    if sense == MSK_OBJECTIVE_SENSE_MINIMIZE
-        MOI.MinSense
+function MOI.get(model::MosekModel, ::MOI.ObjectiveSense)
+    if model.feasibility
+        return MOI.FeasibilitySense
     else
-        MOI.MaxSense
+        sense = getobjsense(model.task)
+        if sense == MSK_OBJECTIVE_SENSE_MINIMIZE
+            MOI.MinSense
+        else
+            MOI.MaxSense
+        end
     end
 end
 
-function MOI.set(m::MosekModel,attr::MOI.ObjectiveSense, sense::MOI.OptimizationSense)
+function MOI.set(model::MosekModel,
+                 attr::MOI.ObjectiveSense,
+                 sense::MOI.OptimizationSense)
     if sense == MOI.MinSense
-        putobjsense(m.task,MSK_OBJECTIVE_SENSE_MINIMIZE)
+        model.feasibility = false
+        putobjsense(model.task,MSK_OBJECTIVE_SENSE_MINIMIZE)
     elseif sense == MOI.MaxSense
-        putobjsense(m.task,MSK_OBJECTIVE_SENSE_MAXIMIZE)
+        model.feasibility = false
+        putobjsense(model.task,MSK_OBJECTIVE_SENSE_MAXIMIZE)
     else
         @assert sense == MOI.FeasibilitySense
-        putobjsense(m.task,MSK_OBJECTIVE_SENSE_MINIMIZE)
-        MOI.set(m, MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(), MOI.ScalarAffineFunction(MOI.VariableIndex[], Float64[], 0.))
+        model.feasibility = true
+        putobjsense(model.task,MSK_OBJECTIVE_SENSE_MINIMIZE)
+        MOI.set(model,
+                MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
+                MOI.ScalarAffineFunction(MOI.ScalarAffineTerm{Float64}[], 0.0))
     end
 end
 
@@ -71,10 +82,39 @@ MOI.get(m::MosekModel,attr::MOI.ResultCount) = length(m.solutions)
 
 MOI.get(m::MosekModel,attr::MOI.NumberOfVariables) = m.publicnumvar
 
-MOI.get(m::MosekModel,attr::MOI.NumberOfConstraints{F,D}) where {F,D} = length(select(m.constrmap,F,D))
+function MOI.get(m::MosekModel, ::MOI.NumberOfConstraints{F,D}) where {F,D}
+    return length(select(m.constrmap, F, D))
+end
 
-#MOI.get{F,D}(m::MosekSolver,attr::MOI.ListOfConstraintIndices{F,D}) = keys(select(m.constrmap,F,D))
+function MOI.get(model::MosekModel,
+                 ::MOI.ListOfConstraints)
+    list = Tuple{DataType, DataType}[]
+    for F in [MOI.SingleVariable, MOI.ScalarAffineFunction{Float64}]
+        for D in [MOI.LessThan{Float64}, MOI.GreaterThan{Float64},
+                  MOI.EqualTo{Float64}, MOI.Interval{Float64}]
+            if !isempty(select(model.constrmap, F, D))
+                push!(list, (F, D))
+            end
+        end
+    end
+    for F in [MOI.VectorOfVariables, MOI.VectorAffineFunction{Float64}]
+        for D in [MOI.Nonpositives, MOI.Nonnegatives, MOI.Reals, MOI.Zeros,
+                  MOI.SecondOrderCone, MOI.RotatedSecondOrderCone,
+                  MOI.PowerCone{Float64}, MOI.DualPowerCone{Float64},
+                  MOI.ExponentialCone, MOI.DualExponentialCone,
+                  MOI.PositiveSemidefiniteConeTriangle]
+            if !isempty(select(model.constrmap, F, D))
+                push!(list, (F, D))
+            end
+        end
+    end
+    return list
+end
 
+function MOI.get(model::MosekModel,
+                 ::MOI.ListOfConstraintIndices{F, D}) where {F, D}
+    return MOI.ConstraintIndex{F, D}.(keys(select(model.constrmap, F, D)))
+end
 
 #### Warm start values
 
