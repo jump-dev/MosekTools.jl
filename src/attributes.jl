@@ -82,10 +82,39 @@ MOI.get(m::MosekModel,attr::MOI.ResultCount) = length(m.solutions)
 
 MOI.get(m::MosekModel,attr::MOI.NumberOfVariables) = m.publicnumvar
 
-MOI.get(m::MosekModel,attr::MOI.NumberOfConstraints{F,D}) where {F,D} = length(select(m.constrmap,F,D))
+function MOI.get(m::MosekModel, ::MOI.NumberOfConstraints{F,D}) where {F,D}
+    return length(select(m.constrmap, F, D))
+end
 
-#MOI.get{F,D}(m::MosekSolver,attr::MOI.ListOfConstraintIndices{F,D}) = keys(select(m.constrmap,F,D))
+function MOI.get(model::MosekModel,
+                 ::MOI.ListOfConstraints)
+    list = Tuple{DataType, DataType}[]
+    for F in [MOI.SingleVariable, MOI.ScalarAffineFunction{Float64}]
+        for D in [MOI.LessThan{Float64}, MOI.GreaterThan{Float64},
+                  MOI.EqualTo{Float64}, MOI.Interval{Float64}]
+            if !isempty(select(model.constrmap, F, D))
+                push!(list, (F, D))
+            end
+        end
+    end
+    for F in [MOI.VectorOfVariables, MOI.VectorAffineFunction{Float64}]
+        for D in [MOI.Nonpositives, MOI.Nonnegatives, MOI.Reals, MOI.Zeros,
+                  MOI.SecondOrderCone, MOI.RotatedSecondOrderCone,
+                  MOI.PowerCone{Float64}, MOI.DualPowerCone{Float64},
+                  MOI.ExponentialCone, MOI.DualExponentialCone,
+                  MOI.PositiveSemidefiniteConeTriangle]
+            if !isempty(select(model.constrmap, F, D))
+                push!(list, (F, D))
+            end
+        end
+    end
+    return list
+end
 
+function MOI.get(model::MosekModel,
+                 ::MOI.ListOfConstraintIndices{F, D}) where {F, D}
+    return MOI.ConstraintIndex{F, D}.(keys(select(model.constrmap, F, D)))
+end
 
 #### Warm start values
 
