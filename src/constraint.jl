@@ -42,7 +42,7 @@ function MOI.add_constraint(
 
     N = 1
     conid = allocateconstraints(m,N)
-    addlhsblock!(m, conid, fill(1,length(axb.terms)),axb.terms)
+    addlhsblock!(m, conid, fill(1, length(axb.terms)), axb.terms)
 
     if length(m.c_constant) < length(m.c_block)
         append!(m.c_constant,zeros(Float64,length(m.c_block) - length(m.c_constant)))
@@ -436,7 +436,7 @@ addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, constant :: Vec
 function addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, constant :: Vector{Float64}, dom :: D) where { D <: Union{MOI.ExponentialCone, MOI.DualExponentialCone} }
     N = MOI.dimension(dom)
     nalloc = ensurefree(m.x_block,N)
-    
+
     varid = newblock(m.x_block,N)
     numvar = getnumvar(m.task)
     if nalloc > 0
@@ -651,7 +651,8 @@ end
 
 function MOI.transform(m::MosekModel,
                        cref::MOI.ConstraintIndex{F,D},
-                       newdom::D) where {F  <: MOI.AbstractFunction, D <: MOI.AbstractSet}
+                       newdom::D) where {F <: MOI.AbstractFunction,
+                                         D <: MOI.AbstractSet}
     MOI.modify(m,cref,newdom)
     cref
 end
@@ -659,7 +660,7 @@ end
 function MOI.transform(m::MosekModel,
                        cref::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D1},
                        newdom::D2) where {D1 <: ScalarLinearDomain,
-                                           D2 <: ScalarLinearDomain}
+                                          D2 <: ScalarLinearDomain}
     F = MOI.ScalarAffineFunction{Float64}
 
     cid = ref2id(cref)
@@ -670,7 +671,7 @@ function MOI.transform(m::MosekModel,
 
     newcref = MOI.ConstraintIndex{F,D2}(UInt64(cid) << 1)
     delete!(select(m.constrmap,F,D1), cref.value)
-    select(m.constrmap,F, D2)[newcref.value] = cid
+    select(m.constrmap, F, D2)[newcref.value] = cid
     newcref
 end
 
@@ -850,11 +851,11 @@ function MOI.delete(
         # should not happen
     end
 
-    m.x_numxc[subj] -= 1
-    m.xc_idxs[sub] = 0
+    m.x_numxc[subj] .-= 1
+    m.xc_idxs[sub] .= 0
     m.xc_bounds[xcid] = 0
 
-    deleteblock(m.xc_block,xcid)
+    deleteblock(m.xc_block, xcid)
 end
 
 
@@ -906,7 +907,7 @@ function allocatevariable(m :: MosekModel,N :: Int)
     @assert(length(m.x_boundflags) == length(m.x_block))
     numvar = getnumvar(m.task)
     alloced = ensurefree(m.x_block,N)
-    if alloced > 0        
+    if alloced > 0
         appendvars(m.task, length(m.x_block) - numvar)
         append!(m.x_boundflags, zeros(Int,length(m.x_block) - numvar))
         append!(m.x_numxc, zeros(Int,length(m.x_block) - numvar))
