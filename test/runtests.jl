@@ -43,17 +43,18 @@ MOIU.@model(Model,
             (MOI.ScalarAffineFunction,),
             (MOI.VectorOfVariables,),
             (MOI.VectorAffineFunction,))
-@testset "Continuous linear problems" begin
-    MOIT.copytest(optimizer, Model{Float64}())
+
+@testset "Copy" begin
+    # Currently does not work because get is missing for ConstraintSet
+    # and ConstraintFunction, see https://github.com/JuliaOpt/MathOptInterfaceMosek.jl/issues/50
+    #MOIT.copytest(optimizer, Model{Float64}())
 end
 
 @testset "Continuous linear problems" begin
-    # linear1 is failing because NumberOfConstraints does not take deletion into account
-    # linear11 is failing because the following are not implemented:
-    # * MOI.cantransformconstraint(instance, c2, MOI.LessThan(2.0))
-    # * MOI.get(instance, MathOptInterface.ConstraintFunction())
-    # linear13 is failing because it is FeasibilitySense
-    MOIT.contlineartest(optimizer, config, ["linear1", "linear11", "linear13"])
+    # linear1 is failing for two reasons
+    # * it does not remove constraints using a variable if this variable is deleted, see https://github.com/JuliaOpt/MathOptInterface.jl/issues/511
+    # * it does not support duplicated terms, see https://github.com/JuliaOpt/MathOptInterfaceMosek.jl/issues/41
+    MOIT.contlineartest(optimizer, config, ["linear1"])
 end
 
 # include("contquadratic.jl")
@@ -62,8 +63,8 @@ end
 # end
 
 @testset "Continuous conic problems" begin
-    # lin1 and soc1 are failing because ListOfConstraints is not implemented
-    MOIT.contconictest(MOIB.RootDet{Float64}(MOIB.GeoMean{Float64}(optimizer)), config, ["lin1v", "lin1f", "soc1v", "soc1f", "exp", "psds", "rootdets", "logdet"])
+    MOIT.contconictest(MOIB.SquarePSD{Float64}(MOIB.RootDet{Float64}(MOIB.GeoMean{Float64}(optimizer))),
+                       config, ["exp", "rootdets", "logdet"])
 end
 
 @testset "Mixed-integer linear problems" begin
