@@ -915,8 +915,13 @@ function allocatevariable(m :: MosekModel,N :: Int)
     newblock(m.x_block,N)
 end
 
-MOI.isvalid(m::MosekModel, ref::MOI.ConstraintIndex{F,D}) where { F,D } = haskey(select(m.constrmap,F,D),ref.value)
-MOI.isvalid(m::MosekModel, ref::MOI.VariableIndex) = allocated(m.x_block,ref2id(ref))
+function MOI.is_valid(model::MosekModel,
+                      ref::MOI.ConstraintIndex{F, D}) where {F, D}
+    return haskey(select(model.constrmap, F, D), ref.value)
+end
+function MOI.is_valid(model::MosekModel, ref::MOI.VariableIndex)
+    return allocated(model.x_block, ref2id(ref))
+end
 
 
 function getvarboundlist(t::Mosek.Task, subj :: Vector{Int32})
