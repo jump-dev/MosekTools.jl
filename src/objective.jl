@@ -11,7 +11,7 @@ end
 
 MOI.supports(::MosekModel,::MOI.ObjectiveFunction{<:ObjF})  = true
 MOI.supports(::MosekModel,::MOI.ObjectiveSense) = true
-    
+
 
 function MOI.set(m::MosekModel, ::MOI.ObjectiveFunction, func::MOI.SingleVariable)
     numvar = getnumvar(m.task)

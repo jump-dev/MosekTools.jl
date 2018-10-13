@@ -18,24 +18,35 @@ MOI.get(m::MosekModel,attr::MOI.SolveTime) = getdouinf(m.task,MSK_DINF_OPTIMIZER
 
 
 # NOTE: The MOSEK interface currently only supports Min and Max
-function MOI.get(m::MosekModel,attr::MOI.ObjectiveSense)
-    sense = getobjsense(m.task)
-    if sense == MSK_OBJECTIVE_SENSE_MINIMIZE
-        MOI.MinSense
+function MOI.get(model::MosekModel, ::MOI.ObjectiveSense)
+    if model.feasibility
+        return MOI.FeasibilitySense
     else
-        MOI.MaxSense
+        sense = getobjsense(model.task)
+        if sense == MSK_OBJECTIVE_SENSE_MINIMIZE
+            MOI.MinSense
+        else
+            MOI.MaxSense
+        end
     end
 end
 
-function MOI.set(m::MosekModel,attr::MOI.ObjectiveSense, sense::MOI.OptimizationSense)
+function MOI.set(model::MosekModel,
+                 attr::MOI.ObjectiveSense,
+                 sense::MOI.OptimizationSense)
     if sense == MOI.MinSense
-        putobjsense(m.task,MSK_OBJECTIVE_SENSE_MINIMIZE)
+        model.feasibility = false
+        putobjsense(model.task,MSK_OBJECTIVE_SENSE_MINIMIZE)
     elseif sense == MOI.MaxSense
-        putobjsense(m.task,MSK_OBJECTIVE_SENSE_MAXIMIZE)
+        model.feasibility = false
+        putobjsense(model.task,MSK_OBJECTIVE_SENSE_MAXIMIZE)
     else
         @assert sense == MOI.FeasibilitySense
-        putobjsense(m.task,MSK_OBJECTIVE_SENSE_MINIMIZE)
-        MOI.set(m, MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(), MOI.ScalarAffineFunction(MOI.VariableIndex[], Float64[], 0.))
+        model.feasibility = true
+        putobjsense(model.task,MSK_OBJECTIVE_SENSE_MINIMIZE)
+        MOI.set(model,
+                MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
+                MOI.ScalarAffineFunction(MOI.ScalarAffineTerm{Float64}[], 0.0))
     end
 end
 

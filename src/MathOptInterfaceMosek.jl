@@ -242,6 +242,14 @@ mutable struct MosekModel  <: MOI.AbstractOptimizer
     ###########################
     trm :: Rescode
     solutions :: Vector{MosekSolution}
+
+    ###########################
+    """
+    Indicating whether the objective sense is MOI.FeasibilitySense. It is
+    encoded as a MOI.MinSense with a zero objective internally but this allows
+    MOI.get(::MosekModel, ::ObjectiveSense) to still return the right value
+    """
+    feasibility :: Bool
 end
 
 function MosekOptimizer(; kws...)
@@ -289,8 +297,9 @@ function MosekOptimizer(; kws...)
                    Int[], # c_block_slack
                    Int[], # c_coneid
                    0, # cone counter
-                   Mosek.MSK_RES_OK,
-                   MosekSolution[]) # trm
+                   Mosek.MSK_RES_OK,# trm
+                   MosekSolution[],
+                   true) # feasibility_sense
     catch
         Mosek.deletetask(t)
         rethrow()
@@ -375,6 +384,7 @@ function MOI.empty!(m::MosekModel)
     m.conecounter   = 0
     m.trm           = Mosek.MSK_RES_OK
     m.solutions     = MosekSolution[]
+    m.feasibility   = true
 end
 
 function MOI.copy_to(dest::MosekModel, src::MOI.ModelLike; copy_names=true)
