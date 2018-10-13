@@ -8,6 +8,7 @@ using Mosek
 
 export MosekOptimizer
 
+using Compat # for findall
 
 include("LinkedInts.jl")
 
