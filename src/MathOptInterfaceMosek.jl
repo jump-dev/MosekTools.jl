@@ -158,6 +158,16 @@ are deleted are thereafter invalid.
 """
 mutable struct MosekModel  <: MOI.AbstractOptimizer
     task :: Mosek.MSKtask
+    ## Options passed in `MosekOptimizer` that are used to create a new task
+    ## in `MOI.empty!`:
+    # Should Mosek output be ignored or printed ?
+    be_quiet :: Bool
+    # Integer parameters, i.e. parameters starting with `MSK_IPAR_`
+    ipars :: Dict{String, Integer}
+    # Floating point parameters, i.e. parameters starting with `MSK_DPAR_`
+    dpars :: Dict{String, AbstractFloat}
+    # String parameters, i.e. parameters starting with `MSK_SPAR_`
+    spars :: Dict{String, AbstractString}
 
     """
     Number of variables explicitly created by user
@@ -252,58 +262,83 @@ mutable struct MosekModel  <: MOI.AbstractOptimizer
     feasibility :: Bool
 end
 
-function MosekOptimizer(; kws...)
-    t = maketask()
+function parametrized_task(be_quiet::Bool,
+                           ipars::Dict{String, Integer},
+                           dpars::Dict{String, AbstractFloat},
+                           spars::Dict{String, AbstractString})
+    task = maketask()
     try
-        be_quiet = false
-        for (option,val) in kws
-            parname = string(option)
-            if parname == "QUIET"
-                be_quiet = be_quiet || convert(Bool,val)
-            elseif startswith(parname, "MSK_IPAR_")
-                Mosek.putnaintparam(t, parname, convert(Integer, val))
-            elseif startswith(parname, "MSK_DPAR_")
-                Mosek.putnadouparam(t, parname, convert(AbstractFloat, val))
-            elseif startswith(parname, "MSK_SPAR_")
-                Mosek.putnastrparam(t, parname, convert(AbstractString, val))
-            elseif isa(val, Integer)
-                parname = "MSK_IPAR_$parname"
-                Mosek.putnaintparam(t, parname, val)
-            elseif isa(val, AbstractFloat)
-                parname = "MSK_DPAR_$parname"
-                Mosek.putnadouparam(t, parname, val)
-            elseif isa(val, AbstractString)
-                parname = "MSK_SPAR_$parname"
-                Mosek.putnastrparam(t, parname, val)
-            else
-                error("Value $val for parameter $option has unrecognized type")
-            end
+        for (name, value) in ipars
+            Mosek.putnaintparam(task, name, value)
         end
-        if ! be_quiet
-            Mosek.putstreamfunc(t,Mosek.MSK_STREAM_LOG,m -> print(m))
+        for (name, value) in ipars
+            Mosek.putnadouparam(task, name, value)
         end
-        MosekModel(t,# task
-                   0, # public numvar
-                   ConstraintMap(), # public constraints
-                   LinkedInts(),# c_block
-                   Int[], # x_boundflags
-                   Int[], # x_numxc
-                   LinkedInts(), # xc_block
-                   UInt8[], # xc_bounds
-                   Int[], # xc_coneid
-                   Int[], # xc_idxs
-                   LinkedInts(), # c_block
-                   Float64[], # c_constant
-                   Int[], # c_block_slack
-                   Int[], # c_coneid
-                   0, # cone counter
-                   Mosek.MSK_RES_OK,# trm
-                   MosekSolution[],
-                   true) # feasibility_sense
+        for (name, value) in ipars
+            Mosek.putnastrparam(task, name, value)
+        end
+        if !be_quiet
+            Mosek.putstreamfunc(task, Mosek.MSK_STREAM_LOG, m -> print(m))
+        end
     catch
-        Mosek.deletetask(t)
+        Mosek.deletetask(task)
         rethrow()
     end
+    return task
+end
+
+function parse_parameters(kws)
+    be_quiet = false
+    ipars = Dict{String, Integer}()
+    dpars = Dict{String, AbstractFloat}()
+    spars = Dict{String, AbstractString}()
+    for (option, val) in kws
+        parname = string(option)
+        if parname == "QUIET"
+            be_quiet = be_quiet || convert(Bool,val)
+        elseif startswith(parname, "MSK_IPAR_")
+            ipars[parname] = val
+        elseif startswith(parname, "MSK_DPAR_")
+            dpars[parname] = val
+        elseif startswith(parname, "MSK_SPAR_")
+            spars[parname] = val
+        elseif isa(val, Integer)
+            ipars["MSK_IPAR_$parname"] = val
+        elseif isa(val, AbstractFloat)
+            dpars["MSK_DPAR_$parname"] = val
+        elseif isa(val, AbstractString)
+            spars["MSK_SPAR_$parname"] = val
+        else
+            error("Value $val for parameter $option has unrecognized type")
+        end
+    end
+    return be_quiet, ipars, dpars, spars
+end
+
+function MosekOptimizer(; kws...)
+    be_quiet, ipars, dpars, spars = parse_parameters(kws)
+    return MosekModel(parametrized_task(be_quiet, ipars, dpars, spars), # task
+                      be_quiet,
+                      ipars,
+                      dpars,
+                      spars,
+                      0, # public numvar
+                      ConstraintMap(), # public constraints
+                      LinkedInts(),# c_block
+                      Int[], # x_boundflags
+                      Int[], # x_numxc
+                      LinkedInts(), # xc_block
+                      UInt8[], # xc_bounds
+                      Int[], # xc_coneid
+                      Int[], # xc_idxs
+                      LinkedInts(), # c_block
+                      Float64[], # c_constant
+                      Int[], # c_block_slack
+                      Int[], # c_coneid
+                      0, # cone counter
+                      Mosek.MSK_RES_OK,# trm
+                      MosekSolution[],
+                      true) # feasibility_sense
 end
 
 
@@ -366,25 +401,26 @@ function MOI.is_empty(m::MosekModel)
     getnumvar(m.task) == 0 && getnumcon(m.task) == 0 && getnumcone(m.task) == 0 && getnumbarvar(m.task) == 0
 end
 
-function MOI.empty!(m::MosekModel)
-    m.task          = maketask()
-    m.publicnumvar  = 0
-    m.constrmap     = ConstraintMap()
-    m.x_block       = LinkedInts()
-    m.x_boundflags  = Int[]
-    m.x_numxc       = Int[]
-    m.xc_block      = LinkedInts()
-    m.xc_bounds     = UInt8[]
-    m.xc_coneid     = Int[]
-    m.xc_idxs       = Int[]
-    m.c_block       = LinkedInts()
-    m.c_constant    = Float64[]
-    m.c_block_slack = Int[]
-    m.c_coneid      = Int[]
-    m.conecounter   = 0
-    m.trm           = Mosek.MSK_RES_OK
-    m.solutions     = MosekSolution[]
-    m.feasibility   = true
+function MOI.empty!(model::MosekModel)
+    model.task          = parametrized_task(model.be_quiet, model.ipars,
+                                            model.dpars,    model.spars)
+    model.publicnumvar  = 0
+    model.constrmap     = ConstraintMap()
+    model.x_block       = LinkedInts()
+    model.x_boundflags  = Int[]
+    model.x_numxc       = Int[]
+    model.xc_block      = LinkedInts()
+    model.xc_bounds     = UInt8[]
+    model.xc_coneid     = Int[]
+    model.xc_idxs       = Int[]
+    model.c_block       = LinkedInts()
+    model.c_constant    = Float64[]
+    model.c_block_slack = Int[]
+    model.c_coneid      = Int[]
+    model.conecounter   = 0
+    model.trm           = Mosek.MSK_RES_OK
+    model.solutions     = MosekSolution[]
+    model.feasibility   = true
 end
 
 function MOI.copy_to(dest::MosekModel, src::MOI.ModelLike; copy_names=true)
