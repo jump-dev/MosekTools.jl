@@ -271,10 +271,10 @@ function parametrized_task(be_quiet::Bool,
         for (name, value) in ipars
             Mosek.putnaintparam(task, name, value)
         end
-        for (name, value) in ipars
+        for (name, value) in dpars
             Mosek.putnadouparam(task, name, value)
         end
-        for (name, value) in ipars
+        for (name, value) in spars
             Mosek.putnastrparam(task, name, value)
         end
         if !be_quiet
