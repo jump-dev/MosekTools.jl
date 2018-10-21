@@ -15,10 +15,10 @@ using MathOptInterfaceMosek
 model = Model(with_optimizer(MosekOptimizer, QUIET=false, INTPNT_CO_TOL_DFEAS=1e-7))
 ```
 The parameter `QUIET` is a special parameter that when set to `false`
-disable all Mosek printing output.
+disables all Mosek printing output.
 All other parameters can be found in the [Mosek doc](https://docs.mosek.com/8.1/capi/param-groups.html#doc-param-groups).
 Note that the prefix `MSK_IPAR_` (for integer parameters), `MSK_DPAR_` (for
 floating point parameters) or `MSK_SPAR_` (for string parameters) are optional.
-If there are not given, they are inferred from the type of the value. For
+If they are not given, they are inferred from the type of the value. For
 instance, in the example above, as `1e-7` is a floating point number, the
 parameters name used is `MSK_DPAR_INTPNT_CO_TOL_DFEAS`.
