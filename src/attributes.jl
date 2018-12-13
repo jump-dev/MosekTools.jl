@@ -486,8 +486,17 @@ end
 
 #### Status codes
 function MOI.get(m::MosekModel,attr::MOI.TerminationStatus)
-    if     m.trm == MSK_RES_OK
-        MOI.Success
+    if     m.trm === nothing
+        MOI.OptimizeNotCalled
+    elseif m.trm == MSK_RES_OK
+        if any(sol -> sol.solsta == MSK_SOL_STA_PRIM_INFEAS_CER, m.solutions)
+            MOI.Infeasible
+        elseif any(sol -> sol.solsta == MSK_SOL_STA_DUAL_INFEAS_CER,
+                   m.solutions)
+            MOI.DualInfeasible
+        else
+            MOI.Optimal
+        end
     elseif m.trm == MSK_RES_TRM_MAX_ITERATIONS
         MOI.IterationLimit
     elseif m.trm == MSK_RES_TRM_MAX_TIME
@@ -495,9 +504,9 @@ function MOI.get(m::MosekModel,attr::MOI.TerminationStatus)
     elseif m.trm == MSK_RES_TRM_OBJECTIVE_RANGE
         MOI.ObjectiveLimit
     elseif m.trm == MSK_RES_TRM_MIO_NEAR_REL_GAP
-        MOI.AlmostSuccess
+        MOI.AlmostOptimal
     elseif m.trm == MSK_RES_TRM_MIO_NEAR_ABS_GAP
-        MOI.AlmostSuccess
+        MOI.AlmostOptimal
     elseif m.trm == MSK_RES_TRM_MIO_NUM_RELAXS
         MOI.OtherLimit
     elseif m.trm == MSK_RES_TRM_MIO_NUM_BRANCHES
@@ -505,12 +514,14 @@ function MOI.get(m::MosekModel,attr::MOI.TerminationStatus)
     elseif m.trm == MSK_RES_TRM_NUM_MAX_NUM_INT_SOLUTIONS
         MOI.SolutionLimit
     elseif m.trm == MSK_RES_TRM_STALL
+        println("STALL")
         MOI.SlowProgress
     elseif m.trm == MSK_RES_TRM_USER_CALLBACK
         MOI.Interrupted
     elseif m.trm == MSK_RES_TRM_MAX_NUM_SETBACKS
         MOI.OtherLimit
     elseif m.trm == MSK_RES_TRM_NUMERICAL_PROBLEM
+        println("NUMERICAL_PROBLEM")
         MOI.SlowProgress
     elseif m.trm == MSK_RES_TRM_INTERNAL
         MOI.OtherError
