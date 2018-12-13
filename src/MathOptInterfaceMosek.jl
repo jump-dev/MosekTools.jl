@@ -250,7 +250,7 @@ mutable struct MosekModel  <: MOI.AbstractOptimizer
     conecounter :: Int
 
     ###########################
-    trm :: Rescode
+    trm :: Union{Nothing, Rescode}
     solutions :: Vector{MosekSolution}
 
     ###########################
@@ -336,7 +336,7 @@ function MosekOptimizer(; kws...)
                       Int[], # c_block_slack
                       Int[], # c_coneid
                       0, # cone counter
-                      Mosek.MSK_RES_OK,# trm
+                      nothing,# trm
                       MosekSolution[],
                       true) # feasibility_sense
 end
@@ -418,11 +418,12 @@ function MOI.empty!(model::MosekModel)
     model.c_block_slack = Int[]
     model.c_coneid      = Int[]
     model.conecounter   = 0
-    model.trm           = Mosek.MSK_RES_OK
+    model.trm           = nothing
     model.solutions     = MosekSolution[]
     model.feasibility   = true
 end
 
+MOIU.supports_default_copy_to(::MosekModel, copy_names::Bool) = !copy_names
 function MOI.copy_to(dest::MosekModel, src::MOI.ModelLike; copy_names=true)
     return MOIU.default_copy_to(dest, src, copy_names)
 end
