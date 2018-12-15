@@ -424,8 +424,8 @@ function MOI.empty!(model::MosekModel)
 end
 
 MOIU.supports_default_copy_to(::MosekModel, copy_names::Bool) = !copy_names
-function MOI.copy_to(dest::MosekModel, src::MOI.ModelLike; copy_names=true)
-    return MOIU.default_copy_to(dest, src, copy_names)
+function MOI.copy_to(dest::MosekModel, src::MOI.ModelLike; kws...)
+    return MOIU.automatic_copy_to(dest, src; kws...)
 end
 
 function MOI.write_to_file(m::MosekModel, filename :: String)
