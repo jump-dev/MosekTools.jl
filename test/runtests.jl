@@ -44,6 +44,10 @@ MOIU.@model(Model,
             (MOI.VectorOfVariables,),
             (MOI.VectorAffineFunction,))
 
+@testset "SolverName" begin
+    @test MOI.get(optimizer, MOI.SolverName()) == "Mosek"
+end
+
 @testset "Copy" begin
     # Currently does not work because get is missing for ConstraintSet
     # and ConstraintFunction, see https://github.com/JuliaOpt/MathOptInterfaceMosek.jl/issues/50

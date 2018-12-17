@@ -423,6 +423,8 @@ function MOI.empty!(model::MosekModel)
     model.feasibility   = true
 end
 
+MOI.get(::MosekModel, ::MOI.SolverName) = "Mosek"
+
 MOIU.supports_default_copy_to(::MosekModel, copy_names::Bool) = !copy_names
 function MOI.copy_to(dest::MosekModel, src::MOI.ModelLike; kws...)
     return MOIU.automatic_copy_to(dest, src; kws...)
