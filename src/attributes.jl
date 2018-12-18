@@ -20,13 +20,13 @@ MOI.get(m::MosekModel,attr::MOI.SolveTime) = getdouinf(m.task,MSK_DINF_OPTIMIZER
 # NOTE: The MOSEK interface currently only supports Min and Max
 function MOI.get(model::MosekModel, ::MOI.ObjectiveSense)
     if model.feasibility
-        return MOI.FeasibilitySense
+        return MOI.FEASIBILITY_SENSE
     else
         sense = getobjsense(model.task)
         if sense == MSK_OBJECTIVE_SENSE_MINIMIZE
-            MOI.MinSense
+            MOI.MIN_SENSE
         else
-            MOI.MaxSense
+            MOI.MAX_SENSE
         end
     end
 end
@@ -34,14 +34,14 @@ end
 function MOI.set(model::MosekModel,
                  attr::MOI.ObjectiveSense,
                  sense::MOI.OptimizationSense)
-    if sense == MOI.MinSense
+    if sense == MOI.MIN_SENSE
         model.feasibility = false
         putobjsense(model.task,MSK_OBJECTIVE_SENSE_MINIMIZE)
-    elseif sense == MOI.MaxSense
+    elseif sense == MOI.MAX_SENSE
         model.feasibility = false
         putobjsense(model.task,MSK_OBJECTIVE_SENSE_MAXIMIZE)
     else
-        @assert sense == MOI.FeasibilitySense
+        @assert sense == MOI.FEASIBILITY_SENSE
         model.feasibility = true
         putobjsense(model.task,MSK_OBJECTIVE_SENSE_MINIMIZE)
         MOI.set(model,
@@ -487,101 +487,101 @@ end
 #### Status codes
 function MOI.get(m::MosekModel,attr::MOI.TerminationStatus)
     if     m.trm === nothing
-        MOI.OptimizeNotCalled
+        MOI.OPTIMIZE_NOT_CALLED
     elseif m.trm == MSK_RES_OK
         if any(sol -> sol.solsta == MSK_SOL_STA_PRIM_INFEAS_CER, m.solutions)
-            MOI.Infeasible
+            MOI.INFEASIBLE
         elseif any(sol -> sol.solsta == MSK_SOL_STA_DUAL_INFEAS_CER,
                    m.solutions)
-            MOI.DualInfeasible
+            MOI.DUAL_INFEASIBLE
         else
-            MOI.Optimal
+            MOI.OPTIMAL
         end
     elseif m.trm == MSK_RES_TRM_MAX_ITERATIONS
-        MOI.IterationLimit
+        MOI.ITERATION_LIMIT
     elseif m.trm == MSK_RES_TRM_MAX_TIME
-        MOI.TimeLimit
+        MOI.TIME_LIMIT
     elseif m.trm == MSK_RES_TRM_OBJECTIVE_RANGE
-        MOI.ObjectiveLimit
+        MOI.OBJECTIVE_LIMIT
     elseif m.trm == MSK_RES_TRM_MIO_NEAR_REL_GAP
-        MOI.AlmostOptimal
+        MOI.ALMOST_OPTIMAL
     elseif m.trm == MSK_RES_TRM_MIO_NEAR_ABS_GAP
-        MOI.AlmostOptimal
+        MOI.ALMOST_OPTIMAL
     elseif m.trm == MSK_RES_TRM_MIO_NUM_RELAXS
-        MOI.OtherLimit
+        MOI.OTHER_LIMIT
     elseif m.trm == MSK_RES_TRM_MIO_NUM_BRANCHES
-        MOI.NodeLimit
+        MOI.NODE_LIMIT
     elseif m.trm == MSK_RES_TRM_NUM_MAX_NUM_INT_SOLUTIONS
-        MOI.SolutionLimit
+        MOI.SOLUTION_LIMIT
     elseif m.trm == MSK_RES_TRM_STALL
         println("STALL")
-        MOI.SlowProgress
+        MOI.SLOW_PROGRESS
     elseif m.trm == MSK_RES_TRM_USER_CALLBACK
-        MOI.Interrupted
+        MOI.INTERRUPTED
     elseif m.trm == MSK_RES_TRM_MAX_NUM_SETBACKS
-        MOI.OtherLimit
+        MOI.OTHER_LIMIT
     elseif m.trm == MSK_RES_TRM_NUMERICAL_PROBLEM
         println("NUMERICAL_PROBLEM")
-        MOI.SlowProgress
+        MOI.SLOW_PROGRESS
     elseif m.trm == MSK_RES_TRM_INTERNAL
-        MOI.OtherError
+        MOI.OTHER_ERROR
     elseif m.trm == MSK_RES_TRM_INTERNAL_STOP
-        MOI.OtherError
+        MOI.OTHER_ERROR
     else
-        MOI.OtherError
+        MOI.OTHER_ERROR
     end
 end
 
 function MOI.get(m::MosekModel, attr::MOI.PrimalStatus)
     solsta = m.solutions[attr.N].solsta
     if     solsta == MSK_SOL_STA_UNKNOWN
-        MOI.UnknownResultStatus
+        MOI.UNKNOWN_RESULT_STATUS
     elseif solsta == MSK_SOL_STA_OPTIMAL
-        MOI.FeasiblePoint
+        MOI.FEASIBLE_POINT
     elseif solsta == MSK_SOL_STA_PRIM_FEAS
-        MOI.FeasiblePoint
+        MOI.FEASIBLE_POINT
     elseif solsta == MSK_SOL_STA_DUAL_FEAS
-        MOI.UnknownResultStatus
+        MOI.UNKNOWN_RESULT_STATUS
     elseif solsta == MSK_SOL_STA_PRIM_AND_DUAL_FEAS
-        MOI.FeasiblePoint
+        MOI.FEASIBLE_POINT
     elseif solsta == MSK_SOL_STA_PRIM_INFEAS_CER
-        MOI.NoSolution
+        MOI.NO_SOLUTION
     elseif solsta == MSK_SOL_STA_DUAL_INFEAS_CER
-        MOI.InfeasibilityCertificate
+        MOI.INFEASIBILITY_CERTIFICATE
     elseif solsta == MSK_SOL_STA_PRIM_ILLPOSED_CER
-        MOI.NoSolution
+        MOI.NO_SOLUTION
     elseif solsta == MSK_SOL_STA_DUAL_ILLPOSED_CER
-        MOI.ReductionCertificate
+        MOI.REDUCTION_CERTIFICATE
     elseif solsta == MSK_SOL_STA_INTEGER_OPTIMAL
-        MOI.FeasiblePoint
+        MOI.FEASIBLE_POINT
     else
-        MOI.UnknownResultStatus
+        MOI.UNKNOWN_RESULT_STATUS
     end
 end
 
 function MOI.get(m::MosekModel,attr::MOI.DualStatus)
     solsta = m.solutions[attr.N].solsta
     if     solsta == MSK_SOL_STA_UNKNOWN
-        MOI.UnknownResultStatus
+        MOI.UNKNOWN_RESULT_STATUS
     elseif solsta == MSK_SOL_STA_OPTIMAL
-        MOI.FeasiblePoint
+        MOI.FEASIBLE_POINT
     elseif solsta == MSK_SOL_STA_PRIM_FEAS
-        MOI.UnknownResultStatus
+        MOI.UNKNOWN_RESULT_STATUS
     elseif solsta == MSK_SOL_STA_DUAL_FEAS
-        MOI.FeasiblePoint
+        MOI.FEASIBLE_POINT
     elseif solsta == MSK_SOL_STA_PRIM_AND_DUAL_FEAS
-        MOI.FeasiblePoint
+        MOI.FEASIBLE_POINT
     elseif solsta == MSK_SOL_STA_PRIM_INFEAS_CER
-        MOI.InfeasibilityCertificate
+        MOI.INFEASIBILITY_CERTIFICATE
     elseif solsta == MSK_SOL_STA_DUAL_INFEAS_CER
-        MOI.NoSolution
+        MOI.NO_SOLUTION
     elseif solsta == MSK_SOL_STA_PRIM_ILLPOSED_CER
-        MOI.ReductionCertificate
+        MOI.REDUCTION_CERTIFICATE
     elseif solsta == MSK_SOL_STA_DUAL_ILLPOSED_CER
-        MOI.NoSolution
+        MOI.NO_SOLUTION
     elseif solsta == MSK_SOL_STA_INTEGER_OPTIMAL
-        MOI.NoSolution
+        MOI.NO_SOLUTION
     else
-        MOI.UnknownResultStatus
+        MOI.UNKNOWN_RESULT_STATUS
     end
 end

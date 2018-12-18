@@ -255,8 +255,8 @@ mutable struct MosekModel  <: MOI.AbstractOptimizer
 
     ###########################
     """
-    Indicating whether the objective sense is MOI.FeasibilitySense. It is
-    encoded as a MOI.MinSense with a zero objective internally but this allows
+    Indicating whether the objective sense is MOI.FEASIBILITY_SENSE. It is
+    encoded as a MOI.MIN_SENSE with a zero objective internally but this allows
     MOI.get(::MosekModel, ::ObjectiveSense) to still return the right value
     """
     feasibility :: Bool
