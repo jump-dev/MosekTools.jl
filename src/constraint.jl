@@ -39,6 +39,9 @@ function MOI.add_constraint(m   :: MosekModel,
                             axb :: MOI.ScalarAffineFunction{Float64},
                             dom :: D) where {D <: MOI.AbstractScalarSet}
 
+    # Duplicate indices not supported
+    axb = MOIU.canonical(axb)
+
     N = 1
     conid = allocateconstraints(m,N)
     addlhsblock!(m,
@@ -63,6 +66,9 @@ end
 function MOI.add_constraint(m   :: MosekModel,
                             axb :: MOI.VectorAffineFunction{Float64},
                             dom :: D) where { D <: MOI.AbstractVectorSet }
+
+    # Duplicate indices not supported
+    axb = MOIU.canonical(axb)
 
     N = MOI.dimension(dom)
     conid = allocateconstraints(m,N)
@@ -125,6 +131,10 @@ end
 function MOI.add_constraint(m   :: MosekModel,
                             axb :: MOI.VectorAffineFunction{Float64},
                             dom :: PSDCone) where { PSDCone <: PositiveSemidefiniteCone }
+
+    # Duplicate indices not supported
+    axb = MOIU.canonical(axb)
+
     N = dom.side_dimension
     NN = sympackedlen(N)
 
