@@ -35,34 +35,34 @@ MOI.supports_constraint(m::MosekModel, ::Type{MOI.SingleVariable}, ::Type{<:Scal
 #MOI.canaddconstraint(m::MosekModel, ::Type{<:Union{MOI.VectorOfVariables, MOI.VectorAffineFunction}}, ::Type{<:Union{VectorCone, PositiveSemidefiniteCone, VectorLinearDomain}}) = true
 #MOI.canaddconstraint(m::MosekModel, ::Type{MOI.SingleVariable}, ::Type{<:ScalarIntegerDomain}) = true
 
-function MOI.add_constraint(
-    m   :: MosekModel,
-    axb :: MOI.ScalarAffineFunction{Float64},
-    dom :: D) where {D <: MOI.AbstractScalarSet}
+function MOI.add_constraint(m   :: MosekModel,
+                            axb :: MOI.ScalarAffineFunction{Float64},
+                            dom :: D) where {D <: MOI.AbstractScalarSet}
 
     N = 1
     conid = allocateconstraints(m,N)
-    addlhsblock!(m, conid, fill(1, length(axb.terms)), axb.terms)
+    addlhsblock!(m,
+                 conid,
+                 fill(1, length(axb.terms)),
+                 axb.terms)
 
     if length(m.c_constant) < length(m.c_block)
-        append!(m.c_constant,zeros(Float64,length(m.c_block) - length(m.c_constant)))
+        append!(m.c_constant,
+                zeros(Float64, length(m.c_block) - length(m.c_constant)))
     end
-    conidxs = getindexes(m.c_block,conid)
+    conidxs = getindexes(m.c_block, conid)
     m.c_constant[conidxs] .= axb.constant
 
-    addbound!(m,conid,conidxs,Float64[axb.constant],dom)
+    addbound!(m, conid, conidxs, Float64[axb.constant], dom)
+    conref = MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}, D}(UInt64(conid) << 1)
+    select(m.constrmap, MOI.ScalarAffineFunction{Float64}, D)[conref.value] = conid
 
-
-    conref = MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D}(UInt64(conid) << 1)
-    select(m.constrmap,MOI.ScalarAffineFunction{Float64},D)[conref.value] = conid
-
-    conref
+    return conref
 end
 
-function MOI.add_constraint(
-    m   :: MosekModel,
-    axb :: MOI.VectorAffineFunction{Float64},
-    dom :: D) where { D <: MOI.AbstractVectorSet }
+function MOI.add_constraint(m   :: MosekModel,
+                            axb :: MOI.VectorAffineFunction{Float64},
+                            dom :: D) where { D <: MOI.AbstractVectorSet }
 
     N = MOI.dimension(dom)
     conid = allocateconstraints(m,N)
@@ -70,16 +70,15 @@ function MOI.add_constraint(
                  conid,
                  map(t -> t.output_index, axb.terms),
                  map(t -> t.scalar_term, axb.terms))
-    conidxs = getindexes(m.c_block,conid)
-    m.c_constant[conidxs] = axb.constants
 
-    m.c_block_slack[conid]
+    conidxs = getindexes(m.c_block, conid)
+    m.c_constant[conidxs] .= axb.constants
 
-    addbound!(m,conid,conidxs,axb.constants,dom)
-    conref = MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},D}(UInt64(conid) << 1)
-    select(m.constrmap,MOI.VectorAffineFunction{Float64},D)[conref.value] = conid
+    addbound!(m, conid, conidxs, axb.constants, dom)
+    conref = MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64}, D}(UInt64(conid) << 1)
+    select(m.constrmap, MOI.VectorAffineFunction{Float64}, D)[conref.value] = conid
 
-    conref
+    return conref
 end
 
 function trimapL(i, j, n)
