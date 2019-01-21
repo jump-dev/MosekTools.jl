@@ -165,7 +165,7 @@ end
 """
 function getindexes(s::LinkedInts, id :: Int)
     N = s.size[id]
-    r = Array{Int}(undef,N)
+    r = Vector{Int}(undef, N)
     p = s.block[id]
     for i in 1:N
         r[i] = p
