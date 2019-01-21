@@ -35,9 +35,9 @@ const config = MOIT.TestConfig(atol=1e-3, rtol=1e-3, query=false)
 
 # Mosek does not support names
 MOIU.@model(Model,
-            (),
-            (MOI.EqualTo, MOI.LessThan),
-            (MOI.Zeros, MOI.Nonnegatives,),
+            (MOI.Integer,),
+            (MOI.EqualTo, MOI.LessThan, MOI.GreaterThan),
+            (MOI.Zeros, MOI.Nonnegatives, MOI.Nonpositives, MOI.RotatedSecondOrderCone),
             (),
             (MOI.SingleVariable,),
             (MOI.ScalarAffineFunction,),
@@ -52,6 +52,21 @@ end
     # Currently does not work because get is missing for ConstraintSet
     # and ConstraintFunction, see https://github.com/JuliaOpt/MathOptInterfaceMosek.jl/issues/50
     #MOIT.copytest(optimizer, Model{Float64}())
+end
+
+@testset "Unit" begin
+    # Mosek does not support names
+    cached = MOIU.CachingOptimizer(Model{Float64}(), optimizer)
+    MOIT.unittest(MOIB.QuadtoSOC{Float64}(MOIB.SplitInterval{Float64}(cached)),
+                  config,
+                  [# Does not support quadratic objective yet, needs
+                   # https://github.com/JuliaOpt/MathOptInterface.jl/issues/529
+                   "solve_qp_edge_cases",
+                   # Find objective bound of 0.0 which is lower than 4.0
+                   "solve_objbound_edge_cases",
+                   # Cannot put multiple bound sets of the same type on a variable
+                   "solve_integer_edge_cases"
+                  ])
 end
 
 @testset "Continuous linear problems" begin
