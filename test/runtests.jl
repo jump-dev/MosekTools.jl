@@ -4,20 +4,6 @@
 # change is submitted).
 # If there is no valid license file, we default to that file.
 
-
-if haskey(ENV,"MOSEKLM_LICENSE_FILE")
-    # that's nice
-elseif haskey(ENV,"HOME")
-    if isfile(joinpath(ENV["HOME"],"mosek","mosek.lic"))
-        # our lucky day!
-    else
-        licfile = joinpath(@__DIR__,"..","test",".dontuse-probablyexpired.lic")
-        println("Use license file: $licfile")
-        import Mosek
-        Mosek.putlicensepath(Mosek.msk_global_env,licfile)
-    end
-end
-
 using MathOptInterfaceMosek
 
 
@@ -29,7 +15,7 @@ const MOIT = MOI.Test
 const MOIU = MOI.Utilities
 const MOIB = MOI.Bridges
 
-const optimizer = MosekOptimizer(QUIET = true)
+const optimizer = MosekOptimizer(QUIET = true, fallback = "mosek://solve.mosek.com:30080")
 # 1e-3 needed for rotatedsoc3 test
 const config = MOIT.TestConfig(atol=1e-3, rtol=1e-3, query=false)
 

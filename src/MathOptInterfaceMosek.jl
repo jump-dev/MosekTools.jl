@@ -260,6 +260,8 @@ mutable struct MosekModel  <: MOI.AbstractOptimizer
     MOI.get(::MosekModel, ::ObjectiveSense) to still return the right value
     """
     feasibility :: Bool
+
+    fallback :: Union{String,Nothing}
 end
 
 function parametrized_task(be_quiet::Bool,
@@ -289,6 +291,7 @@ end
 
 function parse_parameters(kws)
     be_quiet = false
+    fallback = nothing
     ipars = Dict{String, Integer}()
     dpars = Dict{String, AbstractFloat}()
     spars = Dict{String, AbstractString}()
@@ -296,6 +299,8 @@ function parse_parameters(kws)
         parname = string(option)
         if parname == "QUIET"
             be_quiet = be_quiet || convert(Bool,val)
+        elseif parname == "fallback"
+            fallback = val
         elseif startswith(parname, "MSK_IPAR_")
             ipars[parname] = val
         elseif startswith(parname, "MSK_DPAR_")
@@ -312,11 +317,11 @@ function parse_parameters(kws)
             error("Value $val for parameter $option has unrecognized type")
         end
     end
-    return be_quiet, ipars, dpars, spars
+    return be_quiet, fallback,ipars, dpars, spars
 end
 
 function MosekOptimizer(; kws...)
-    be_quiet, ipars, dpars, spars = parse_parameters(kws)
+    be_quiet, fallback,ipars, dpars, spars = parse_parameters(kws)
     return MosekModel(parametrized_task(be_quiet, ipars, dpars, spars), # task
                       be_quiet,
                       ipars,
@@ -338,13 +343,14 @@ function MosekOptimizer(; kws...)
                       0, # cone counter
                       nothing,# trm
                       MosekSolution[],
-                      true) # feasibility_sense
+                      true,
+                      fallback) # feasibility_sense
 end
 
 
 
 function MOI.optimize!(m::MosekModel)
-    m.trm = optimize(m.task)
+    m.trm = if m.fallback == nothing; optimize(m.task) else optimize(m.task,m.fallback) end
     m.solutions = MosekSolution[]
     if solutiondef(m.task,MSK_SOL_ITG)
 
