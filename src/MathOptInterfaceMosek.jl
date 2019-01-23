@@ -179,6 +179,10 @@ mutable struct MosekModel  <: MOI.AbstractOptimizer
     constrmap :: ConstraintMap
 
     """
+    """
+    constrnames :: Dict{String,Vector{MOI.ConstraintIndex}}
+
+    """
         The total length of `x_block` matches the number of variables in
     the underlying task, and the number of blocks corresponds to the
     number variables allocated in the Model.
@@ -329,6 +333,7 @@ function MosekOptimizer(; kws...)
                       spars,
                       0, # public numvar
                       ConstraintMap(), # public constraints
+                      Dict{String,MOI.ConstraintIndex}(),
                       LinkedInts(),# c_block
                       Int[], # x_boundflags
                       Int[], # x_numxc

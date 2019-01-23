@@ -588,6 +588,32 @@ function MOI.set(m::MosekModel,
     putconbound(m.task,i,bk,bl,bu)
 end
 
+
+function set_internal_name(m::MosekModel,c::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},D},name::AbstractString) where {D}
+    cid = ref2id(c)
+    for i in getindexes(m.c_block, cid)
+        putconname(m.task,i,name)
+    end
+end
+function set_internal_name(m::MosekModel,c::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D},name::AbstractString) where {D}
+    cid = ref2id(c)
+    i = getindexes(m.c_block, cid)[1]
+    putconname(m.task,i,name)
+end
+function set_internal_name(m::MosekModel, c::MOI.ConstraintIndex{F,D}, name::AbstractString) where {F,D} end
+
+
+function MOI.set(m    ::MosekModel,
+                 ::MOI.ConstraintName,
+                 c    ::MOI.ConstraintIndex{F,D},
+                 name ::AbstractString) where {F,D}#{F<:MOI.AbstractFunction,D<:AbstractSet}
+    if ! haskey(m.constrnames, name)        
+        m.constrnames[name] = MOI.ConstraintIndex[]
+    end
+    push!(m.constrnames[name], c)
+    set_internal_name(m,c,name)
+end
+
 function MOI.modify(m   ::MosekModel,
                     c   ::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D},
                     func::MOI.ScalarConstantChange{Float64}) where {D <: MOI.AbstractSet}
