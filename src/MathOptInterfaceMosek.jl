@@ -358,7 +358,6 @@ function MOI.optimize!(m::MosekModel)
     m.trm = if m.fallback == nothing; optimize(m.task) else optimize(m.task,m.fallback) end
     m.solutions = MosekSolution[]
     if solutiondef(m.task,MSK_SOL_ITG)
-
         push!(m.solutions,
               MosekSolution(MSK_SOL_ITG,
                             getsolsta(m.task,MSK_SOL_ITG),
