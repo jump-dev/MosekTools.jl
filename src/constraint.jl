@@ -291,7 +291,7 @@ function MOI.add_constraint(m   :: MosekModel,
                             dom :: D) where { D <: PositiveSemidefiniteCone }
     N = dom.side_dimension
     vars = sympackedUtoL(xs.variables, N)
-    subj = Vector{Int}(undef,length(vars))
+    subj = Vector{Int}(undef, length(vars))
     for i in 1:length(subj)
         getindexes(m.x_block, ref2id(vars[i]), subj, i)
     end

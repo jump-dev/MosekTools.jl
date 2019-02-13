@@ -17,9 +17,9 @@ function MOI.set(m::MosekModel, ::MOI.ObjectiveFunction, func::MOI.SingleVariabl
     numvar = getnumvar(m.task)
     c = zeros(Float64,numvar)
     vid = ref2id(func.variable)
-    subj = getindexes(m.x_block,vid)
+    subj = getindex(m.x_block, vid)
 
-    c[subj[1]] = 1.0
+    c[subj] = 1.0
 
     putclist(m.task,Int32[1:numvar...],c)
     putcfix(m.task,0.0)
@@ -43,6 +43,6 @@ end
 
 function MOI.modify(m::MosekModel, ::MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}, change :: MOI.ScalarCoefficientChange)
     vid = ref2id(change.variable)
-    subj = getindexes(m.x_block,vid)
-    putcj(m.task,Int32(subj[1]),change.new_coefficient)
+    subj = getindexes(m.x_block, vid)
+    putcj(m.task, Int32(subj), change.new_coefficient)
 end
