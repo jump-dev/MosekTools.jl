@@ -935,19 +935,19 @@ function allocatevarconstraints(m :: MosekModel,
         append!(m.xc_idxs, zeros(Float64,nalloc))
     end
 
-    id
+    return id
 end
 
-function allocatevariable(m :: MosekModel,N :: Int)
+function allocatevariable(m :: MosekModel, N :: Int)
     @assert(length(m.x_boundflags) == length(m.x_block))
     numvar = getnumvar(m.task)
-    alloced = ensurefree(m.x_block,N)
+    alloced = ensurefree(m.x_block, N)
     if alloced > 0
         appendvars(m.task, length(m.x_block) - numvar)
         append!(m.x_boundflags, zeros(Int,length(m.x_block) - numvar))
         append!(m.x_numxc, zeros(Int,length(m.x_block) - numvar))
     end
-    newblock(m.x_block,N)
+    return newblock(m.x_block, N)
 end
 
 function MOI.is_valid(model::MosekModel,

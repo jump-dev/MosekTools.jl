@@ -64,8 +64,8 @@ function ensurefree(s::LinkedInts, N :: Int)
         first = cap+1
         last  = cap+num
 
-        append!(s.next,Int[i+1 for i in first:last])
-        append!(s.prev,Int[i-1 for i in first:last])
+        append!(s.next, Int[i+1 for i in first:last])
+        append!(s.prev, Int[i-1 for i in first:last])
 
         s.next[last] = 0
         s.prev[first] = s.free_ptr
@@ -75,9 +75,9 @@ function ensurefree(s::LinkedInts, N :: Int)
         s.free_ptr = last
         s.free_cap += num
 
-        num
+        return num
     else
-        0
+        return 0
     end
 end
 
@@ -87,8 +87,8 @@ end
 Add a new block in list `idx`
 """
 function newblock(s::LinkedInts, N :: Int) :: Int
-    @assert(N>0)
-    ensurefree(s,N)
+    @assert(N > 0)
+    ensurefree(s, N)
     # remove from free list
     ptre = s.free_ptr
     ptrb = ptre
@@ -111,8 +111,8 @@ function newblock(s::LinkedInts, N :: Int) :: Int
         s.next[s.root] = ptrb
     end
     s.root = ptre
-    push!(s.block,ptrb)
-    push!(s.size,N)
+    push!(s.block, ptrb)
+    push!(s.size, N)
 
     id = length(s.block)
 
@@ -121,7 +121,7 @@ function newblock(s::LinkedInts, N :: Int) :: Int
     #    assert(false)
     #end
 
-    id
+    return id
 end
 
 """
@@ -159,9 +159,19 @@ function deleteblock(s::LinkedInts, id :: Int)
 end
 
 """
+    getindex(s::LinkedInts, id::Int)
+
+Shortcut for `getindexes(s, id)[1]` when `s.size[id]` is 1.
+"""
+function getindex(s::LinkedInts, id::Int)
+    @assert s.size[id] == 1
+    return s.block[id]
+end
+
+"""
     getindexes(s::LinkedInts, id :: Int)
 
-
+Return the vector of indices for the block `id`.
 """
 function getindexes(s::LinkedInts, id :: Int)
     N = s.size[id]
@@ -171,18 +181,17 @@ function getindexes(s::LinkedInts, id :: Int)
         r[i] = p
         p = s.next[p]
     end
-    r
+    return r
 end
 
-
-function getindexes(s::LinkedInts, id :: Int, target :: Array{Int,1}, offset :: Int)
+function getindexes(s::LinkedInts, id::Int, target::Vector{Int}, offset::Int)
     N = s.size[id]
     p = s.block[id]
     for i in 1:N
         target[i+offset-1] = p
         p = s.next[p]
     end
-    N
+    return N
 end
 
 function getindexes(s::LinkedInts, ids::Vector{Int})
@@ -192,7 +201,7 @@ function getindexes(s::LinkedInts, ids::Vector{Int})
     for id in ids
         offset += getindexes(s, id, r, offset)
     end
-    r
+    return r
 end
 
 function getoneindex(s::LinkedInts, id :: Int)

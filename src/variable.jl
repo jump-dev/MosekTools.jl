@@ -5,7 +5,7 @@ isvalid(m::MosekModel, ref::MOI.VariableIndex) = allocated(m.x_block,ref2id(ref)
 
 MOI.add_variables(m::MosekModel, N :: I) where { I <: Integer } = MOI.add_variables(m,UInt(N))
 function MOI.add_variables(m::MosekModel, N :: UInt)
-    ids = [ allocatevariable(m,1) for i in 1:N ]
+    ids = [ allocatevariable(m, 1) for i in 1:N ]
 
     m.publicnumvar += N
 
@@ -32,7 +32,7 @@ end
 
 function MOI.add_variable(m::MosekModel)
     N = 1
-    id = allocatevariable(m,1)
+    id = allocatevariable(m, 1)
     m.publicnumvar += N
     bnd = Vector{Float64}(undef,N)
     subj = convert(Vector{Int32}, getindexes(m.x_block, id))
