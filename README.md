@@ -14,7 +14,7 @@ using JuMP
 using MathOptInterfaceMosek
 model = Model(with_optimizer(MosekOptimizer, QUIET=false, INTPNT_CO_TOL_DFEAS=1e-7))
 ```
-The parameter `QUIET` is a special parameter that when set to `false`
+The parameter `QUIET` is a special parameter that when set to `true`
 disables all Mosek printing output.
 All other parameters can be found in the [Mosek doc](https://docs.mosek.com/8.1/capi/param-groups.html#doc-param-groups).
 Note that the prefix `MSK_IPAR_` (for integer parameters), `MSK_DPAR_` (for
