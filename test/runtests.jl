@@ -15,7 +15,7 @@ const MOIT = MOI.Test
 const MOIU = MOI.Utilities
 const MOIB = MOI.Bridges
 
-const optimizer = MosekOptimizer(QUIET = true, fallback = "mosek://solve.mosek.com:30080")
+const optimizer = Mosek.Optimizer(QUIET = true, fallback = "mosek://solve.mosek.com:30080")
 # 1e-3 needed for rotatedsoc3 test
 const config = MOIT.TestConfig(atol=1e-3, rtol=1e-3, query=false)
 
