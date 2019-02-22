@@ -6,8 +6,6 @@ const MOIU = MOI.Utilities
 using Mosek
 #using Mosek.Ext
 
-export MosekOptimizer
-
 using Compat # for findall
 
 include("LinkedInts.jl")
@@ -324,7 +322,8 @@ function parse_parameters(kws)
     return be_quiet, fallback,ipars, dpars, spars
 end
 
-function MosekOptimizer(; kws...)
+export Mosek
+function Mosek.Optimizer(; kws...)
     be_quiet, fallback,ipars, dpars, spars = parse_parameters(kws)
     return MosekModel(parametrized_task(be_quiet, ipars, dpars, spars), # task
                       be_quiet,
