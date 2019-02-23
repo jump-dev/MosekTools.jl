@@ -156,7 +156,7 @@ are deleted are thereafter invalid.
 """
 mutable struct MosekModel  <: MOI.AbstractOptimizer
     task :: Mosek.MSKtask
-    ## Options passed in `MosekOptimizer` that are used to create a new task
+    ## Options passed in `Mosek.Optimizer` that are used to create a new task
     ## in `MOI.empty!`:
     # Should Mosek output be ignored or printed ?
     be_quiet :: Bool

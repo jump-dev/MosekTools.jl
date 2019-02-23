@@ -205,10 +205,10 @@ function main(argv :: Vector{String})
 
     m =
         if  backend == :generic
-            solver = MosekOptimizer()
+            solver = Mosek.Optimizer()
             Model( optimizer = solver)
         elseif backend == :mosek
-            solver = MosekOptimizer()
+            solver = Mosek.Optimizer()
             Model( mode = JuMP.Direct, backend = solver)
         elseif backend == :mock
             solver = MOIU.MockOptimizer(JuMP.JuMPMOIModel{Float64}())
