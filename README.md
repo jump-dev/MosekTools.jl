@@ -1,17 +1,17 @@
-``MathOptInterfaceMosek`` is the
+``MosekTools`` is the
 [MathOptInterface.jl](https://github.com/JuliaOpt/MathOptInterface.jl)
 implementation for the MOSEK solver. The low-level solver API for MOSEK is
 found in the package [Mosek.jl](https://github.com/JuliaOpt/Mosek.jl).
 
 The ``Mosek`` specific model object (used for example with JuMP) is created as
 ```julia
-using MathOptInterfaceMosek
+using MosekTools
 model = MosekOptimizer()
 ```
 hence to use Mosek in a JuMP model, do, e.g.,
 ```julia
 using JuMP
-using MathOptInterfaceMosek
+using MosekTools
 model = Model(with_optimizer(MosekOptimizer, QUIET=false, INTPNT_CO_TOL_DFEAS=1e-7))
 ```
 The parameter `QUIET` is a special parameter that when set to `true`

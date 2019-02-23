@@ -1,4 +1,4 @@
-module MathOptInterfaceMosek
+module MosekTools
 
 import MathOptInterface
 const MOI = MathOptInterface

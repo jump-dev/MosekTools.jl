@@ -4,7 +4,7 @@
 # change is submitted).
 # If there is no valid license file, we default to that file.
 
-using MathOptInterfaceMosek
+using MosekTools
 
 
 using Test
@@ -36,7 +36,7 @@ end
 
 @testset "Copy" begin
     # Currently does not work because get is missing for ConstraintSet
-    # and ConstraintFunction, see https://github.com/JuliaOpt/MathOptInterfaceMosek.jl/issues/50
+    # and ConstraintFunction, see https://github.com/JuliaOpt/MosekTools.jl/issues/50
     #MOIT.copytest(optimizer, Model{Float64}())
 end
 
@@ -58,7 +58,7 @@ end
 @testset "Continuous linear problems" begin
     # linear1 is failing for two reasons
     # * it does not remove constraints using a variable if this variable is deleted, see https://github.com/JuliaOpt/MathOptInterface.jl/issues/511
-    # * it does not support duplicated terms, see https://github.com/JuliaOpt/MathOptInterfaceMosek.jl/issues/41
+    # * it does not support duplicated terms, see https://github.com/JuliaOpt/MosekTools.jl/issues/41
     MOIT.contlineartest(optimizer, config, ["linear1"])
 end
 

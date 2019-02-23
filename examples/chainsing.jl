@@ -1,5 +1,5 @@
 using JuMP
-using MathOptInterfaceMosek
+using MosekTools
 import MathOptInterface
 const MOI = MathOptInterface
 const MOIU = MathOptInterface.Utilities
