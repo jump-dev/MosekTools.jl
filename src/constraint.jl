@@ -11,8 +11,6 @@ const LinearFunction = Union{MOI.SingleVariable,
                              MOI.VectorAffineFunction}
 const AffineFunction = Union{MOI.ScalarAffineFunction,
                              MOI.VectorAffineFunction}
-const VariableFunction = Union{MOI.ScalarAffineFunction,
-                               MOI.VectorAffineFunction}
 
 const ScalarLinearDomain = Union{MOI.LessThan{Float64},
                                  MOI.GreaterThan{Float64},
@@ -683,16 +681,6 @@ end
 
 
 
-#MOI.cantransform(m::MosekModel, c::MOI.ConstraintIndex{F,D1}, newdom::D2) where {F <: VariableFunction, D1, D2 } = false
-#MOI.cantransform(m::MosekModel, c::MOI.ConstraintIndex{MOI.VectorAffineFunction,D1}, newdom::D2) where {D1 <: VectorLinearDomain, D2 <: VectorLinearDomain} = false
-#function MOI.cantransform(m::MosekModel,
-#                          cref::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D1},
-#                          newdom::D2) where {D1 <: ScalarLinearDomain,
-#                                             D2 <: ScalarLinearDomain}
-#    haskey(select(m.constrmap,MOI.ScalarAffineFunction{Float64},D1),cref.value)
-#end
-
-
 function MOI.transform(m::MosekModel,
                        cref::MOI.ConstraintIndex{F,D},
                        newdom::D) where {F <: MOI.AbstractFunction,
@@ -744,55 +732,11 @@ end
 ################################################################################
 
 
-#MOI.candelete(
-#    m   ::MosekModel,
-#    cref::MOI.ConstraintIndex{F,D}) where {F <: Union{MOI.ScalarAffineFunction,
-#                                                                       MOI.VectorAffineFunction,
-#                                                                       MOI.SingleVariable,
-#                                                                       MOI.VectorOfVariables},
-#                                                            D <: Union{MOI.LessThan,
-#                                                                       MOI.GreaterThan,
-#                                                                       MOI.EqualTo,
-#                                                                       MOI.Interval,
-#                                                                       MOI.Zeros,
-#                                                                       MOI.Nonpositives,
-#                                                                       MOI.Nonnegatives,
-#                                                                       MOI.Reals}} = MOI.isvalid(m,cref)
-#
-#MOI.candelete(
-#    m   ::MosekModel,
-#    cref::MOI.ConstraintIndex{F,D}) where {F <: MOI.AbstractFunction,
-#                                                            D <: Union{MOI.SecondOrderCone,
-#                                                                       MOI.RotatedSecondOrderCone,
-#                                                                       MOI.ExponentialCone,
-#                                                                       MOI.DualExponentialCone,
-#                                                                       MOI.PowerCone,
-#                                                                       MOI.DualPowerCone}} = false
-#
-#MOI.candelete(
-#    m   ::MosekModel,
-#    cref::MOI.ConstraintIndex{F,D}) where {F <: Union{MOI.SingleVariable,
-#                                                                       MOI.VectorOfVariables},
-#                                                            D <: Union{MOI.SecondOrderCone,
-#                                                                       MOI.RotatedSecondOrderCone,
-#                                                                       MOI.ExponentialCone,
-#                                                                       MOI.DualExponentialCone,
-#                                                                       MOI.PowerCone,
-#                                                                       MOI.DualPowerCone}} = true
-#
-
 function MOI.delete(
     m::MosekModel,
-    cref::MOI.ConstraintIndex{F,D}) where {F <: Union{MOI.ScalarAffineFunction,
-                                                                       MOI.VectorAffineFunction},
-                                                            D <: Union{MOI.LessThan,
-                                                                       MOI.GreaterThan,
-                                                                       MOI.EqualTo,
-                                                                       MOI.Interval,
-                                                                       MOI.Zeros,
-                                                                       MOI.Nonpositives,
-                                                                       MOI.Nonnegatives,
-                                                                       MOI.Reals}}
+    cref::MOI.ConstraintIndex{F,D}) where {F <: AffineFunction,
+                                           D <: Union{ScalarLinearDomain,
+                                                      VectorLinearDomain}}
 
     delete!(select(m.constrmap, F, D), cref.value)
 
