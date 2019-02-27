@@ -97,15 +97,21 @@ function MOI.get(model::MosekModel,
             end
         end
     end
-    for F in [MOI.VectorOfVariables, MOI.VectorAffineFunction{Float64}]
-        for D in [MOI.Nonpositives, MOI.Nonnegatives, MOI.Reals, MOI.Zeros,
-                  MOI.SecondOrderCone, MOI.RotatedSecondOrderCone,
-                  MOI.PowerCone{Float64}, MOI.DualPowerCone{Float64},
-                  MOI.ExponentialCone, MOI.DualExponentialCone,
-                  MOI.PositiveSemidefiniteConeTriangle]
-            if !isempty(select(model.constrmap, F, D))
-                push!(list, (F, D))
-            end
+    F = MOI.VectorOfVariables
+    for D in [MOI.Nonpositives, MOI.Nonnegatives, MOI.Reals, MOI.Zeros,
+              MOI.SecondOrderCone, MOI.RotatedSecondOrderCone,
+              MOI.PowerCone{Float64}, MOI.DualPowerCone{Float64},
+              MOI.ExponentialCone, MOI.DualExponentialCone,
+              MOI.PositiveSemidefiniteConeTriangle]
+        if !isempty(select(model.constrmap, F, D))
+            push!(list, (F, D))
+        end
+    end
+    F = MOI.VectorAffineFunction{Float64}
+    for D in [MOI.Nonpositives, MOI.Nonnegatives, MOI.Reals, MOI.Zeros,
+              MOI.PositiveSemidefiniteConeTriangle]
+        if !isempty(select(model.constrmap, F, D))
+            push!(list, (F, D))
         end
     end
     return list
