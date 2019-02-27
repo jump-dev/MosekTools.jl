@@ -787,35 +787,6 @@ end
 
 function MOI.delete(
     m::MosekModel,
-    cref::MOI.ConstraintIndex{F,D}) where {F <: Union{MOI.VectorAffineFunction},
-                                                            D <: Union{MOI.SecondOrderCone,
-                                                                       MOI.RotatedSecondOrderCone,
-                                                                       MOI.ExponentialCone,
-                                                                       MOI.DualExponentialCone,
-                                                                       MOI.PowerCone,
-                                                                       MOI.DualPowerCone}}
-
-    delete!(select(m.constrmap, F, D), cref.value)
-    xcid = ref2id(cref)
-    sub = getindexes(m.xc_block,xcid)
-
-    subj = [ getindex(m.x_block,i) for i in sub ]
-    N = length(subj)
-    m.x_boundflags[subj] .&= ~m.xc_bounds[xcid]
-    asgn,coneidx = getconenameindex(m.task,"$(m.xc_coneid[xcid])")
-    m.xc_coneid[xcid] = 0
-    removecone(m.task,coneidx)
-
-    m.x_numxc[subj]  -= 1
-    m.xc_idxs[sub]    = 0
-    m.xc_bounds[xcid] = 0
-
-    deleteblock(m.xc_block,xcid)
-end
-
-
-function MOI.delete(
-    m::MosekModel,
     cref::MOI.ConstraintIndex{F,D}) where {F <: Union{MOI.SingleVariable,
                                                       MOI.VectorOfVariables},
                                            D <: Union{ScalarLinearDomain,
