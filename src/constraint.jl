@@ -29,7 +29,8 @@ const ScalarIntegerDomain = Union{MOI.ZeroOne, MOI.Integer}
 ################################################################################
 
 MOI.supports_constraint(m::MosekModel, ::Type{<:Union{MOI.SingleVariable, MOI.ScalarAffineFunction}}, ::Type{<:ScalarLinearDomain}) = true
-MOI.supports_constraint(m::MosekModel, ::Type{<:Union{MOI.VectorOfVariables, MOI.VectorAffineFunction}}, ::Type{<:Union{VectorCone, PositiveSemidefiniteCone, VectorLinearDomain}}) = true
+MOI.supports_constraint(m::MosekModel, ::Type{<:Union{MOI.VectorOfVariables, MOI.VectorAffineFunction}}, ::Type{<:Union{PositiveSemidefiniteCone, VectorLinearDomain}}) = true
+MOI.supports_constraint(m::MosekModel, ::Type{MOI.VectorOfVariables}, ::Type{<:VectorCone}) = true
 MOI.supports_constraint(m::MosekModel, ::Type{MOI.SingleVariable}, ::Type{<:ScalarIntegerDomain}) = true
 #MOI.canaddconstraint(m::MosekModel, ::Type{<:Union{MOI.SingleVariable, MOI.ScalarAffineFunction}}, ::Type{<:ScalarLinearDomain}) = true
 #MOI.canaddconstraint(m::MosekModel, ::Type{<:Union{MOI.VectorOfVariables, MOI.VectorAffineFunction}}, ::Type{<:Union{VectorCone, PositiveSemidefiniteCone, VectorLinearDomain}}) = true
@@ -65,7 +66,7 @@ end
 
 function MOI.add_constraint(m   :: MosekModel,
                             axb :: MOI.VectorAffineFunction{Float64},
-                            dom :: D) where { D <: MOI.AbstractVectorSet }
+                            dom :: D) where { D <: VectorLinearDomain }
 
     # Duplicate indices not supported
     axb = MOIU.canonical(axb)
@@ -479,32 +480,6 @@ function addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, consta
 end
 
 
-
-function addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, constant :: Vector{Float64}, dom :: D) where { D <: VectorCone }
-    N = MOI.dimension(dom)
-    nalloc = ensurefree(m.x_block,N)
-
-    varid = newblock(m.x_block,N)
-    numvar = getnumvar(m.task)
-    if nalloc > 0
-        appendvars(m.task, length(m.x_block) - numvar)
-        append!(m.x_boundflags, zeros(Int,length(m.x_block) - numvar))
-        append!(m.x_numxc, zeros(Int,length(m.x_block) - numvar))
-    end
-    subj = getindexes(m.x_block,varid)
-
-    putaijlist(m.task,conidxs,subj,-ones(Float64,N))
-    putvarboundlist(m.task,subj,fill(MSK_BK_FR,N),zeros(Float64,N),zeros(Float64,N))
-    putconboundlist(m.task,convert(Vector{Int32},conidxs),fill(MSK_BK_FX,N),-constant,-constant)
-
-    m.c_block_slack[conid] = varid
-
-    appendcone(m.task,abstractset2ct(dom),coneparfromset(dom),subj)
-    coneidx = getnumcone(m.task)
-    m.conecounter += 1
-    #putconename(m.task,coneidx,"$(m.conecounter)")
-    m.c_coneid[conid] = m.conecounter
-end
 
 function addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, constant :: Vector{Float64}, dom :: MOI.PositiveSemidefiniteConeTriangle)
     dim = dom.side_dimension

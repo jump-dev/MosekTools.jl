@@ -19,14 +19,16 @@ const optimizer = Mosek.Optimizer(QUIET = true, fallback = "mosek://solve.mosek.
 # 1e-3 needed for rotatedsoc3 test
 const config = MOIT.TestConfig(atol=1e-3, rtol=1e-3, query=false)
 
+const bridged = MOIB.full_bridge_optimizer(optimizer, Float64)
+
 # Mosek does not support names
 MOIU.@model(Model,
             (MOI.Integer,),
-            (MOI.EqualTo, MOI.LessThan, MOI.GreaterThan),
+            (MOI.EqualTo, MOI.LessThan, MOI.GreaterThan, MOI.Interval),
             (MOI.Zeros, MOI.Nonnegatives, MOI.Nonpositives, MOI.RotatedSecondOrderCone),
             (),
             (MOI.SingleVariable,),
-            (MOI.ScalarAffineFunction,),
+            (MOI.ScalarAffineFunction, MOI.ScalarQuadraticFunction),
             (MOI.VectorOfVariables,),
             (MOI.VectorAffineFunction,))
 
@@ -42,8 +44,8 @@ end
 
 @testset "Unit" begin
     # Mosek does not support names
-    cached = MOIU.CachingOptimizer(Model{Float64}(), optimizer)
-    MOIT.unittest(MOIB.QuadtoSOC{Float64}(MOIB.SplitInterval{Float64}(cached)),
+    cached = MOIU.CachingOptimizer(Model{Float64}(), bridged)
+    MOIT.unittest(cached,
                   config,
                   [# Does not support quadratic objective yet, needs
                    # https://github.com/JuliaOpt/MathOptInterface.jl/issues/529
@@ -68,8 +70,7 @@ end
 # end
 
 @testset "Continuous conic problems" begin
-    MOIT.contconictest(MOIB.SquarePSD{Float64}(MOIB.RootDet{Float64}(MOIB.GeoMean{Float64}(optimizer))),
-                       config, ["exp", "rootdets", "logdet"])
+    MOIT.contconictest(bridged, config, ["exp", "rootdets", "logdet"])
 end
 
 @testset "Mixed-integer linear problems" begin
