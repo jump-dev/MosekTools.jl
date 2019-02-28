@@ -342,6 +342,8 @@ end
 
 getsolcode(m::MosekModel, N) = m.solutions[N].whichsol
 
+# The dual or primal of an SDP variable block is returned in lower triangular
+# form but the constraint is in upper triangular form.
 function lower_to_upper(x)
     n = div(isqrt(1 + 8length(x)) - 1, 2)
     @assert length(x) == MOI.dimension(PositiveSemidefiniteCone(n))
