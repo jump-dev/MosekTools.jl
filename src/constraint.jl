@@ -270,7 +270,7 @@ function MOI.add_constraint(
 
     xcid = allocatevarconstraints(m, 1)
 
-    xc_sub = getindex(m.xc_block,xcid)
+    xc_sub = getindex(m.xc_block, xcid)
 
     m.xc_bounds[xcid]  = mask
     m.xc_idxs[xc_sub] = subj
@@ -366,10 +366,11 @@ function aux_setvardom(m::MosekModel, xcid::Int, subj::Vector{Int},
     addvarconstr(m, subj, dom)
 end
 
-function MOI.add_constraint(m :: MosekModel, xs :: MOI.VectorOfVariables, dom :: D) where {D <: MOI.AbstractSet}
-    subj = Vector{Int}(undef,length(xs.variables))
+function MOI.add_constraint(m::MosekModel, xs::MOI.VectorOfVariables,
+                            dom::D) where {D <: MOI.AbstractSet}
+    subj = Vector{Int}(undef, length(xs.variables))
     for i in 1:length(subj)
-        getindexes(m.x_block, ref2id(xs.variables[i]),subj,i)
+        getindexes(m.x_block, ref2id(xs.variables[i]), subj, i)
     end
 
     mask = domain_type_mask(dom)
@@ -379,7 +380,7 @@ function MOI.add_constraint(m :: MosekModel, xs :: MOI.VectorOfVariables, dom ::
 
     N = MOI.dimension(dom)
     xcid = allocatevarconstraints(m,N)
-    xc_sub = getindexes(m.xc_block,xcid)
+    xc_sub = getindexes(m.xc_block, xcid)
 
     m.xc_bounds[xcid] = mask
     m.xc_idxs[xc_sub] = subj
@@ -806,7 +807,7 @@ function allocateconstraints(m :: MosekModel,
                              N :: Int)
     numcon = getnumcon(m.task)
     alloced = ensurefree(m.c_block,N)
-    id = newblock(m.c_block,N)
+    id = newblock(m.c_block, N)
 
     M = numblocks(m.c_block) - length(m.c_block_slack)
     if alloced > 0
@@ -823,16 +824,16 @@ end
 
 function allocatevarconstraints(m :: MosekModel,
                                 N :: Int)
-    nalloc = ensurefree(m.xc_block,N)
-    id = newblock(m.xc_block,N)
+    nalloc = ensurefree(m.xc_block, N)
+    id = newblock(m.xc_block, N)
 
     M = numblocks(m.xc_block) - length(m.xc_bounds)
     if M > 0
-        append!(m.xc_bounds,zeros(Float64,M))
-        append!(m.xc_coneid,zeros(Float64,M))
+        append!(m.xc_bounds, zeros(Float64, M))
+        append!(m.xc_coneid, zeros(Float64, M))
     end
     if nalloc > 0
-        append!(m.xc_idxs, zeros(Float64,nalloc))
+        append!(m.xc_idxs, zeros(Float64, nalloc))
     end
 
     return id

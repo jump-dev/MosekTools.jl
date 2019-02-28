@@ -158,6 +158,16 @@ function deleteblock(s::LinkedInts, id :: Int)
     end
 end
 
+# TODO merge getoneindex and getindex
+function getoneindex(s::LinkedInts, id :: Int)
+    N = s.size[id]
+    if N < 1
+        error("No values at id")
+    end
+
+    s.block[i]
+end
+
 """
     getindex(s::LinkedInts, id::Int)
 
@@ -203,16 +213,6 @@ function getindexes(s::LinkedInts, ids::Vector{Int})
     end
     return r
 end
-
-function getoneindex(s::LinkedInts, id :: Int)
-    N = s.size[id]
-    if N < 1
-        error("No values at id")
-    end
-
-    s.block[i]
-end
-
 
 """
 Get a list if the currently free elements.
