@@ -238,7 +238,7 @@ function MOI.get!(
 
     # It is in fact a real constraint and cid is the id of an ordinary constraint
     barvaridx = - m.c_block_slack[-cid]
-    output[1:length(output)] = sympackedLtoU(getbarxj(m.task,whichsol,barvaridx))
+    output[1:length(output)] = lower_to_upper(getbarxj(m.task,whichsol,barvaridx))
 end
 
 # Any other domain for variable vector
@@ -285,7 +285,7 @@ function MOI.get!(
         output[1:length(output)] = m.solutions[attr.N].xx[xsubj]
     else # psd slack
         xid = - m.c_block_slack[cid]
-        output[1:length(output)] = sympackedLtoU(getbarxj(m.task,m.solutions[attr.N].whichsol,Int32(xid)))
+        output[1:length(output)] = lower_to_upper(getbarxj(m.task,m.solutions[attr.N].whichsol,Int32(xid)))
     end
 end
 
@@ -342,6 +342,22 @@ end
 
 getsolcode(m::MosekModel, N) = m.solutions[N].whichsol
 
+# The dual or primal of an SDP variable block is returned in lower triangular
+# form but the constraint is in upper triangular form.
+function lower_to_upper(x)
+    n = div(isqrt(1 + 8length(x)) - 1, 2)
+    @assert length(x) == MOI.dimension(PositiveSemidefiniteCone(n))
+    y = similar(x)
+    k = 0
+    for j in 1:n, i in j:n
+        k += 1
+        y[div((i - 1) * i, 2) + j] = x[k]
+
+    end
+    @assert k == length(x)
+    return y
+end
+
 # Semidefinite domain for a variable
 function MOI.get!(
     output::Vector{Float64},
@@ -355,7 +371,7 @@ function MOI.get!(
 
     # It is in fact a real constraint and cid is the id of an ordinary constraint
     barvaridx = - m.c_block_slack[-cid]
-    dual = sympackedLtoU(getbarsj(m.task,whichsol,barvaridx))
+    dual = lower_to_upper(getbarsj(m.task,whichsol,barvaridx))
     if (getobjsense(m.task) == MSK_OBJECTIVE_SENSE_MINIMIZE)
         output[1:length(output)] = dual
     else
@@ -438,7 +454,7 @@ function MOI.get!(
         else # psd slack
             whichsol = getsolcode(m,attr.N)
             xid = - m.c_block_slack[cid]
-            output[1:length(output)] = sympackedLtoU(getbarsj(m.task,whichsol,Int32(xid)))
+            output[1:length(output)] = lower_to_upper(getbarsj(m.task,whichsol,Int32(xid)))
         end
     else
         if     m.c_block_slack[cid] == 0 # no slack
@@ -450,7 +466,7 @@ function MOI.get!(
         else # psd slack
             whichsol = getsolcode(m,attr.N)
             xid = - m.c_block_slack[cid]
-            output[1:length(output)] = sympackedLtoU(- getbarsj(m.task,whichsol,Int32(xid)))
+            output[1:length(output)] = lower_to_upper(-getbarsj(m.task,whichsol,Int32(xid)))
         end
     end
 end
