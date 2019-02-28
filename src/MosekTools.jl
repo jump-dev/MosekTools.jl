@@ -73,8 +73,6 @@ struct ConstraintMap
     axbs_nonnegatives    :: Dict{Int64,Int} # (VectorAffineFunction,Nonnegatives) -> constraint number
     axbs_zeros           :: Dict{Int64,Int} # (VectorAffineFunction,Zeros) -> constraint number
     axbs_reals           :: Dict{Int64,Int} # (VectorAffineFunction,Reals) -> constraint number
-    axbs_qcone           :: Dict{Int64,Int} # (VectorAffineFunction,SecondOrderCone) -> constraint number
-    axbs_rqcone          :: Dict{Int64,Int} # (VectorAffineFunction,RotatedSecondOrderCone) -> constraint number
     axbs_psdconetriangle :: Dict{Int64,Int} # (VectorAffineFunction,PositiveSemidefiniteConeTriangle) -> constraint number
     axbs_ppowcone        :: Dict{Int64,Int} # (VectorOfVariables,RotatedSecondOrderCone) -> constraint number
     axbs_dpowcone        :: Dict{Int64,Int} # (VectorOfVariables,RotatedSecondOrderCone) -> constraint number
@@ -82,7 +80,7 @@ struct ConstraintMap
     axbs_dexpcone        :: Dict{Int64,Int} # (VectorOfVariables,RotatedSecondOrderCone) -> constraint number
 end
 
-ConstraintMap() = ConstraintMap([Dict{Int64,Int}() for i in 1:38]...)
+ConstraintMap() = ConstraintMap([Dict{Int64,Int}() for i in 1:36]...)
 select(cm::ConstraintMap,::Type{MOI.SingleVariable},               ::Type{MOI.LessThan{Float64}}) =                cm.x_lessthan
 select(cm::ConstraintMap,::Type{MOI.SingleVariable},               ::Type{MOI.GreaterThan{Float64}}) =             cm.x_greaterthan
 select(cm::ConstraintMap,::Type{MOI.SingleVariable},               ::Type{MOI.EqualTo{Float64}}) =                 cm.x_equalto
@@ -114,13 +112,7 @@ select(cm::ConstraintMap,::Type{MOI.VectorAffineFunction{Float64}},::Type{MOI.No
 select(cm::ConstraintMap,::Type{MOI.VectorAffineFunction{Float64}},::Type{MOI.Nonnegatives}) =                     cm.axbs_nonnegatives
 select(cm::ConstraintMap,::Type{MOI.VectorAffineFunction{Float64}},::Type{MOI.Zeros}) =                            cm.axbs_zeros
 select(cm::ConstraintMap,::Type{MOI.VectorAffineFunction{Float64}},::Type{MOI.Reals}) =                            cm.axbs_reals
-select(cm::ConstraintMap,::Type{MOI.VectorAffineFunction{Float64}},::Type{MOI.SecondOrderCone}) =                  cm.axbs_qcone
-select(cm::ConstraintMap,::Type{MOI.VectorAffineFunction{Float64}},::Type{MOI.RotatedSecondOrderCone}) =           cm.axbs_rqcone
 select(cm::ConstraintMap,::Type{MOI.VectorAffineFunction{Float64}},::Type{MOI.PositiveSemidefiniteConeTriangle}) = cm.axbs_psdconetriangle
-select(cm::ConstraintMap,::Type{MOI.VectorAffineFunction{Float64}},::Type{MOI.PowerCone{Float64}}) =               cm.axbs_ppowcone
-select(cm::ConstraintMap,::Type{MOI.VectorAffineFunction{Float64}},::Type{MOI.DualPowerCone{Float64}}) =           cm.axbs_dpowcone
-select(cm::ConstraintMap,::Type{MOI.VectorAffineFunction{Float64}},::Type{MOI.ExponentialCone}) =                  cm.axbs_pexpcone
-select(cm::ConstraintMap,::Type{MOI.VectorAffineFunction{Float64}},::Type{MOI.DualExponentialCone}) =              cm.axbs_dexpcone
 
 Base.getindex(cm::ConstraintMap,r :: MOI.ConstraintIndex{F,D}) where {F,D} = select(cm,F,D)[r.value]
 

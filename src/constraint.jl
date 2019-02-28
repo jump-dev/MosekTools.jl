@@ -27,7 +27,8 @@ const ScalarIntegerDomain = Union{MOI.ZeroOne, MOI.Integer}
 ################################################################################
 
 MOI.supports_constraint(m::MosekModel, ::Type{<:Union{MOI.SingleVariable, MOI.ScalarAffineFunction}}, ::Type{<:ScalarLinearDomain}) = true
-MOI.supports_constraint(m::MosekModel, ::Type{<:Union{MOI.VectorOfVariables, MOI.VectorAffineFunction}}, ::Type{<:Union{VectorCone, PositiveSemidefiniteCone, VectorLinearDomain}}) = true
+MOI.supports_constraint(m::MosekModel, ::Type{<:Union{MOI.VectorOfVariables, MOI.VectorAffineFunction}}, ::Type{<:Union{PositiveSemidefiniteCone, VectorLinearDomain}}) = true
+MOI.supports_constraint(m::MosekModel, ::Type{MOI.VectorOfVariables}, ::Type{<:VectorCone}) = true
 MOI.supports_constraint(m::MosekModel, ::Type{MOI.SingleVariable}, ::Type{<:ScalarIntegerDomain}) = true
 #MOI.canaddconstraint(m::MosekModel, ::Type{<:Union{MOI.SingleVariable, MOI.ScalarAffineFunction}}, ::Type{<:ScalarLinearDomain}) = true
 #MOI.canaddconstraint(m::MosekModel, ::Type{<:Union{MOI.VectorOfVariables, MOI.VectorAffineFunction}}, ::Type{<:Union{VectorCone, PositiveSemidefiniteCone, VectorLinearDomain}}) = true
@@ -63,7 +64,7 @@ end
 
 function MOI.add_constraint(m   :: MosekModel,
                             axb :: MOI.VectorAffineFunction{Float64},
-                            dom :: D) where { D <: MOI.AbstractVectorSet }
+                            dom :: D) where { D <: VectorLinearDomain }
 
     # Duplicate indices not supported
     axb = MOIU.canonical(axb)
@@ -478,32 +479,6 @@ end
 
 
 
-function addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, constant :: Vector{Float64}, dom :: D) where { D <: VectorCone }
-    N = MOI.dimension(dom)
-    nalloc = ensurefree(m.x_block,N)
-
-    varid = newblock(m.x_block,N)
-    numvar = getnumvar(m.task)
-    if nalloc > 0
-        appendvars(m.task, length(m.x_block) - numvar)
-        append!(m.x_boundflags, zeros(Int,length(m.x_block) - numvar))
-        append!(m.x_numxc, zeros(Int,length(m.x_block) - numvar))
-    end
-    subj = getindexes(m.x_block,varid)
-
-    putaijlist(m.task,conidxs,subj,-ones(Float64,N))
-    putvarboundlist(m.task,subj,fill(MSK_BK_FR,N),zeros(Float64,N),zeros(Float64,N))
-    putconboundlist(m.task,convert(Vector{Int32},conidxs),fill(MSK_BK_FX,N),-constant,-constant)
-
-    m.c_block_slack[conid] = varid
-
-    appendcone(m.task,abstractset2ct(dom),coneparfromset(dom),subj)
-    coneidx = getnumcone(m.task)
-    m.conecounter += 1
-    #putconename(m.task,coneidx,"$(m.conecounter)")
-    m.c_coneid[conid] = m.conecounter
-end
-
 function addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, constant :: Vector{Float64}, dom :: MOI.PositiveSemidefiniteConeTriangle)
     dim = dom.side_dimension
     appendbarvars(m.task,Int32[dim])
@@ -753,35 +728,6 @@ function MOI.delete(
     m.c_constant[subi] .= 0.0
     deleteblock(m.c_block,cid)
 end
-
-function MOI.delete(
-    m::MosekModel,
-    cref::MOI.ConstraintIndex{F,D}) where {F <: Union{MOI.VectorAffineFunction},
-                                                            D <: Union{MOI.SecondOrderCone,
-                                                                       MOI.RotatedSecondOrderCone,
-                                                                       MOI.ExponentialCone,
-                                                                       MOI.DualExponentialCone,
-                                                                       MOI.PowerCone,
-                                                                       MOI.DualPowerCone}}
-
-    delete!(select(m.constrmap, F, D), cref.value)
-    xcid = ref2id(cref)
-    sub = getindexes(m.xc_block,xcid)
-
-    subj = [ getindex(m.x_block,i) for i in sub ]
-    N = length(subj)
-    m.x_boundflags[subj] .&= ~m.xc_bounds[xcid]
-    asgn,coneidx = getconenameindex(m.task,"$(m.xc_coneid[xcid])")
-    m.xc_coneid[xcid] = 0
-    removecone(m.task,coneidx)
-
-    m.x_numxc[subj]  -= 1
-    m.xc_idxs[sub]    = 0
-    m.xc_bounds[xcid] = 0
-
-    deleteblock(m.xc_block,xcid)
-end
-
 
 function MOI.delete(
     m::MosekModel,
