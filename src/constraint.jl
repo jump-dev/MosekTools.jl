@@ -295,13 +295,14 @@ function MOI.add_constraint(m   :: MosekModel,
         getindexes(m.x_block, ref2id(vars[i]), subj, i)
     end
 
+    if N < 2
+        error("Invalid dimension for semidefinite constraint, got $N which is ",
+              "smaller than the minimum dimension 2.")
+    end
+
     mask = domain_type_mask(dom)
     if any(mask .& m.x_boundflags[subj[1]] .> 0)
         error("Cannot put multiple bound sets of the same type to a variable")
-    end
-
-    if N < 2
-        error("Invalid dimension for semidefinite constraint")
     end
 
     NN = sympackedlen(N)
