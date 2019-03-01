@@ -4,6 +4,9 @@
 # matrix while the MOI variables numbering can have holes, i.e. when variables
 # are deleted.
 
+###############################################################################
+## ADD
+
 """
     function allocate_variable(m::MosekModel)
 
@@ -170,4 +173,18 @@ function MOI.delete(m::MosekModel, ref::MOI.VariableIndex)
     clear_columns(m, [ref])
 
     clear_variable(m, ref)
+end
+
+###############################################################################
+## ATTRIBUTES
+
+MOI.get(m::MosekModel, attr::MOI.NumberOfVariables) = m.publicnumvar
+function MOI.get(m::MosekModel, attr::MOI.ListOfVariableIndices)
+    ids = allocatedlist(m.x_block)
+    return MOI.VariableIndex[MOI.VariableIndex(vid) for vid in ids]
+end
+
+function MOI.set(m::MosekModel, ::MOI.VariableName, ref::MOI.VariableIndex,
+                 value::String)
+    putvarname(m.task, column(m, ref), value)
 end
