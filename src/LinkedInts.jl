@@ -1,5 +1,38 @@
 using Printf                    #
 
+"""
+    mutable struct LinkedInts
+        next :: Vector{Int}
+        prev :: Vector{Int}
+
+        free_ptr :: Int
+        free_cap :: Int
+        root     :: Int
+
+        block :: Vector{Int}
+        size  :: Vector{Int}
+    end
+
+Block linked list, there are `length(next) = length(prev)` indices, `free_cap`
+of which are free and the other are used. `root` gives the last one ones, i.e.
+starting from `root` and following `prev` until it gives zero should give the
+`length(prev) - free_cap` used indices. Similarly, `free_ptr` gives the last
+index free, i.e. starting from `free_ptr` and following `prev` until it gives
+zero should give the `free_cap` free indices.
+
+* `next[i]` is the minimum `j > i` such that `j` is used, or 0 if `i` is the
+  last one used, i.e. `i = root`.
+* `prev[i]` is the maximum `j < i` such that `j` is used, or 0 if `i` is the
+  first one used.
+
+* `free_cap` is the number of free slots.
+* `free_ptr` last index of the `free_cap` free slots.
+* `root` last used index.
+
+`length(block) == length(size)`.
+* `block`: mapping from block index to first index of the block
+* `size`: mapping from block index to length of the block
+"""
 mutable struct LinkedInts
     next :: Vector{Int}
     prev :: Vector{Int}
@@ -91,10 +124,12 @@ function newblock(s::LinkedInts, N :: Int) :: Int
     ensurefree(s, N)
     # remove from free list
     ptre = s.free_ptr
+    # ptre is the last index
     ptrb = ptre
     for i = 1:N-1
         ptrb = s.prev[ptrb]
     end
+    # ptrb is the first index
 
     prev = s.prev[ptrb]
 
