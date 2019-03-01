@@ -80,8 +80,6 @@ MOI.get(m::MosekModel,attr::MOI.ResultCount) = length(m.solutions)
 
 #### Problem information
 
-MOI.get(m::MosekModel,attr::MOI.NumberOfVariables) = m.publicnumvar
-
 function MOI.get(m::MosekModel, ::MOI.NumberOfConstraints{F,D}) where {F,D}
     return length(select(m.constrmap, F, D))
 end
@@ -153,12 +151,6 @@ function MOI.set(m::MosekModel,attr::MOI.VariablePrimalStart, vs::Vector{MOI.Var
     end
 end
 
-
-function MOI.set(m::MosekModel, attr::MOI.VariableName,
-                 index :: MOI.VariableIndex, value :: String)
-    subj = getindex(m.x_block, ref2id(index))
-    putvarname(m.task, subj, value)
-end
 
 # function MOI.set(m::MosekModel,attr::MOI.ConstraintDualStart, vs::Vector{MOI.ConstraintIndex}, vals::Vector{Float64})
 #     subj = Array{Int}(length(vs))

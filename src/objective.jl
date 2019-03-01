@@ -1,48 +1,52 @@
-const ObjF = Union{MOI.SingleVariable, MOI.ScalarAffineFunction{Float64}}
-
 # TODO get with SingleVariable
-function MathOptInterface.get(m::MosekModel, ::MathOptInterface.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}})
-    vid = allocatedlist(m.x_block)
-    subj = getindexes(m.x_block, vid)
-    coeffs = getclist(m.task, subj)
+function MOI.get(m::MosekModel,
+                 ::MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}})
+    refs = MOI.get(m, MOI.ListOfVariableIndices())
+    cols = columns(m, refs)
+    coeffs = getclist(m.task, cols)
     constant = getcfix(m.task)
-    MOI.ScalarAffineFunction(MOI.VariableIndex.(vid), coeffs, constant)
+    @assert length(coeffs) == length(refs)
+    terms = MOI.ScalarAffineTerm{Float64}[
+        MOI.ScalarAffineTerm(coeffs[i], refs[i]) for i in 1:length(refs)]
+    return MOI.ScalarAffineFunction(terms, constant)
 end
 
+const ObjF = Union{MOI.SingleVariable, MOI.ScalarAffineFunction{Float64}}
 MOI.supports(::MosekModel,::MOI.ObjectiveFunction{<:ObjF})  = true
 MOI.supports(::MosekModel,::MOI.ObjectiveSense) = true
 
 
-function MOI.set(m::MosekModel, ::MOI.ObjectiveFunction, func::MOI.SingleVariable)
+function MOI.set(m::MosekModel, ::MOI.ObjectiveFunction,
+                 func::MOI.SingleVariable)
     numvar = getnumvar(m.task)
-    c = zeros(Float64,numvar)
-    vid = ref2id(func.variable)
-    subj = getindex(m.x_block, vid)
-
-    c[subj] = 1.0
-
-    putclist(m.task,Int32[1:numvar...],c)
-    putcfix(m.task,0.0)
+    c = zeros(Float64, numvar)
+    col = column(m, func.variable)
+    c[col] = 1.0
+    putclist(m.task, convert(Vector{Int32}, 1:numvar), c)
+    putcfix(m.task, 0.0)
 end
 
-function MOI.set(m::MosekModel, ::MOI.ObjectiveFunction, func::MOI.ScalarAffineFunction{Float64})
+function MOI.set(m::MosekModel, ::MOI.ObjectiveFunction,
+                 func::MOI.ScalarAffineFunction{Float64})
     numvar = getnumvar(m.task)
-    c = zeros(Float64,numvar)
-    subj = getindexes(m.x_block, ref2id.(map(t -> t.variable_index, func.terms)))
-    for i in 1:length(subj)
-        c[subj[i]] += func.terms[i].coefficient
+    c = zeros(Float64, numvar)
+    cols = columns(m, map(t -> t.variable_index, func.terms))
+    for i in 1:length(cols)
+        c[cols[i]] += func.terms[i].coefficient
     end
 
-    putclist(m.task,Int32[1:numvar...],c)
+    putclist(m.task, convert(Vector{Int32}, 1:numvar), c)
     putcfix(m.task,func.constant)
 end
 
-function MOI.modify(m::MosekModel, ::MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}, change :: MOI.ScalarConstantChange)
+function MOI.modify(m::MosekModel,
+                    ::MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}},
+                    change :: MOI.ScalarConstantChange)
     putcfix(m.task,change.new_constant)
 end
 
-function MOI.modify(m::MosekModel, ::MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}, change :: MOI.ScalarCoefficientChange)
-    vid = ref2id(change.variable)
-    subj = getindexes(m.x_block, vid)
-    putcj(m.task, Int32(subj), change.new_coefficient)
+function MOI.modify(m::MosekModel,
+                    ::MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}},
+                    change :: MOI.ScalarCoefficientChange)
+    putcj(m.task, column(m, change.variable), change.new_coefficient)
 end
