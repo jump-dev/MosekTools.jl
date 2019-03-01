@@ -1,3 +1,55 @@
+###############################################################################
+# TASK ########################################################################
+###### The `task` field should not be accessed outside this section. ##########
+
+function set_primal_start(task::Mosek.MSKtask, col::ColumnIndex, value::Float64)
+    xx = Float64[value]
+    for sol in [MSK_SOL_BAS, MSK_SOL_ITG]
+        putxxslice(task, sol, col.value, col.value + Int32(1), xx)
+    end
+end
+function set_primal_start(m::MosekModel, vi::MOI.VariableIndex, value::Float64)
+    set_primal_start(m.task, mosek_index(m, vi), value)
+end
+function set_primal_start(task::Mosek.MSKtask, cols::ColumnIndices,
+                          values::Vector{Float64})
+    for sol in [MSK_SOL_BAS, MSK_SOL_ITG]
+        if solutiondef(task, sol)
+            xx = getxx(task, sol)
+            xx[cols] = vals
+            putxx(task, sol, xx)
+        else
+            xx = zeros(Float64, getnumvar(task))
+            xx[cols] = vals
+            putxx(task, sol, xx)
+        end
+    end
+end
+function set_primal_start(m::MosekModel, vis::Vector{MOI.VariableIndex},
+                          values::Vector{Float64})
+    if all(is_scalar, vis)
+        set_primal_start(m.task, mosek_indices(m, vis), values)
+    else
+        for (vi, value) in zip(vis, values)
+            set_primal_start(m.task, mosek_index(m, vi), value)
+        end
+    end
+end
+
+###############################################################################
+## INDEXING ###################################################################
+###############################################################################
+
+function variable_primal(m::MosekModel, N, col::ColumnIndex)
+    return m.solutions[N].xx[col.value]
+end
+function variable_primal(m::MosekModel, N, vi::MOI.VariableIndex)
+    variable_primal(m, N, mosek_index(m, vi))
+end
+
+###############################################################################
+# MOI #########################################################################
+###############################################################################
 
 #### solver attributes
 #MOI.get(m::Union{MosekSolver,MosekModel},::MOI.SupportsDuals) = true
@@ -124,29 +176,12 @@ end
 
 function MOI.set(m::MosekModel, attr::MOI.VariablePrimalStart,
                  v::MOI.VariableIndex, val::Float64)
-    col = column(m, v)
-
-    xx = Float64[val]
-    for sol in [ MSK_SOL_BAS, MSK_SOL_ITG ]
-        putxxslice(m.task, sol, Int(col), Int(col + 1), xx)
-    end
+    set_primal_start(m, v, val)
 end
 
 function MOI.set(m::MosekModel, ::MOI.VariablePrimalStart,
-                 vs::Vector{MOI.VariableIndex}, vals::Vector{Float64})
-    cols = columns(m, vs)
-
-    for sol in [ MSK_SOL_BAS, MSK_SOL_ITG ]
-        if solutiondef(m.task,sol)
-            xx = getxx(m.task,sol)
-            xx[cols] = vals
-            putxx(m.task,sol,xx)
-        else
-            xx = zeros(Float64, getnumvar(m.task))
-            xx[cols] = vals
-            putxx(m.task,sol,xx)
-        end
-    end
+                 vis::Vector{MOI.VariableIndex}, values::Vector{Float64})
+    set_primal_start(m, vis, values)
 end
 
 # function MOI.set(m::MosekModel,attr::MOI.ConstraintDualStart, vs::Vector{MOI.ConstraintIndex}, vals::Vector{Float64})
@@ -167,22 +202,22 @@ end
 
 #### Variable solution values
 
+function MOI.get(m::MosekModel, attr::MOI.VariablePrimal, vi::MOI.VariableIndex)
+    return variable_primal(m, attr.N, vi)
+end
 function MOI.get!(output::Vector{Float64}, m::MosekModel,
                   attr::MOI.VariablePrimal, vs::Vector{MOI.VariableIndex})
-    output[1:length(output)] = m.solutions[attr.N].xx[columns(m, vs)]
+    @assert eachindex(output) == eachindex(vs)
+    for i in eachindex(output)
+        output[i] = MOI.get(m, attr, vs[i])
+    end
 end
-
 function MOI.get(m::MosekModel, attr::MOI.VariablePrimal,
                  vs::Vector{MOI.VariableIndex})
     output = Vector{Float64}(undef, length(vs))
     MOI.get!(output, m, attr, vs)
     return output
 end
-
-function MOI.get(m::MosekModel, attr::MOI.VariablePrimal, vi::MOI.VariableIndex)
-    return m.solutions[attr.N].xx[column(m, vi)]
-end
-
 
 #### Constraint solution values
 

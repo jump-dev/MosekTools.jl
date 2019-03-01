@@ -51,7 +51,7 @@ function addlhsblock!(m        :: MosekModel,
                       conidxs  :: Vector{Int},
                       terms    :: Vector{MOI.ScalarAffineTerm{Float64}})
     consubi = getindexes(m.c_block,conid)
-    cols = Int32[column(m, term.variable_index) for term in terms]
+    cols = Int32[column(m, term.variable_index).value for term in terms]
 
     N = length(consubi)
     nnz = length(terms)
@@ -420,7 +420,7 @@ function MOI.add_constraint(
     xs  :: MOI.SingleVariable,
     dom :: D) where {D <: MOI.AbstractScalarSet}
 
-    col = column(m, xs.variable)
+    col = column(m, xs.variable).value
 
     mask = domain_type_mask(dom)
     if mask & m.x_boundflags[col] != 0
@@ -446,7 +446,7 @@ end
 
 function MOI.add_constraint(m::MosekModel, xs::MOI.VectorOfVariables,
                             dom::D) where {D <: MOI.AbstractVectorSet}
-    cols = reorder(columns(m, xs.variables), D)
+    cols = reorder(columns(m, xs.variables).values, D)
 
     mask = domain_type_mask(dom)
     if any(mask .& m.x_boundflags[cols] .> 0)
@@ -476,13 +476,13 @@ function MOI.add_constraint(m   :: MosekModel,
                             xs  :: MOI.VectorOfVariables,
                             dom :: D) where { D <: PositiveSemidefiniteCone }
     N = dom.side_dimension
-    vars = xs.variables
-    cols = columns(m, xs.variables)
-
     if N < 2
         error("Invalid dimension for semidefinite constraint, got $N which is ",
               "smaller than the minimum dimension 2.")
     end
+
+    vars = xs.variables
+    cols = columns(m, xs.variables).values
 
     mask = domain_type_mask(dom)
     if any(mask .& m.x_boundflags[cols[1]] .> 0)
@@ -490,6 +490,19 @@ function MOI.add_constraint(m   :: MosekModel,
     end
 
     NN = MOI.dimension(dom)
+
+    # The scalar variables `xs.variables` should not have been created, we
+    # should have created a matrix variable. To fix this we delete the scalar
+    # variables and we create a matrix variable and make the scalar variables
+    # point to the matrix variable
+
+    # Delete the matrix variables
+
+    # Create matrix variable
+    appendbarvars(m.task, Int32[N])
+    barvaridx = getnumbarvar(m.task)
+
+    # Redirect scalar variables to the matrix ones
 
     if length(cols) != NN
         error("Mismatching variable length for semidefinite constraint")
@@ -507,16 +520,6 @@ function MOI.add_constraint(m   :: MosekModel,
 
     addbound!(m, id, subi, zeros(Float64, NN), dom)
 
-    #putconboundlist(m.task,subii32,fill(MSK_BK_FX,NN),zeros(Float64,NN),zeros(Float64,NN))
-    #idx = 1
-    #for j in 1:N
-    #    for i in 1:N
-    #        symmatidx = appendsparsesymmat(m.task,N,Int32[i],Int32[j],Float64[-1.0])
-    #        putbaraij(m.task,subii32[idx],barvaridx,[symmatidx],Float64[1.0])
-    #        idx += 1
-    #    end
-    #end
-
     # HACK: We need to return a negative to indicate that this is
     # not, in fact, a real variable constraint, but rather a real
     # constraint, but to resolve return value at compile time we
@@ -526,7 +529,7 @@ function MOI.add_constraint(m   :: MosekModel,
     conref = MOI.ConstraintIndex{MOI.VectorOfVariables,MOI.PositiveSemidefiniteConeTriangle}(UInt64((id << 1) | 1))
     select(m.constrmap,MOI.VectorOfVariables,MOI.PositiveSemidefiniteConeTriangle)[conref.value] = id
 
-    conref
+    return conref
 end
 
 
@@ -613,7 +616,7 @@ function MOI.modify(m   ::MosekModel,
     cid = ref2id(c)
 
     i = getindex(m.c_block, cid)
-    j = column(m, func.variable)
+    j = column(m, func.variable).value
 
     putaij(m.task, i, j, func.new_coefficient)
 end
@@ -644,7 +647,7 @@ function MOI.modify(m::MosekModel,
     @assert(cid > 0)
 
     subi = getindexes(m.c_block, cid)[getindex.(func.new_coefficients, 1)]
-    j = column(m, func.variable)
+    j = column(m, func.variable).value
 
     putaijlist(m.task,convert(Vector{Int32},subi),fill(j,length(subi)),getindex.(func.new_coefficients,2))
 end

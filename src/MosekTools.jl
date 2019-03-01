@@ -135,6 +135,26 @@ struct MosekSolution
     y        :: Vector{Float64}
 end
 
+@enum VariableType Undecided Scalar Matrix
+
+struct ColumnIndex
+    value::Int32
+end
+
+struct ColumnIndices
+    values::Vector{Int32}
+end
+
+struct MatrixIndex
+    matrix::Int32
+    row::Int32
+    column::Int32
+    function MatrixIndex(matrix::Int32, row::Int32, column::Int32)
+        @assert column ≤ row
+        new(matrix, row, column)
+    end
+end
+
 """
     MosekModel <: MathOptInterface.AbstractModel
 
@@ -176,6 +196,8 @@ mutable struct MosekModel  <: MOI.AbstractOptimizer
     # and `VectorOfVariables`.
     con_to_name :: Dict{MOI.ConstraintIndex, String}
 
+    x_type::Vector{VariableType}
+
     """
         The total length of `x_block` matches the number of variables in
     the underlying task, and the number of blocks corresponds to the
@@ -196,6 +218,13 @@ mutable struct MosekModel  <: MOI.AbstractOptimizer
     (to get around the problem of deleting roots in conic constraints).
     """
     x_numxc :: Vector{Int}
+
+    """
+    One entry per scalar variable in the task indicating in which semidefinite
+    block it is and at which index.
+    MOI index -> MatrixIndex
+    """
+    x_sd::Vector{MatrixIndex}
 
     """
     One entry per variable-constraint
@@ -328,11 +357,13 @@ function Mosek.Optimizer(; kws...)
                       spars,
                       0, # public numvar
                       ConstraintMap(), # public constraints
-                      Dict{String, MOI.ConstraintIndex}(), # constrnames
+                      Dict{String, Vector{MOI.ConstraintIndex}}(), # constrnames
                       Dict{MOI.ConstraintIndex, String}(), # con_to_name
-                      LinkedInts(),# c_block
+                      VariableType[], # x_type
+                      LinkedInts(),# x_block
                       Int[], # x_boundflags
                       Int[], # x_numxc
+                      MatrixIndex[], # x_sd
                       LinkedInts(), # xc_block
                       UInt8[], # xc_bounds
                       Int[], # xc_coneid
@@ -434,9 +465,11 @@ function MOI.empty!(model::MosekModel)
     model.constrmap     = ConstraintMap()
     model.constrnames   = Dict{String, Vector{MOI.ConstraintIndex}}()
     model.con_to_name   = Dict{MOI.ConstraintIndex, String}()
+    model.x_type        = VariableType[]
     model.x_block       = LinkedInts()
     model.x_boundflags  = Int[]
     model.x_numxc       = Int[]
+    model.x_sd          = MatrixIndex[]
     model.xc_block      = LinkedInts()
     model.xc_bounds     = UInt8[]
     model.xc_coneid     = Int[]
