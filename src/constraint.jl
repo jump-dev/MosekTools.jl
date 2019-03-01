@@ -322,9 +322,10 @@ function aux_setvardom(m::MosekModel, xcid::Int, cols::Vector{Int32},
     addvarconstr(m, cols, dom)
 end
 
+
 function MOI.add_constraint(m::MosekModel, xs::MOI.VectorOfVariables,
-                            dom::D) where {D <: MOI.AbstractSet}
-    cols = columns(m, xs.variables)
+                            dom::D) where {D <: MOI.AbstractVectorSet}
+    cols = reorder(columns(m, xs.variables), D)
 
     mask = domain_type_mask(dom)
     if any(mask .& m.x_boundflags[cols] .> 0)
@@ -332,7 +333,7 @@ function MOI.add_constraint(m::MosekModel, xs::MOI.VectorOfVariables,
     end
 
     N = MOI.dimension(dom)
-    xcid = allocatevarconstraints(m,N)
+    xcid = allocatevarconstraints(m, N)
     xc_sub = getindexes(m.xc_block, xcid)
 
     m.xc_bounds[xcid] = mask
@@ -342,8 +343,8 @@ function MOI.add_constraint(m::MosekModel, xs::MOI.VectorOfVariables,
 
     m.x_boundflags[cols] .|= mask
 
-    conref = MOI.ConstraintIndex{MOI.VectorOfVariables,D}(UInt64(xcid) << 1)
-    select(m.constrmap,MOI.VectorOfVariables,D)[conref.value] = xcid
+    conref = MOI.ConstraintIndex{MOI.VectorOfVariables, D}(UInt64(xcid) << 1)
+    select(m.constrmap,MOI.VectorOfVariables, D)[conref.value] = xcid
     return conref
 end
 
@@ -400,34 +401,6 @@ addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, constant :: Vec
 addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, constant :: Vector{Float64}, dom :: MOI.LessThan{Float64})    = putconbound(m.task,Int32(conidxs[1]),MSK_BK_UP,dom.upper-constant[1],dom.upper-constant[1])
 addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, constant :: Vector{Float64}, dom :: MOI.EqualTo{Float64})     = putconbound(m.task,Int32(conidxs[1]),MSK_BK_FX,dom.value-constant[1],dom.value-constant[1])
 addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, constant :: Vector{Float64}, dom :: MOI.Interval{Float64})    = putconbound(m.task,Int32(conidxs[1]),MSK_BK_RA,dom.lower-constant[1],dom.upper-constant[1])
-
-# need a special case for this since MOI's variable order in PEXP cone is the reverse if Mosek's
-function addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, constant :: Vector{Float64}, dom :: D) where { D <: Union{MOI.ExponentialCone, MOI.DualExponentialCone} }
-    N = MOI.dimension(dom)
-    nalloc = ensurefree(m.x_block, N)
-
-    varid = newblock(m.x_block, N)
-    numvar = getnumvar(m.task)
-    if nalloc > 0
-        appendvars(m.task, length(m.x_block) - numvar)
-        append!(m.x_boundflags, zeros(Int, length(m.x_block) - numvar))
-        append!(m.x_numxc, zeros(Int, length(m.x_block) - numvar))
-    end
-    subj = getindexes(m.x_block, varid)
-    subj = [ subj[3], subj[2], subj[1] ]
-
-    putaijlist(m.task,conidxs,subj,-ones(Float64,N))
-    putvarboundlist(m.task,subj,fill(MSK_BK_FR,N),zeros(Float64,N),zeros(Float64,N))
-    putconboundlist(m.task,convert(Vector{Int32},conidxs),fill(MSK_BK_FX,N),-constant,-constant)
-
-    m.c_block_slack[conid] = varid
-
-    appendcone(m.task,abstractset2ct(dom),coneparfromset(dom),subj)
-    coneidx = getnumcone(m.task)
-    m.conecounter += 1
-    #putconename(m.task,coneidx,"$(m.conecounter)")
-    m.c_coneid[conid] = m.conecounter
-end
 
 
 

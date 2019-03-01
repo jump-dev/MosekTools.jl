@@ -214,7 +214,7 @@ function MOI.get!(
 
     # It is in fact a real constraint and cid is the id of an ordinary constraint
     barvaridx = - m.c_block_slack[-cid]
-    output[1:length(output)] = lower_to_upper(getbarxj(m.task,whichsol,barvaridx))
+    output[1:length(output)] = reorder(getbarxj(m.task,whichsol,barvaridx), PositiveSemidefiniteCone)
 end
 
 # Any other domain for variable vector
@@ -231,7 +231,7 @@ function MOI.get!(
     idxs = getindexes(m.xc_block, xcid)
     subj = m.xc_idxs[idxs]
 
-    output[1:length(output)] = m.solutions[attr.N].xx[subj]
+    output[1:length(output)] = reorder(m.solutions[attr.N].xx[subj], D)
 end
 
 function MOI.get(m     ::MosekModel,
@@ -261,7 +261,7 @@ function MOI.get!(
         output[1:length(output)] = m.solutions[attr.N].xx[xsubj]
     else # psd slack
         xid = - m.c_block_slack[cid]
-        output[1:length(output)] = lower_to_upper(getbarxj(m.task,m.solutions[attr.N].whichsol,Int32(xid)))
+        output[1:length(output)] = reorder(getbarxj(m.task,m.solutions[attr.N].whichsol,Int32(xid)), PositiveSemidefiniteCone)
     end
 end
 
@@ -316,7 +316,7 @@ getsolcode(m::MosekModel, N) = m.solutions[N].whichsol
 
 # The dual or primal of an SDP variable block is returned in lower triangular
 # form but the constraint is in upper triangular form.
-function lower_to_upper(x)
+function reorder(x, ::Type{PositiveSemidefiniteCone})
     n = div(isqrt(1 + 8length(x)) - 1, 2)
     @assert length(x) == MOI.dimension(PositiveSemidefiniteCone(n))
     y = similar(x)
@@ -329,6 +329,14 @@ function lower_to_upper(x)
     @assert k == length(x)
     return y
 end
+
+function reorder(x, ::Type{<:Union{MOI.ExponentialCone,
+                                   MOI.DualExponentialCone}})
+    return [x[3], x[2], x[1]]
+end
+reorder(x, ::Type{<:MOI.AbstractVectorSet}) = x
+
+
 
 # Semidefinite domain for a variable
 function MOI.get!(
@@ -343,7 +351,7 @@ function MOI.get!(
 
     # It is in fact a real constraint and cid is the id of an ordinary constraint
     barvaridx = - m.c_block_slack[-cid]
-    dual = lower_to_upper(getbarsj(m.task,whichsol,barvaridx))
+    dual = reorder(getbarsj(m.task,whichsol,barvaridx), MOI.PositiveSemidefiniteConeTriangle)
     if (getobjsense(m.task) == MSK_OBJECTIVE_SENSE_MINIMIZE)
         output[1:length(output)] = dual
     else
@@ -365,27 +373,29 @@ function MOI.get!(
     idxs = getindexes(m.xc_block,xcid)
     subj = m.xc_idxs[idxs]
 
+    idx = reorder(1:length(output), D)
+
     if (getobjsense(m.task) == MSK_OBJECTIVE_SENSE_MINIMIZE)
         if     mask & boundflag_lower != 0 && mask & boundflag_upper != 0
-            output[1:length(output)] = m.solutions[attr.N].slx[subj] - m.solutions[attr.N].sux[subj]
+            output[idx] = m.solutions[attr.N].slx[subj] - m.solutions[attr.N].sux[subj]
         elseif (mask & boundflag_lower) != 0
-            output[1:length(output)] = m.solutions[attr.N].slx[subj]
+            output[idx] = m.solutions[attr.N].slx[subj]
         elseif (mask & boundflag_upper) != 0
-            output[1:length(output)] = - m.solutions[attr.N].sux[subj]
+            output[idx] = - m.solutions[attr.N].sux[subj]
         elseif (mask & boundflag_cone) != 0
-            output[1:length(output)] = m.solutions[attr.N].snx[subj]
+            output[idx] = m.solutions[attr.N].snx[subj]
         else
             error("Dual value available for this constraint")
         end
     else
         if     mask & boundflag_lower != 0 && mask & boundflag_upper != 0
-            output[1:length(output)] = m.solutions[attr.N].sux[subj] - m.solutions[attr.N].slx[subj]
+            output[idx] = m.solutions[attr.N].sux[subj] - m.solutions[attr.N].slx[subj]
         elseif (mask & boundflag_lower) != 0
-            output[1:length(output)] = - m.solutions[attr.N].slx[subj]
+            output[idx] = - m.solutions[attr.N].slx[subj]
         elseif (mask & boundflag_upper) != 0
-            output[1:length(output)] = m.solutions[attr.N].sux[subj]
+            output[idx] = m.solutions[attr.N].sux[subj]
         elseif (mask & boundflag_cone) != 0
-            output[1:length(output)] = - m.solutions[attr.N].snx[subj]
+            output[idx] = - m.solutions[attr.N].snx[subj]
         else
             error("Dual value available for this constraint")
         end
@@ -426,7 +436,7 @@ function MOI.get!(
         else # psd slack
             whichsol = getsolcode(m,attr.N)
             xid = - m.c_block_slack[cid]
-            output[1:length(output)] = lower_to_upper(getbarsj(m.task,whichsol,Int32(xid)))
+            output[1:length(output)] = reorder(getbarsj(m.task,whichsol,Int32(xid)), PositiveSemidefiniteCone)
         end
     else
         if     m.c_block_slack[cid] == 0 # no slack
@@ -438,7 +448,7 @@ function MOI.get!(
         else # psd slack
             whichsol = getsolcode(m,attr.N)
             xid = - m.c_block_slack[cid]
-            output[1:length(output)] = lower_to_upper(-getbarsj(m.task,whichsol,Int32(xid)))
+            output[1:length(output)] = reorder(-getbarsj(m.task,whichsol,Int32(xid)), PositiveSemidefiniteCone)
         end
     end
 end
