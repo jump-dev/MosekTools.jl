@@ -524,30 +524,81 @@ function MOI.set(m::MosekModel,
 end
 
 
-function set_internal_name(m::MosekModel,c::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},D},name::AbstractString) where {D}
+function set_internal_name(m::MosekModel,
+                           c::MOI.ConstraintIndex{<:MOI.VectorAffineFunction{Float64}},
+                           name::AbstractString) where {D}
     cid = ref2id(c)
     for i in getindexes(m.c_block, cid)
-        putconname(m.task,i,name)
+        putconname(m.task, i, name)
     end
 end
-function set_internal_name(m::MosekModel,c::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D},name::AbstractString) where {D}
+function set_internal_name(m::MosekModel,
+                           c::MOI.ConstraintIndex{<:MOI.ScalarAffineFunction{Float64}},
+                           name::AbstractString)
     cid = ref2id(c)
     i = getindex(m.c_block, cid)
-    putconname(m.task,i,name)
+    putconname(m.task, i, name)
 end
-function set_internal_name(m::MosekModel, c::MOI.ConstraintIndex{F,D}, name::AbstractString) where {F,D} end
+function set_internal_name(m::MosekModel, c::MOI.ConstraintIndex,
+                           name::AbstractString)
+    # Fallback for `SingleVariable` and `VectorOfVariables`.
+    m.con_to_name[c] = name
+end
 
+function delete_name(m::MosekModel, ci::MOI.ConstraintIndex)
+    name = MOI.get(m, MOI.ConstraintName(), ci)
+    if !isempty(name)
+        cis = m.constrnames[name]
+        deleteat!(cis, findfirst(isequal(ci), cis))
+    end
+end
 
-function MOI.set(m    ::MosekModel,
-                 ::MOI.ConstraintName,
-                 c    ::MOI.ConstraintIndex{F,D},
-                 name ::AbstractString) where {F,D}#{F<:MOI.AbstractFunction,D<:AbstractSet}
-    if ! haskey(m.constrnames, name)
+function MOI.supports(::MosekModel, ::MOI.ConstraintName,
+                      ::Type{<:MOI.ConstraintIndex})
+    return true
+end
+function MOI.set(m::MosekModel, ::MOI.ConstraintName, ci::MOI.ConstraintIndex,
+                 name ::AbstractString)
+    delete_name(m, ci)
+    if !haskey(m.constrnames, name)
         m.constrnames[name] = MOI.ConstraintIndex[]
     end
-    push!(m.constrnames[name], c)
-    set_internal_name(m,c,name)
+    push!(m.constrnames[name], ci)
+    set_internal_name(m, ci, name)
 end
+function MOI.get(m::MosekModel, ::MOI.ConstraintName,
+                 ci::MOI.ConstraintIndex{<:Union{MOI.ScalarAffineFunction{Float64},
+                                                 MOI.VectorAffineFunction{Float64}}})
+    # All rows should have same name so we take the first one
+    return getconname(m.task, getindexes(m.c_block, ref2id(ci))[1])
+end
+function MOI.get(m::MosekModel, ::MOI.ConstraintName, ci::MOI.ConstraintIndex)
+    return get(m.con_to_name, ci, "")
+end
+function MOI.get(m::MosekModel, CI::Type{<:MOI.ConstraintIndex}, name::String)
+    #asgn, row = getconnameindex(m.task, name)
+    #if iszero(asgn)
+    #    return nothing
+    #else
+    #    # TODO how to recover function and constraint type ?
+    #end
+    if !haskey(m.constrnames, name)
+        return nothing
+    end
+    cis = m.constrnames[name]
+    if isempty(cis)
+        return nothing
+    end
+    if !isone(length(cis))
+        error("Multiple constraints have the name $name.")
+    end
+    ci = first(cis)
+    if !(ci isa CI)
+        return nothing
+    end
+    return ci
+end
+
 
 function MOI.modify(m   ::MosekModel,
                     c   ::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D},
@@ -663,6 +714,11 @@ function MOI.delete(
     cref::MOI.ConstraintIndex{F,D}) where {F <: AffineFunction,
                                            D <: Union{ScalarLinearDomain,
                                                       VectorLinearDomain}}
+    if !MOI.is_valid(m, cref)
+        throw(MOI.InvalidIndex(cref))
+    end
+
+    delete_name(m, cref)
 
     delete!(select(m.constrmap, F, D), cref.value)
 
@@ -687,6 +743,12 @@ function MOI.delete(
                                            D <: Union{ScalarLinearDomain,
                                                       VectorLinearDomain,
                                                       ScalarIntegerDomain}}
+    if !MOI.is_valid(m, cref)
+        throw(MOI.InvalidIndex(cref))
+    end
+
+    delete_name(m, cref)
+
     delete!(select(m.constrmap, F, D), cref.value)
 
     xcid = ref2id(cref)

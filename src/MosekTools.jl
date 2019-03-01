@@ -170,7 +170,11 @@ mutable struct MosekModel  <: MOI.AbstractOptimizer
 
     """
     """
-    constrnames :: Dict{String,Vector{MOI.ConstraintIndex}}
+    constrnames :: Dict{String, Vector{MOI.ConstraintIndex}}
+    # Mosek only support names for `MOI.VectorAffineFunction` and
+    # `MOI.ScalarAffineFunction` so we need a fallback for `SingleVariable`
+    # and `VectorOfVariables`.
+    con_to_name :: Dict{MOI.ConstraintIndex, String}
 
     """
         The total length of `x_block` matches the number of variables in
@@ -324,7 +328,8 @@ function Mosek.Optimizer(; kws...)
                       spars,
                       0, # public numvar
                       ConstraintMap(), # public constraints
-                      Dict{String,MOI.ConstraintIndex}(),
+                      Dict{String, MOI.ConstraintIndex}(), # constrnames
+                      Dict{MOI.ConstraintIndex, String}(), # con_to_name
                       LinkedInts(),# c_block
                       Int[], # x_boundflags
                       Int[], # x_numxc
@@ -398,6 +403,26 @@ function MOI.optimize!(m::MosekModel)
     end
 end
 
+MOI.supports(::MosekModel, ::MOI.Name) = true
+function MOI.set(m::MosekModel, ::MOI.Name, name::String)
+    puttaskname(m.task, name)
+end
+function MOI.get(m::MosekModel, ::MOI.Name)
+    return gettaskname(m.task)
+end
+function MOI.get(m::MosekModel, ::MOI.ListOfModelAttributesSet)
+    set = MOI.AbstractModelAttribute[]
+    if !m.feasibility
+        push!(set, MOI.ObjectiveSense())
+        push!(set, MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}())
+    end
+    set = [MOI.ObjectiveSense(), MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}()]
+    if !isempty(MOI.get(m, MOI.Name()))
+        push!(set, MOI.Name())
+    end
+    return set
+end
+
 function MOI.is_empty(m::MosekModel)
     getnumvar(m.task) == 0 && getnumcon(m.task) == 0 && getnumcone(m.task) == 0 && getnumbarvar(m.task) == 0
 end
@@ -407,6 +432,8 @@ function MOI.empty!(model::MosekModel)
                                             model.dpars,    model.spars)
     model.publicnumvar  = 0
     model.constrmap     = ConstraintMap()
+    model.constrnames   = Dict{String, Vector{MOI.ConstraintIndex}}()
+    model.con_to_name   = Dict{MOI.ConstraintIndex, String}()
     model.x_block       = LinkedInts()
     model.x_boundflags  = Int[]
     model.x_numxc       = Int[]
@@ -426,7 +453,7 @@ end
 
 MOI.get(::MosekModel, ::MOI.SolverName) = "Mosek"
 
-MOIU.supports_default_copy_to(::MosekModel, copy_names::Bool) = !copy_names
+MOIU.supports_default_copy_to(::MosekModel, copy_names::Bool) = true
 function MOI.copy_to(dest::MosekModel, src::MOI.ModelLike; kws...)
     return MOIU.automatic_copy_to(dest, src; kws...)
 end
