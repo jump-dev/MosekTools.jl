@@ -486,11 +486,6 @@ ref2id(ref :: MOI.ConstraintIndex) :: Int =
         - Int(ref.value >> 1)
     end
 
-function id2vref(id :: Int) :: MOI.VariableIndex
-    @assert(id > 0)
-    MOI.VariableIndex(id)
-end
-
 include("objective.jl")
 include("variable.jl")
 include("constraint.jl")
