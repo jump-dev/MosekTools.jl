@@ -32,6 +32,10 @@ function allocate_variable(m::MosekModel)
     return MOI.VariableIndex(newblock(m.x_block, 1))
 end
 
+function MOI.is_valid(model::MosekModel, ref::MOI.VariableIndex)
+    return allocated(model.x_block, ref2id(ref))
+end
+
 """
     function init_columns(m::MosekModel, refs::Vector{MOI.VariableIndex})
 
