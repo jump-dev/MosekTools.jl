@@ -124,33 +124,30 @@ end
 
 function MOI.set(m::MosekModel, attr::MOI.VariablePrimalStart,
                  v::MOI.VariableIndex, val::Float64)
-    subj = getindex(m.x_block, ref2id(v))
+    col = column(m, v)
 
     xx = Float64[val]
     for sol in [ MSK_SOL_BAS, MSK_SOL_ITG ]
-        putxxslice(m.task, sol, Int(subj), Int(subj+1), xx)
+        putxxslice(m.task, sol, Int(col), Int(col + 1), xx)
     end
 end
 
-function MOI.set(m::MosekModel,attr::MOI.VariablePrimalStart, vs::Vector{MOI.VariableIndex}, vals::Vector{Float64})
-    subj = Array{Int}(undef,length(vs))
-    for i in 1:length(subj)
-        getindexes(m.x_block, ref2id(vs[i]), subj, i)
-    end
+function MOI.set(m::MosekModel, ::MOI.VariablePrimalStart,
+                 vs::Vector{MOI.VariableIndex}, vals::Vector{Float64})
+    cols = columns(m, vs)
 
     for sol in [ MSK_SOL_BAS, MSK_SOL_ITG ]
         if solutiondef(m.task,sol)
             xx = getxx(m.task,sol)
-            xx[subj] = vals
+            xx[cols] = vals
             putxx(m.task,sol,xx)
         else
-            xx = zeros(Float64,getnumvar(m.task))
-            xx[subj] = vals
+            xx = zeros(Float64, getnumvar(m.task))
+            xx[cols] = vals
             putxx(m.task,sol,xx)
         end
     end
 end
-
 
 # function MOI.set(m::MosekModel,attr::MOI.ConstraintDualStart, vs::Vector{MOI.ConstraintIndex}, vals::Vector{Float64})
 #     subj = Array{Int}(length(vs))
@@ -171,36 +168,23 @@ end
 #     end
 # end
 
-
-
 #### Variable solution values
 
 function MOI.get!(output::Vector{Float64}, m::MosekModel,
                   attr::MOI.VariablePrimal, vs::Vector{MOI.VariableIndex})
-    subj = Array{Int}(undef,length(vs))
-    for i in 1:length(subj)
-        getindexes(m.x_block, ref2id(vs[i]), subj, i)
-    end
-
-    output[1:length(output)] = m.solutions[attr.N].xx[subj]
+    output[1:length(output)] = m.solutions[attr.N].xx[columns(m, vs)]
 end
 
 function MOI.get(m::MosekModel, attr::MOI.VariablePrimal,
                  vs::Vector{MOI.VariableIndex})
-    output = Vector{Float64}(undef,length(vs))
+    output = Vector{Float64}(undef, length(vs))
     MOI.get!(output, m, attr, vs)
     return output
 end
 
-function MOI.get(m::MosekModel, attr::MOI.VariablePrimal,
-                 vref::MOI.VariableIndex)
-    subj = getindex(m.x_block,ref2id(vref))
-    m.solutions[attr.N].xx[subj]
+function MOI.get(m::MosekModel, attr::MOI.VariablePrimal, vi::MOI.VariableIndex)
+    return m.solutions[attr.N].xx[column(m, vi)]
 end
-
-
-
-
 
 
 #### Constraint solution values
@@ -208,9 +192,9 @@ end
 function MOI.get(
     m     ::MosekModel,
     attr  ::MOI.ConstraintPrimal,
-    cref  ::MOI.ConstraintIndex{MOI.SingleVariable,D}) where D
+    ci  ::MOI.ConstraintIndex{MOI.SingleVariable,D}) where D
 
-    conid = ref2id(cref)
+    conid = ref2id(ci)
     idx  = getindex(m.xc_block, conid)
     subj  = m.xc_idxs[idx]
 
@@ -222,10 +206,10 @@ function MOI.get!(
     output::Vector{Float64},
     m     ::MosekModel,
     attr  ::MOI.ConstraintPrimal,
-    cref  ::MOI.ConstraintIndex{MOI.VectorOfVariables,MOI.PositiveSemidefiniteConeTriangle})
+    ci  ::MOI.ConstraintIndex{MOI.VectorOfVariables,MOI.PositiveSemidefiniteConeTriangle})
 
     whichsol = getsolcode(m,attr.N)
-    cid = ref2id(cref)
+    cid = ref2id(ci)
     @assert(cid < 0)
 
     # It is in fact a real constraint and cid is the id of an ordinary constraint
@@ -238,9 +222,9 @@ function MOI.get!(
     output::Vector{Float64},
     m     ::MosekModel,
     attr  ::MOI.ConstraintPrimal,
-    cref  ::MOI.ConstraintIndex{MOI.VectorOfVariables,D}) where D
+    ci  ::MOI.ConstraintIndex{MOI.VectorOfVariables,D}) where D
 
-    xcid = ref2id(cref)
+    xcid = ref2id(ci)
     @assert(xcid > 0)
 
     mask = m.xc_bounds[xcid]
@@ -252,8 +236,8 @@ end
 
 function MOI.get(m     ::MosekModel,
                  attr  ::MOI.ConstraintPrimal,
-                 cref  ::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D}) where D
-    cid = ref2id(cref)
+                 ci  ::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D}) where D
+    cid = ref2id(ci)
     subi = getindex(m.c_block,cid)
     m.solutions[attr.N].xc[subi] + m.c_constant[subi]
 end
@@ -264,14 +248,14 @@ function MOI.get!(
     output::Vector{Float64},
     m     ::MosekModel,
     attr  ::MOI.ConstraintPrimal,
-    cref  ::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},D}) where D
+    ci  ::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},D}) where D
 
-    cid = ref2id(cref)
+    cid = ref2id(ci)
     subi = getindexes(m.c_block, cid)
 
     if     m.c_block_slack[cid] == 0 # no slack
         output[1:length(output)] = m.solutions[attr.N].xc[subi] + m.c_constant[subi]
-    elseif m.c_block_slack[cid] >  0 # qcone slack
+    elseif m.c_block_slack[cid] >  0 # exp slack
         xid = m.c_block_slack[cid]
         xsubj = getindexes(m.x_block, xid)
         output[1:length(output)] = m.solutions[attr.N].xx[xsubj]
@@ -293,13 +277,9 @@ end
 
 
 
-function MOI.get(
-    m     ::MosekModel,
-    attr  ::MOI.ConstraintDual,
-    cref  ::MOI.ConstraintIndex{MOI.SingleVariable,D}) where { D <: MOI.AbstractSet }
-
-
-    xcid = ref2id(cref)
+function MOI.get(m::MosekModel, attr::MOI.ConstraintDual,
+                 ci::MOI.ConstraintIndex{MOI.SingleVariable})
+    xcid = ref2id(ci)
     idx = getindex(m.xc_block, xcid) # variable id
 
     @assert(blocksize(m.xc_block,xcid) > 0)
@@ -355,10 +335,10 @@ function MOI.get!(
     output::Vector{Float64},
     m     ::MosekModel,
     attr  ::MOI.ConstraintDual,
-    cref  ::MOI.ConstraintIndex{MOI.VectorOfVariables,MOI.PositiveSemidefiniteConeTriangle})
+    ci  ::MOI.ConstraintIndex{MOI.VectorOfVariables,MOI.PositiveSemidefiniteConeTriangle})
 
     whichsol = getsolcode(m,attr.N)
-    cid = ref2id(cref)
+    cid = ref2id(ci)
     @assert(cid < 0)
 
     # It is in fact a real constraint and cid is the id of an ordinary constraint
@@ -376,9 +356,9 @@ function MOI.get!(
     output::Vector{Float64},
     m     ::MosekModel,
     attr  ::MOI.ConstraintDual,
-    cref  ::MOI.ConstraintIndex{MOI.VectorOfVariables,D}) where D
+    ci  ::MOI.ConstraintIndex{MOI.VectorOfVariables,D}) where D
 
-    xcid = ref2id(cref)
+    xcid = ref2id(ci)
     @assert(xcid > 0)
 
     mask = m.xc_bounds[xcid]
@@ -414,9 +394,9 @@ end
 
 function MOI.get(m     ::MosekModel,
                  attr  ::MOI.ConstraintDual,
-                 cref  ::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D}) where D
+                 ci  ::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D}) where D
 
-    cid = ref2id(cref)
+    cid = ref2id(ci)
     subi = getindex(m.c_block, cid)
 
     if getobjsense(m.task) == MSK_OBJECTIVE_SENSE_MINIMIZE
@@ -431,15 +411,15 @@ function MOI.get!(
     output::Vector{Float64},
     m     ::MosekModel,
     attr  ::MOI.ConstraintDual,
-    cref  ::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},D}) where { D <: MOI.AbstractSet }
+    ci  ::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},D}) where { D <: MOI.AbstractSet }
 
-    cid = ref2id(cref)
+    cid = ref2id(ci)
     subi = getindexes(m.c_block, cid)
 
     if getobjsense(m.task) == MSK_OBJECTIVE_SENSE_MINIMIZE
         if     m.c_block_slack[cid] == 0 # no slack
             output[1:length(output)] = m.solutions[attr.N].y[subi]
-        elseif m.c_block_slack[cid] >  0 # qcone slack
+        elseif m.c_block_slack[cid] >  0 # exp slack
             xid = m.c_block_slack[cid]
             xsubj = getindexes(m.x_block, xid)
             output[1:length(output)] = m.solutions[attr.N].snx[xsubj]
@@ -451,7 +431,7 @@ function MOI.get!(
     else
         if     m.c_block_slack[cid] == 0 # no slack
             output[1:length(output)] = - m.solutions[attr.N].y[subi]
-        elseif m.c_block_slack[cid] >  0 # qcone slack
+        elseif m.c_block_slack[cid] >  0 # exp slack
             xid = m.c_block_slack[cid]
             subj = getindexes(m.x_block, xid)
             output[1:length(output)] = - m.solutions[attr.N].snx[subj]
@@ -476,9 +456,9 @@ end
 
 
 
-solsize(m::MosekModel, cref :: MOI.ConstraintIndex{<:MOI.AbstractScalarFunction}) = 1
-function solsize(m::MosekModel, cref :: MOI.ConstraintIndex{MOI.VectorOfVariables})
-    cid = ref2id(cref)
+solsize(m::MosekModel, ::MOI.ConstraintIndex{<:MOI.AbstractScalarFunction}) = 1
+function solsize(m::MosekModel, ci::MOI.ConstraintIndex{MOI.VectorOfVariables})
+    cid = ref2id(ci)
     if cid < 0
         blocksize(m.c_block,-cid)
     else
@@ -486,16 +466,18 @@ function solsize(m::MosekModel, cref :: MOI.ConstraintIndex{MOI.VectorOfVariable
     end
 end
 
-function solsize(m::MosekModel, cref :: MOI.ConstraintIndex{<:MOI.VectorAffineFunction})
-    cid = ref2id(cref)
-    blocksize(m.c_block,cid)
+function solsize(m::MosekModel,
+                 ci::MOI.ConstraintIndex{<:MOI.VectorAffineFunction})
+    return blocksize(m.c_block, ref2id(ci))
 end
 
-function MOI.get(m::MosekModel, attr::Union{MOI.ConstraintPrimal, MOI.ConstraintDual}, cref :: MOI.ConstraintIndex{F,D}) where {F <: MOI.AbstractVectorFunction,D}
-    cid = ref2id(cref)
-    output = Vector{Float64}(undef,solsize(m,cref))
-    MOI.get!(output,m,attr,cref)
-    output
+function MOI.get(m::MosekModel,
+                 attr::Union{MOI.ConstraintPrimal, MOI.ConstraintDual},
+                 ci::MOI.ConstraintIndex{<:MOI.AbstractVectorFunction})
+    cid = ref2id(ci)
+    output = Vector{Float64}(undef, solsize(m, ci))
+    MOI.get!(output, m, attr, ci)
+    return output
 end
 
 
