@@ -21,19 +21,13 @@ const config = MOIT.TestConfig(atol=1e-3, rtol=1e-3, query=false)
 
 const bridged = MOIB.full_bridge_optimizer(optimizer, Float64)
 
-# Mosek does not support names
-MOIU.@model(Model,
-            (MOI.Integer,),
-            (MOI.EqualTo, MOI.LessThan, MOI.GreaterThan, MOI.Interval),
-            (MOI.Zeros, MOI.Nonnegatives, MOI.Nonpositives, MOI.RotatedSecondOrderCone),
-            (),
-            (MOI.SingleVariable,),
-            (MOI.ScalarAffineFunction, MOI.ScalarQuadraticFunction),
-            (MOI.VectorOfVariables,),
-            (MOI.VectorAffineFunction,))
-
 @testset "SolverName" begin
     @test MOI.get(optimizer, MOI.SolverName()) == "Mosek"
+end
+
+@testset "Name" begin
+    MOIT.nametest(optimizer)
+    MOI.empty!(optimizer)
 end
 
 @testset "Copy" begin
@@ -44,8 +38,7 @@ end
 
 @testset "Unit" begin
     # Mosek does not support names
-    cached = MOIU.CachingOptimizer(Model{Float64}(), bridged)
-    MOIT.unittest(cached,
+    MOIT.unittest(bridged,
                   config,
                   [# Does not support quadratic objective yet, needs
                    # https://github.com/JuliaOpt/MathOptInterface.jl/issues/529

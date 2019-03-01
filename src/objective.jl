@@ -1,4 +1,7 @@
-# TODO get with SingleVariable
+function MOI.get(m::MosekModel, ::MOI.ObjectiveFunction{F}) where F
+    obj = MOI.get(m, MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}())
+    return convert(F, obj)
+end
 function MOI.get(m::MosekModel,
                  ::MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}})
     refs = MOI.get(m, MOI.ListOfVariableIndices())

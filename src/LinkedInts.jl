@@ -4,6 +4,7 @@ using Printf                    #
     mutable struct LinkedInts
         next :: Vector{Int}
         prev :: Vector{Int}
+        back :: Vector{Int}
 
         free_ptr :: Int
         free_cap :: Int
@@ -20,10 +21,13 @@ starting from `root` and following `prev` until it gives zero should give the
 index free, i.e. starting from `free_ptr` and following `prev` until it gives
 zero should give the `free_cap` free indices.
 
+`length(next) == length(prev) == length(back)`.
 * `next[i]` is the minimum `j > i` such that `j` is used, or 0 if `i` is the
   last one used, i.e. `i = root`.
 * `prev[i]` is the maximum `j < i` such that `j` is used, or 0 if `i` is the
   first one used.
+* `back[i]` is such that `block[back[i]]` is the first index of the block
+  in which `i` is.
 
 * `free_cap` is the number of free slots.
 * `free_ptr` last index of the `free_cap` free slots.
@@ -36,6 +40,7 @@ zero should give the `free_cap` free indices.
 mutable struct LinkedInts
     next :: Vector{Int}
     prev :: Vector{Int}
+    back :: Vector{Int}
 
     free_ptr :: Int
     free_cap :: Int
@@ -45,11 +50,11 @@ mutable struct LinkedInts
     size  :: Vector{Int}
 end
 
-LinkedInts(capacity=128) =
-    LinkedInts(Int[],Int[],
-               0,0,0,
-               Int[],
-               Int[])
+function LinkedInts(capacity=128)
+    return LinkedInts(Int[], Int[], Int[],
+                      0, 0, 0,
+                      Int[], Int[])
+end
 
 allocatedlist(s::LinkedInts) = findall(s.block .> 0)
 allocated(s::LinkedInts, id :: Int) = id > 0 && id <= length(s.block) && s.block[id] > 0
@@ -99,6 +104,7 @@ function ensurefree(s::LinkedInts, N :: Int)
 
         append!(s.next, Int[i+1 for i in first:last])
         append!(s.prev, Int[i-1 for i in first:last])
+        append!(s.back, zeros(Int, num))
 
         s.next[last] = 0
         s.prev[first] = s.free_ptr
@@ -126,9 +132,14 @@ function newblock(s::LinkedInts, N :: Int) :: Int
     ptre = s.free_ptr
     # ptre is the last index
     ptrb = ptre
+    push!(s.size, N)
+    id = length(s.size)
     for i = 1:N-1
+        s.back[ptrb] = id
         ptrb = s.prev[ptrb]
     end
+    s.back[ptrb] = id
+    push!(s.block, ptrb)
     # ptrb is the first index
 
     prev = s.prev[ptrb]
@@ -146,10 +157,6 @@ function newblock(s::LinkedInts, N :: Int) :: Int
         s.next[s.root] = ptrb
     end
     s.root = ptre
-    push!(s.block, ptrb)
-    push!(s.size, N)
-
-    id = length(s.block)
 
     #if ! checkconsistency(s)
     #    println("List = ",s)
@@ -167,8 +174,10 @@ function deleteblock(s::LinkedInts, id :: Int)
         ptrb = s.block[id]
         N = s.size[id]
         ptre = ptrb
+        s.back[ptre] = 0
         for i in 2:N
             ptre = s.next[ptre]
+            s.back[ptre] = 0
         end
         prev = s.prev[ptrb]
         next = s.next[ptre]
@@ -210,6 +219,7 @@ Shortcut for `getindexes(s, id)[1]` when `s.size[id]` is 1.
 """
 function getindex(s::LinkedInts, id::Int)
     @assert s.size[id] == 1
+    @assert s.back[s.block[id]] == id
     return s.block[id]
 end
 
@@ -219,10 +229,12 @@ end
 Return the vector of indices for the block `id`.
 """
 function getindexes(s::LinkedInts, id :: Int)
+    @assert length(s.next) == length(s.prev) == length(s.back)
     N = s.size[id]
     r = Vector{Int}(undef, N)
     p = s.block[id]
     for i in 1:N
+        @assert s.back[p] == id
         r[i] = p
         p = s.next[p]
     end
@@ -233,6 +245,7 @@ function getindexes(s::LinkedInts, id::Int, target::Vector{Int}, offset::Int)
     N = s.size[id]
     p = s.block[id]
     for i in 1:N
+        @assert s.back[p] == id
         target[i+offset-1] = p
         p = s.next[p]
     end
@@ -257,6 +270,7 @@ function getfreeindexes(s::LinkedInts)
     r = Array{Int}(undef,N)
     ptr = s.free_ptr
     for i in 1:N
+        @assert iszero(s.back[ptr])
         r[N-i+1] = ptr
         ptr  = s.prev[ptr]
     end
@@ -273,6 +287,7 @@ function getusedindexes(s::LinkedInts)
     r = Array{Int}(undef,N)
     ptr = s.root
     for i in 1:N
+        @assert !iszero(s.back[ptr])
         r[N-i+1] = ptr
         ptr  = s.prev[ptr]
     end
@@ -301,6 +316,7 @@ function checkconsistency(s::LinkedInts) :: Bool
 
     p = s.free_ptr
     while p != 0
+        @assert iszero(s.back[ptr])
         mark[p] = true
         p = s.prev[p]
     end
@@ -308,6 +324,7 @@ function checkconsistency(s::LinkedInts) :: Bool
     p = s.root
     while p != 0
         @assert(!mark[p])
+        @assert !iszero(s.back[ptr])
         mark[p] = true
         p = s.prev[p]
     end

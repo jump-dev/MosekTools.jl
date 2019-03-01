@@ -188,7 +188,24 @@ function MOI.get(m::MosekModel, attr::MOI.ListOfVariableIndices)
     return MOI.VariableIndex[MOI.VariableIndex(vid) for vid in ids]
 end
 
+MOI.supports(::MosekModel, ::MOI.VariableName, ::Type{MOI.VariableIndex}) = true
 function MOI.set(m::MosekModel, ::MOI.VariableName, ref::MOI.VariableIndex,
                  value::String)
     putvarname(m.task, column(m, ref), value)
+end
+function MOI.get(m::MosekModel, ::MOI.VariableName, ref::MOI.VariableIndex)
+    return String(getvarname(m.task, column(m, ref)))
+end
+function MOI.get(m::MosekModel, ::Type{MOI.VariableIndex}, name::String)
+    asgn, col = getvarnameindex(m.task, name)
+    if iszero(asgn)
+        return nothing
+    else
+        id = m.x_block.back[col]
+        if iszero(id)
+            return nothing
+        else
+            return MOI.VariableIndex(id)
+        end
+    end
 end
