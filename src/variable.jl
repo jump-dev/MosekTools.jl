@@ -6,7 +6,7 @@
 
 ###############################################################################
 ## TASK
-## The `task` field should not be accessed outside this section.
+#  The `task` field should not be accessed outside this section.
 
 num_columns(task::Mosek.MSKtask) = getnumvar(task)
 num_columns(m::MosekModel) = num_columns(m.task)
