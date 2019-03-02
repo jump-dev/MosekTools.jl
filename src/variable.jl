@@ -5,8 +5,8 @@
 # are deleted.
 
 ###############################################################################
-## TASK
-#  The `task` field should not be accessed outside this section.
+# TASK ########################################################################
+###### The `task` field should not be accessed outside this section. ##########
 
 num_columns(task::Mosek.MSKtask) = getnumvar(task)
 num_columns(m::MosekModel) = num_columns(m.task)
@@ -100,7 +100,8 @@ function clear_columns(m::MosekModel, refs::Vector{MOI.VariableIndex})
 end
 
 ###############################################################################
-## INDEXING
+## INDEXING ###################################################################
+###############################################################################
 
 function column(m::MosekModel, ref::MOI.VariableIndex)::Int32
     return getindex(m.x_block, ref2id(ref))
@@ -142,10 +143,10 @@ function allocate_variable(m::MosekModel)
     return MOI.VariableIndex(newblock(m.x_block, 1))
 end
 
-### DELETE
-### Delete variables by clearing the column. The column is reused when a new
-### variables is added. While there exists a function in the Mosek API to delete
-### a column, it is costly and is best avoided.
+## Delete #####################################################################
+######### Delete variables by clearing the column. The column is reused when ##
+######### new variables is added. While there exists a function in the Mosek ##
+######### API to delete a column, it is costly and is best avoided.          ##
 
 function throw_if_cannot_delete(m::MosekModel, ref::MOI.VariableIndex)
     if !allocated(m.x_block, ref2id(ref))
@@ -170,13 +171,12 @@ function clear_variable(m::MosekModel, ref::MOI.VariableIndex)
 end
 
 ###############################################################################
-## MOI
+# MOI #########################################################################
+###############################################################################
 
-function MOI.is_valid(model::MosekModel, ref::MOI.VariableIndex)
-    return allocated(model.x_block, ref2id(ref))
-end
+## Add ########################################################################
+###############################################################################
 
-### ADD
 function MOI.add_variables(m::MosekModel, N::Integer)
     @assert N ≥ 0
     refs = MOI.VariableIndex[allocate_variable(m) for i in 1:N]
@@ -189,7 +189,12 @@ function MOI.add_variable(m::MosekModel)
     return ref
 end
 
-### DELETE
+## Delete #####################################################################
+###############################################################################
+function MOI.is_valid(model::MosekModel, ref::MOI.VariableIndex)
+    return allocated(model.x_block, ref2id(ref))
+end
+
 function MOI.delete(m::MosekModel, refs::Vector{MOI.VariableIndex})
     for ref in refs
         throw_if_cannot_delete(m, ref)
@@ -205,14 +210,16 @@ function MOI.delete(m::MosekModel, ref::MOI.VariableIndex)
     clear_variable(m, ref)
 end
 
-### LIST
+## List #######################################################################
+###############################################################################
 MOI.get(m::MosekModel, attr::MOI.NumberOfVariables) = m.publicnumvar
 function MOI.get(m::MosekModel, attr::MOI.ListOfVariableIndices)
     ids = allocatedlist(m.x_block)
     return MOI.VariableIndex[MOI.VariableIndex(vid) for vid in ids]
 end
 
-### NAME
+## Name #######################################################################
+###############################################################################
 MOI.supports(::MosekModel, ::MOI.VariableName, ::Type{MOI.VariableIndex}) = true
 function MOI.set(m::MosekModel, ::MOI.VariableName, ref::MOI.VariableIndex,
                  name::String)
