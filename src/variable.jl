@@ -6,6 +6,13 @@
 
 ###############################################################################
 ## TASK
+## The `task` field should not be accessed outside this section.
+
+num_columns(task::Mosek.MSKtask) = getnumvar(task)
+num_columns(m::MosekModel) = num_columns(m.task)
+
+add_column(task::Mosek.MSKtask) = appendvars(task, 1)
+add_column(m::MosekModel) = add_column(m.task)
 
 """
     function init_columns(task::Mosek.MSKtask, cols::Vector{Int32})
@@ -35,7 +42,13 @@ end
 function set_column_name(task::Mosek.MSKtask, col::Int32, name::String)
     putvarname(task, col, name)
 end
+function set_column_name(m::MosekModel, ref::MOI.VariableIndex, name::String)
+    set_column_name(m.task, column(m, ref), name)
+end
 column_name(task::Mosek.MSKtask, col::Int32) = getvarname(task, col)
+function column_name(m::MosekModel, ref::MOI.VariableIndex)
+    column_name(m.task, column(m, ref))
+end
 function column_with_name(task::Mosek.MSKtask, name::String)
     asgn, col = getvarnameindex(task, name)
     if iszero(asgn)
@@ -44,6 +57,7 @@ function column_with_name(task::Mosek.MSKtask, name::String)
         return col
     end
 end
+column_with_name(m::MosekModel, name::String) = column_with_name(m.task, name)
 
 """
     function clear_columns(task::Mosek.MSKtask, cols::Vector{Int32})
@@ -114,13 +128,13 @@ See [`clear_variable`](@ref) which is kind of the reverse operation.
 """
 function allocate_variable(m::MosekModel)
     @assert length(m.x_boundflags) == length(m.x_block)
-    numvar = getnumvar(m.task)
+    numvar = num_columns(m)
     alloced = ensurefree(m.x_block, 1)
     if !iszero(alloced)
         @assert isone(alloced)
-        @assert length(m.x_block) == getnumvar(m.task) + 1
-        appendvars(m.task, 1)
-        @assert length(m.x_block) == getnumvar(m.task)
+        @assert length(m.x_block) == num_columns(m) + 1
+        add_column(m)
+        @assert length(m.x_block) == num_columns(m)
         push!(m.x_boundflags, 0)
         push!(m.x_numxc, 0)
     end
@@ -202,13 +216,13 @@ end
 MOI.supports(::MosekModel, ::MOI.VariableName, ::Type{MOI.VariableIndex}) = true
 function MOI.set(m::MosekModel, ::MOI.VariableName, ref::MOI.VariableIndex,
                  name::String)
-    set_column_name(m.task, column(m, ref), name)
+    set_column_name(m, ref, name)
 end
 function MOI.get(m::MosekModel, ::MOI.VariableName, ref::MOI.VariableIndex)
-    return column_name(m.task, column(m, ref))
+    return column_name(m, ref)
 end
 function MOI.get(m::MosekModel, ::Type{MOI.VariableIndex}, name::String)
-    col = column_with_name(m.task, name)
+    col = column_with_name(m, name)
     if col === nothing
         return nothing
     else
