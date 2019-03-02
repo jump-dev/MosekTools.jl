@@ -39,6 +39,8 @@ function init_columns(m::MosekModel, refs::Vector{MOI.VariableIndex})
     init_columns(m.task, columns(m, refs))
 end
 
+## Name #######################################################################
+###############################################################################
 function set_column_name(task::Mosek.MSKtask, col::Int32, name::String)
     putvarname(task, col, name)
 end

@@ -5,6 +5,15 @@
 ## Affine Constraints #########################################################
 ##################### lc ≤ Ax ≤ uc ############################################
 
+function rows(m::MosekModel,
+              c::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64}})::Vector{Int32} # TODO shouldn't need to convert
+    return getindexes(m.c_block, ref2id(c))
+end
+function row(m::MosekModel,
+             c::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}})::Int32
+    return getindex(m.c_block, ref2id(c))
+end
+
 function allocateconstraints(m::MosekModel, N::Int)
     numcon = getnumcon(m.task)
     alloced = ensurefree(m.c_block,N)
@@ -194,23 +203,24 @@ end
 ## Name #######################################################################
 ###############################################################################
 
-function set_internal_name(m::MosekModel,
-                           c::MOI.ConstraintIndex{<:MOI.VectorAffineFunction{Float64}},
-                           name::AbstractString) where {D}
-    cid = ref2id(c)
-    for i in getindexes(m.c_block, cid)
-        putconname(m.task, i, name)
+function set_row_name(task::Mosek.MSKtask, row::Int32, name::String)
+    putconname(task, row, name)
+end
+
+function set_row_name(m::MosekModel,
+                      c::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64}},
+                      name::AbstractString) where {D}
+    for row in rows(m, c)
+        set_row_name(m.task, row, name)
     end
 end
-function set_internal_name(m::MosekModel,
-                           c::MOI.ConstraintIndex{<:MOI.ScalarAffineFunction{Float64}},
-                           name::AbstractString)
-    cid = ref2id(c)
-    i = getindex(m.c_block, cid)
-    putconname(m.task, i, name)
+function set_row_name(m::MosekModel,
+                      c::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}},
+                      name::AbstractString)
+    set_row_name(m.task, row(m, c), name)
 end
-function set_internal_name(m::MosekModel, c::MOI.ConstraintIndex,
-                           name::AbstractString)
+function set_row_name(m::MosekModel, c::MOI.ConstraintIndex,
+                      name::AbstractString)
     # Fallback for `SingleVariable` and `VectorOfVariables`.
     m.con_to_name[c] = name
 end
@@ -804,7 +814,7 @@ function MOI.set(m::MosekModel, ::MOI.ConstraintName, ci::MOI.ConstraintIndex,
         m.constrnames[name] = MOI.ConstraintIndex[]
     end
     push!(m.constrnames[name], ci)
-    set_internal_name(m, ci, name)
+    set_row_name(m, ci, name)
 end
 function MOI.get(m::MosekModel, ::MOI.ConstraintName,
                  ci::MOI.ConstraintIndex{<:Union{MOI.ScalarAffineFunction{Float64},
