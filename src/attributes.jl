@@ -255,11 +255,8 @@ function MOI.get!(
 
     if     m.c_block_slack[cid] == 0 # no slack
         output[1:length(output)] = m.solutions[attr.N].xc[subi] + m.c_constant[subi]
-    elseif m.c_block_slack[cid] >  0 # exp slack
-        xid = m.c_block_slack[cid]
-        xsubj = getindexes(m.x_block, xid)
-        output[1:length(output)] = m.solutions[attr.N].xx[xsubj]
     else # psd slack
+        @assert m.c_block_slack[cid] < 0
         xid = - m.c_block_slack[cid]
         output[1:length(output)] = reorder(getbarxj(m.task,m.solutions[attr.N].whichsol,Int32(xid)), PositiveSemidefiniteCone)
     end
@@ -429,11 +426,8 @@ function MOI.get!(
     if getobjsense(m.task) == MSK_OBJECTIVE_SENSE_MINIMIZE
         if     m.c_block_slack[cid] == 0 # no slack
             output[1:length(output)] = m.solutions[attr.N].y[subi]
-        elseif m.c_block_slack[cid] >  0 # exp slack
-            xid = m.c_block_slack[cid]
-            xsubj = getindexes(m.x_block, xid)
-            output[1:length(output)] = m.solutions[attr.N].snx[xsubj]
         else # psd slack
+            @assert m.c_block_slack[cid] < 0
             whichsol = getsolcode(m,attr.N)
             xid = - m.c_block_slack[cid]
             output[1:length(output)] = reorder(getbarsj(m.task,whichsol,Int32(xid)), PositiveSemidefiniteCone)
@@ -441,11 +435,8 @@ function MOI.get!(
     else
         if     m.c_block_slack[cid] == 0 # no slack
             output[1:length(output)] = - m.solutions[attr.N].y[subi]
-        elseif m.c_block_slack[cid] >  0 # exp slack
-            xid = m.c_block_slack[cid]
-            subj = getindexes(m.x_block, xid)
-            output[1:length(output)] = - m.solutions[attr.N].snx[subj]
         else # psd slack
+            @assert m.c_block_slack[cid] < 0
             whichsol = getsolcode(m,attr.N)
             xid = - m.c_block_slack[cid]
             output[1:length(output)] = reorder(-getbarsj(m.task,whichsol,Int32(xid)), PositiveSemidefiniteCone)
