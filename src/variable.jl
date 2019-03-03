@@ -111,8 +111,8 @@ end
 function columns(m::MosekModel, refs::Vector{MOI.VariableIndex})
     return ColumnIndices(Int32[column(m, ref).value for ref in refs])
 end
+is_scalar(m::MosekModel, ref::MOI.VariableIndex) = true
 mosek_index(m::MosekModel, ref::MOI.VariableIndex) = column(m, ref)
-mosek_indices(m::MosekModel, refs::Vector{MOI.VariableIndex}) = columns(m, refs)
 
 function index_of_column(m::MosekModel, col::Int32)
     id = m.x_block.back[col]

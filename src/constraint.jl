@@ -5,15 +5,6 @@
 ## Affine Constraints #########################################################
 ##################### lc ≤ Ax ≤ uc ############################################
 
-function rows(m::MosekModel,
-              c::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64}})::Vector{Int32} # TODO shouldn't need to convert
-    return getindexes(m.c_block, ref2id(c))
-end
-function row(m::MosekModel,
-             c::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}})::Int32
-    return getindex(m.c_block, ref2id(c))
-end
-
 function allocateconstraints(m::MosekModel, N::Int)
     numcon = getnumcon(m.task)
     alloced = ensurefree(m.c_block,N)
@@ -83,6 +74,31 @@ function addlhsblock!(m        :: MosekModel,
     msk_rowptr[1] = 1
 
     putarowlist(m.task, msk_subi, msk_rowptr[1:N], msk_rowptr[2:N+1], msk_subj, msk_cof)
+end
+
+function set_coefficients(task::Mosek.MSKtask, rows::Vector{Int32},
+                          cols::ColumnIndices, values::Vector{Float64})
+    putaijlist(task, rows, cols.values, values)
+end
+
+function set_coefficients(task::Mosek.MSKtask, rows::Vector{Int32},
+                          col::ColumnIndex, values::Vector{Float64})
+    n = length(rows)
+    @assert n == length(values)
+    set_coefficient(task, rows, ColumnIndices(fill(col.value, n)), values)
+end
+function set_coefficients(m::MosekModel, rows::Vector{Int32},
+                          vi::MOI.VariableIndex, values::Vector{Float64})
+    set_coefficient(m.task, rows, mosek_index(m, vi), values)
+end
+
+function set_coefficient(task::Mosek.MSKtask, row::Int32, col::ColumnIndex,
+                         value::Float64)
+    putaij(task, row, col.value, value)
+end
+function set_coefficient(m::MosekModel, row::Int32, vi::MOI.VariableIndex,
+                         value::Float64)
+    set_coefficient(m.task, row, mosek_index(m, vi), value)
 end
 
 addbound!(m :: MosekModel, conid :: Int, conidxs :: Vector{Int}, constant :: Vector{Float64}, dom :: MOI.Reals)                = putconboundlist(m.task,convert(Vector{Int32},conidxs),fill(MSK_BK_FR,MOI.dimension(dom)),-constant,-constant)
@@ -236,6 +252,15 @@ end
 ###############################################################################
 # INDEXING ####################################################################
 ###############################################################################
+
+function rows(m::MosekModel,
+              c::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64}})::Vector{Int32} # TODO shouldn't need to convert
+    return getindexes(m.c_block, ref2id(c))
+end
+function row(m::MosekModel,
+             c::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}})::Int32
+    return getindex(m.c_block, ref2id(c))
+end
 
 function allocatevarconstraints(m :: MosekModel,
                                 N :: Int)
@@ -420,7 +445,11 @@ function MOI.add_constraint(
     xs  :: MOI.SingleVariable,
     dom :: D) where {D <: MOI.AbstractScalarSet}
 
-    col = column(m, xs.variable).value
+    msk_idx = mosek_index(m, xs.variable)
+    if !(msk_idx isa ColumnIndex)
+        error("Cannot add $D constraint on a matrix variable")
+    end
+    col = msk_idx.value
 
     mask = domain_type_mask(dom)
     if mask & m.x_boundflags[col] != 0
@@ -446,6 +475,9 @@ end
 
 function MOI.add_constraint(m::MosekModel, xs::MOI.VectorOfVariables,
                             dom::D) where {D <: MOI.AbstractVectorSet}
+    if !all(vi -> is_scalar(m, vi), xs.variables)
+        error("Cannot add $D constraint on a matrix variable")
+    end
     cols = reorder(columns(m, xs.variables).values, D)
 
     mask = domain_type_mask(dom)
@@ -611,19 +643,14 @@ function MOI.modify(m   ::MosekModel,
 end
 
 function MOI.modify(m   ::MosekModel,
-                    c   ::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D},
-                    func::MOI.ScalarCoefficientChange{Float64}) where {D <: MOI.AbstractSet}
-    cid = ref2id(c)
-
-    i = getindex(m.c_block, cid)
-    j = column(m, func.variable).value
-
-    putaij(m.task, i, j, func.new_coefficient)
+                    c   ::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}},
+                    func::MOI.ScalarCoefficientChange{Float64})
+    set_coefficient(m, row(m, c), func.variable, func.new_coefficient)
 end
 
 function MOI.modify(m::MosekModel,
-                    c::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},D},
-                    func::MOI.VectorConstantChange{Float64}) where {D <: MOI.AbstractSet}
+                    c::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64}},
+                    func::MOI.VectorConstantChange{Float64})
     cid = ref2id(c)
     @assert(cid > 0)
 
@@ -641,15 +668,11 @@ function MOI.modify(m::MosekModel,
 end
 
 function MOI.modify(m::MosekModel,
-                    c::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},D},
-                    func::MOI.MultirowChange{Float64}) where {D <: MOI.AbstractSet}
-    cid = ref2id(c)
-    @assert(cid > 0)
-
-    subi = getindexes(m.c_block, cid)[getindex.(func.new_coefficients, 1)]
-    j = column(m, func.variable).value
-
-    putaijlist(m.task,convert(Vector{Int32},subi),fill(j,length(subi)),getindex.(func.new_coefficients,2))
+                    c::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64}},
+                    func::MOI.MultirowChange{Float64})
+    @assert ref2id(c) > 0
+    set_coefficients(m, rows(m, c)[getindex.(func.new_coefficients, 1)],
+                     func.variable, getindex.(func.new_coefficients, 2))
 end
 
 ### TRANSFORM

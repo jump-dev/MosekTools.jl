@@ -27,8 +27,8 @@ function set_primal_start(task::Mosek.MSKtask, cols::ColumnIndices,
 end
 function set_primal_start(m::MosekModel, vis::Vector{MOI.VariableIndex},
                           values::Vector{Float64})
-    if all(is_scalar, vis)
-        set_primal_start(m.task, mosek_indices(m, vis), values)
+    if all(vi -> is_scalar(m, vi), vis)
+        set_primal_start(m.task, columns(m, vis), values)
     else
         for (vi, value) in zip(vis, values)
             set_primal_start(m.task, mosek_index(m, vi), value)
