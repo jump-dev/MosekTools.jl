@@ -150,10 +150,7 @@ function MOI.set(m::MosekModel, ::MOI.VariablePrimalStart,
 end
 
 # function MOI.set(m::MosekModel,attr::MOI.ConstraintDualStart, vs::Vector{MOI.ConstraintIndex}, vals::Vector{Float64})
-#     subj = Array{Int}(length(vs))
-#     for i in 1:length(subj)
-#         getindexes(m.x_block,ref2id(vs[i]),subj,i)
-#     end
+#     subj = columns(vs)
 
 #     for sol in [ MSK_SOL_BAS, MSK_SOL_ITG ]
 #         if solutiondef(m.task,sol)
