@@ -572,10 +572,10 @@ function MOI.set(m::MosekModel,
                  dom::D) where { F    <: MOI.SingleVariable,
                                  D    <: ScalarLinearDomain }
     xcid = ref2id(xcref)
-    j = m.xc_idxs[getindex(m.xc_block,xcid)]
-    bk,bl,bu = getvarbound(m.task,j)
-    bl,bu = chgbound(bl,bu,0.0,dom)
-    putvarbound(m.task,j,bk,bl,bu)
+    col = m.xc_idxs[getindex(m.xc_block, xcid)]
+    bk, bl, bu = getvarbound(m.task, col)
+    bl, bu = chgbound(bl, bu, 0.0, dom)
+    putvarbound(m.task, col, bk, bl, bu)
 end
 
 
