@@ -35,8 +35,8 @@ function init_columns(task::Mosek.MSKtask, cols::ColumnIndices)
     end
     return
 end
-function init_columns(m::MosekModel, refs::Vector{MOI.VariableIndex})
-    init_columns(m.task, columns(m, refs))
+function init_columns(m::MosekModel, vis::Vector{MOI.VariableIndex})
+    init_columns(m.task, columns(m, vis))
 end
 
 ## Name #######################################################################
@@ -44,12 +44,12 @@ end
 function set_column_name(task::Mosek.MSKtask, col::ColumnIndex, name::String)
     putvarname(task, col.value, name)
 end
-function set_column_name(m::MosekModel, ref::MOI.VariableIndex, name::String)
-    set_column_name(m.task, column(m, ref), name)
+function set_column_name(m::MosekModel, vi::MOI.VariableIndex, name::String)
+    set_column_name(m.task, mosek_index(m, vi), name)
 end
 column_name(task::Mosek.MSKtask, col::ColumnIndex) = getvarname(task, col.value)
-function column_name(m::MosekModel, ref::MOI.VariableIndex)
-    column_name(m.task, column(m, ref))
+function column_name(m::MosekModel, vi::MOI.VariableIndex)
+    column_name(m.task, mosek_index(m, vi))
 end
 function column_with_name(task::Mosek.MSKtask, name::String)
     asgn, col = getvarnameindex(task, name)
@@ -97,22 +97,52 @@ function clear_columns(task::Mosek.MSKtask, cols::ColumnIndices)
     end
     return
 end
-function clear_columns(m::MosekModel, refs::Vector{MOI.VariableIndex})
-    clear_columns(m.task, columns(m, refs))
+function clear_columns(m::MosekModel, vis::Vector{MOI.VariableIndex})
+    clear_columns(m.task, columns(m, vis))
 end
 
 ###############################################################################
 ## INDEXING ###################################################################
 ###############################################################################
 
-function column(m::MosekModel, ref::MOI.VariableIndex)
-    return ColumnIndex(getindex(m.x_block, ref2id(ref)))
+function column(m::MosekModel, vi::MOI.VariableIndex)
+    @assert variable_type(m, vi) == ScalarVariable
+    return ColumnIndex(getindex(m.x_block, ref2id(vi)))
 end
-function columns(m::MosekModel, refs::Vector{MOI.VariableIndex})
-    return ColumnIndices(Int32[column(m, ref).value for ref in refs])
+function columns(m::MosekModel, vis::Vector{MOI.VariableIndex})
+    return ColumnIndices(Int32[
+        (mosek_index(m, vi)::ColumnIndex).value for vi in vis])
 end
-is_scalar(m::MosekModel, ref::MOI.VariableIndex) = true
-mosek_index(m::MosekModel, ref::MOI.VariableIndex) = column(m, ref)
+function variable_type(m::MosekModel, vi::MOI.VariableIndex)
+    if 1 ≤ vi.value ≤ length(m.x_type)
+        t = m.x_type[vi.value]
+        if t != Deleted
+            return t
+        end
+    end
+    throw(MOI.InvalidIndex(vi))
+end
+function is_scalar(m::MosekModel, vi::MOI.VariableIndex)
+    return variable_type(m, vi) == ScalarVariable
+end
+function is_matrix(m::MosekModel, vi::MOI.VariableIndex)
+    return variable_type(m, vi) == MatrixVariable
+end
+function decide_variable(m::MosekModel, vi::MOI.VariableIndex)
+    if variable_type(m, vi) == Undecided
+        allocate_variable(m, vi)
+        m.x_type[vi.value] = ScalarVariable
+        init_columns(m, [vi])
+    end
+end
+function mosek_index(m::MosekModel, vi::MOI.VariableIndex)
+    decide_variable(m, vi)
+    if is_scalar(m, vi)
+        return column(m, vi)
+    else
+        return m.x_sd[vi.value]
+    end
+end
 
 function index_of_column(m::MosekModel, col::Int32)
     id = m.x_block.back[col]
@@ -132,7 +162,7 @@ deleted), we use it and don't create any new column, i.e. don't call
 
 See [`clear_variable`](@ref) which is kind of the reverse operation.
 """
-function allocate_variable(m::MosekModel)
+function allocate_variable(m::MosekModel, vi::MOI.VariableIndex)
     @assert length(m.x_boundflags) == length(m.x_block)
     numvar = num_columns(m)
     alloced = ensurefree(m.x_block, 1)
@@ -144,8 +174,7 @@ function allocate_variable(m::MosekModel)
         push!(m.x_boundflags, 0)
         push!(m.x_numxc, 0)
     end
-    m.publicnumvar += 1
-    return MOI.VariableIndex(newblock(m.x_block, 1))
+    allocate_block(m.x_block, 1, vi.value)
 end
 
 ## Delete #####################################################################
@@ -153,26 +182,27 @@ end
 ######### new variables is added. While there exists a function in the Mosek ##
 ######### API to delete a column, it is costly and is best avoided.          ##
 
-function throw_if_cannot_delete(m::MosekModel, ref::MOI.VariableIndex)
-    if !allocated(m.x_block, ref2id(ref))
-        throw(MOI.InvalidIndex(ref))
+function throw_if_cannot_delete(m::MosekModel, vi::MOI.VariableIndex)
+    if !allocated(m.x_block, ref2id(vi))
+        @assert m.x_type[ref2id(vi)] == Deleted
+        throw(MOI.InvalidIndex(vi))
     end
-    if !iszero(m.x_numxc[ref2id(ref)])
-        throw(CannotDelete("Cannot delete variable $ref while a bound constraint is defined on it"))
+    if is_scalar(m, vi) && !iszero(m.x_numxc[column(m, vi).value])
+        throw(CannotDelete("Cannot delete variable $vi while a bound constraint is defined on it"))
     end
 end
 
 """
-    clear_variable(m::MosekModel, ref::MOI.VariableIndex)
+    clear_variable(m::MosekModel, vi::MOI.VariableIndex)
 
-Delete the `ref` variable (without actually doing any change to the internal
+Delete the `vi` variable (without actually doing any change to the internal
 Mosek solver) to free the corresponding column for reuse by another variable.
 
 See [`allocate_variable`](@ref) which is kind of the reverse operation.
 """
-function clear_variable(m::MosekModel, ref::MOI.VariableIndex)
+function clear_variable(m::MosekModel, vi::MOI.VariableIndex)
     m.publicnumvar -= 1
-    deleteblock(m.x_block, ref2id(ref))
+    deleteblock(m.x_block, ref2id(vi))
 end
 
 ###############################################################################
@@ -182,37 +212,44 @@ end
 ## Add ########################################################################
 ###############################################################################
 
-function MOI.add_variables(m::MosekModel, N::Integer)
-    @assert N ≥ 0
-    refs = MOI.VariableIndex[allocate_variable(m) for i in 1:N]
-    init_columns(m, refs)
-    return refs
-end
 function MOI.add_variable(m::MosekModel)
-    ref = allocate_variable(m)
-    init_columns(m, [ref])
-    return ref
+    m.publicnumvar += 1
+    id = create_block(m.x_block, 1)
+    push!(m.x_type, Undecided)
+    push!(m.x_sd, MatrixIndex(0, 0, 0))
+    return MOI.VariableIndex(id)
+end
+
+function MOI.add_variables(m::MosekModel, n::Int)
+    @assert n > 0
+    return MOI.VariableIndex[MOI.add_variable(m) for i in 1:n]
 end
 
 ## Delete #####################################################################
 ###############################################################################
-function MOI.is_valid(model::MosekModel, ref::MOI.VariableIndex)
-    return allocated(model.x_block, ref2id(ref))
+function MOI.is_valid(model::MosekModel, vi::MOI.VariableIndex)
+    return allocated(model.x_block, ref2id(vi))
 end
 
-function MOI.delete(m::MosekModel, refs::Vector{MOI.VariableIndex})
-    for ref in refs
-        throw_if_cannot_delete(m, ref)
+#function MOI.delete(m::MosekModel, vis::Vector{MOI.VariableIndex})
+#    for vi in vis
+#        throw_if_cannot_delete(m, vi)
+#    end
+#    clear_columns(m, vis)
+#    for vi in vis
+#        clear_variable(m, vi)
+#    end
+#end
+function MOI.delete(m::MosekModel, vi::MOI.VariableIndex)
+    if variable_type(m, vi) == Undecided
+        m.publicnumvar -= 1
+    else
+        throw_if_cannot_delete(m, vi)
+        clear_columns(m, [vi])
+        clear_variable(m, vi)
     end
-    clear_columns(m, refs)
-    for ref in refs
-        clear_variable(m, ref)
-    end
-end
-function MOI.delete(m::MosekModel, ref::MOI.VariableIndex)
-    throw_if_cannot_delete(m, ref)
-    clear_columns(m, [ref])
-    clear_variable(m, ref)
+    m.x_type[vi.value] = Deleted
+    return
 end
 
 ## List #######################################################################
@@ -226,12 +263,12 @@ end
 ## Name #######################################################################
 ###############################################################################
 MOI.supports(::MosekModel, ::MOI.VariableName, ::Type{MOI.VariableIndex}) = true
-function MOI.set(m::MosekModel, ::MOI.VariableName, ref::MOI.VariableIndex,
+function MOI.set(m::MosekModel, ::MOI.VariableName, vi::MOI.VariableIndex,
                  name::String)
-    set_column_name(m, ref, name)
+    set_column_name(m, vi, name)
 end
-function MOI.get(m::MosekModel, ::MOI.VariableName, ref::MOI.VariableIndex)
-    return column_name(m, ref)
+function MOI.get(m::MosekModel, ::MOI.VariableName, vi::MOI.VariableIndex)
+    return column_name(m, vi)
 end
 function MOI.get(m::MosekModel, ::Type{MOI.VariableIndex}, name::String)
     col = column_with_name(m, name)

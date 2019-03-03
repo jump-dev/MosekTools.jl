@@ -120,26 +120,19 @@ function ensurefree(s::LinkedInts, N :: Int)
     end
 end
 
-"""
-    newblock(s::LinkedInts, N :: Int)
-
-Add a new block in list `idx`
-"""
-function newblock(s::LinkedInts, N :: Int) :: Int
+function allocate_block(s::LinkedInts, N::Int, id::Integer)
     @assert(N > 0)
     ensurefree(s, N)
     # remove from free list
     ptre = s.free_ptr
     # ptre is the last index
     ptrb = ptre
-    push!(s.size, N)
-    id = length(s.size)
     for i = 1:N-1
         s.back[ptrb] = id
         ptrb = s.prev[ptrb]
     end
     s.back[ptrb] = id
-    push!(s.block, ptrb)
+    s.block[id] = ptrb
     # ptrb is the first index
 
     prev = s.prev[ptrb]
@@ -163,6 +156,25 @@ function newblock(s::LinkedInts, N :: Int) :: Int
     #    assert(false)
     #end
 
+    return id
+end
+
+function create_block(s::LinkedInts, N::Int)
+    @assert(N > 0)
+    push!(s.size, N)
+    push!(s.block, 0)
+    @assert length(s.size) == length(s.block)
+    return length(s.block)
+end
+
+"""
+    newblock(s::LinkedInts, N :: Int)
+
+Add a new block in list `idx`
+"""
+function newblock(s::LinkedInts, N::Int)::Int
+    id = create_block(s, N)
+    allocate_block(s, N, id)
     return id
 end
 

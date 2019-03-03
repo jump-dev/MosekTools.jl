@@ -21,24 +21,19 @@ MOI.supports(::MosekModel,::MOI.ObjectiveSense) = true
 
 function MOI.set(m::MosekModel, ::MOI.ObjectiveFunction,
                  func::MOI.SingleVariable)
-    numvar = getnumvar(m.task)
-    c = zeros(Float64, numvar)
-    col = column(m, func.variable).value
-    c[col] = 1.0
-    putclist(m.task, convert(Vector{Int32}, 1:numvar), c)
-    putcfix(m.task, 0.0)
+    MOI.set(m, MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
+            convert(MOI.ScalarAffineFunction{Float64}, func))
 end
 
 function MOI.set(m::MosekModel, ::MOI.ObjectiveFunction,
                  func::MOI.ScalarAffineFunction{Float64})
-    numvar = getnumvar(m.task)
-    c = zeros(Float64, numvar)
-    cols = columns(m, map(t -> t.variable_index, func.terms)).values
-    for i in 1:length(cols)
-        c[cols[i]] += func.terms[i].coefficient
+    cols, values = split_scalar_matrix(m, MOIU.canonical(func).terms,
+                                       (j, ids, coefs) -> putbarcj(m.task, j, ids, coefs))
+    c = zeros(Float64, getnumvar(m.task))
+    for (col, val) in zip(cols, values)
+        c[col] += val
     end
-
-    putclist(m.task, convert(Vector{Int32}, 1:numvar), c)
+    putclist(m.task, convert(Vector{Int32}, 1:length(c)), c)
     putcfix(m.task,func.constant)
 end
 
