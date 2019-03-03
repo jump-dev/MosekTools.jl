@@ -278,7 +278,7 @@ function MOI.get(m::MosekModel, attr::MOI.ConstraintDual,
 
     @assert(blocksize(m.xc_block,xcid) > 0)
 
-    subj  = getindex(m.x_block, m.xc_idxs[idx])
+    subj = m.xc_idxs[idx]
     if (getobjsense(m.task) == MSK_OBJECTIVE_SENSE_MINIMIZE)
         if     m.xc_bounds[xcid] & boundflag_lower != 0 && m.xc_bounds[xcid] & boundflag_upper != 0
             m.solutions[attr.N].slx[subj] - m.solutions[attr.N].sux[subj]
