@@ -1,14 +1,67 @@
+###############################################################################
+# TASK ########################################################################
+###### The `task` field should not be accessed outside this section. ##########
 
-#### solver attributes
-#MOI.get(m::Union{MosekSolver,MosekModel},::MOI.SupportsDuals) = true
-#MOI.get(m::Union{MosekSolver,MosekModel},::MOI.SupportsAddConstraintAfterSolve) = true
-#MOI.get(m::Union{MosekSolver,MosekModel},::MOI.SupportsAddVariableAfterSolve) = true
-#MOI.get(m::Union{MosekSolver,MosekModel},::MOI.SupportsDeleteConstraint) = true
-#MOI.get(m::Union{MosekSolver,MosekModel},::MOI.SupportsDeleteVariable) = true
-#MOI.get(m::Union{MosekSolver,MosekModel},::MOI.SupportsConicThroughQuadratic) = false # though actually the solver does
+function set_primal_start(task::Mosek.MSKtask, col::ColumnIndex, value::Float64)
+    xx = Float64[value]
+    for sol in [MSK_SOL_BAS, MSK_SOL_ITG]
+        putxxslice(task, sol, col.value, col.value + Int32(1), xx)
+    end
+end
+function set_primal_start(m::MosekModel, vi::MOI.VariableIndex, value::Float64)
+    set_primal_start(m.task, mosek_index(m, vi), value)
+end
+function set_primal_start(task::Mosek.MSKtask, cols::ColumnIndices,
+                          values::Vector{Float64})
+    for sol in [MSK_SOL_BAS, MSK_SOL_ITG]
+        if solutiondef(task, sol)
+            xx = getxx(task, sol)
+            xx[cols] = vals
+            putxx(task, sol, xx)
+        else
+            xx = zeros(Float64, getnumvar(task))
+            xx[cols] = vals
+            putxx(task, sol, xx)
+        end
+    end
+end
+function set_primal_start(m::MosekModel, vis::Vector{MOI.VariableIndex},
+                          values::Vector{Float64})
+    if all(vi -> is_scalar(m, vi), vis)
+        set_primal_start(m.task, columns(m, vis), values)
+    else
+        for (vi, value) in zip(vis, values)
+            set_primal_start(m.task, mosek_index(m, vi), value)
+        end
+    end
+end
+
+###############################################################################
+## INDEXING ###################################################################
+###############################################################################
+
+function variable_primal(m::MosekModel, N, col::ColumnIndex)
+    return m.solutions[N].xx[col.value]
+end
+function variable_primal(m::MosekModel, N, mat::MatrixIndex)
+    d = m.sd_dim[mat.matrix]
+    r = d - mat.column + 1
+    #   #entries full Δ       #entries right Δ      #entries above in lower Δ
+    k = div((d + 1) * d, 2) - div((r + 1) * r, 2) + (mat.row - mat.column + 1)
+    return m.solutions[N].barxj[mat.matrix][k]
+end
+function variable_primal(m::MosekModel, N, vi::MOI.VariableIndex)
+    variable_primal(m, N, mosek_index(m, vi))
+end
+
+###############################################################################
+# MOI #########################################################################
+###############################################################################
 
 #### objective
-MOI.get(m::MosekModel,attr::MOI.ObjectiveValue) = getprimalobj(m.task,m.solutions[attr.resultindex].whichsol)
+function MOI.get(m::MosekModel,attr::MOI.ObjectiveValue)
+    return getprimalobj(m.task, m.solutions[attr.resultindex].whichsol)
+end
 
 MOI.get(m::MosekModel,attr::MOI.ObjectiveBound) = getdouinf(m.task,MSK_DINF_MIO_OBJ_BOUND)
 
@@ -106,8 +159,7 @@ function MOI.get(model::MosekModel,
         end
     end
     F = MOI.VectorAffineFunction{Float64}
-    for D in [MOI.Nonpositives, MOI.Nonnegatives, MOI.Reals, MOI.Zeros,
-              MOI.PositiveSemidefiniteConeTriangle]
+    for D in [MOI.Nonpositives, MOI.Nonnegatives, MOI.Reals, MOI.Zeros]
         if !isempty(select(model.constrmap, F, D))
             push!(list, (F, D))
         end
@@ -124,29 +176,12 @@ end
 
 function MOI.set(m::MosekModel, attr::MOI.VariablePrimalStart,
                  v::MOI.VariableIndex, val::Float64)
-    col = column(m, v)
-
-    xx = Float64[val]
-    for sol in [ MSK_SOL_BAS, MSK_SOL_ITG ]
-        putxxslice(m.task, sol, Int(col), Int(col + 1), xx)
-    end
+    set_primal_start(m, v, val)
 end
 
 function MOI.set(m::MosekModel, ::MOI.VariablePrimalStart,
-                 vs::Vector{MOI.VariableIndex}, vals::Vector{Float64})
-    cols = columns(m, vs)
-
-    for sol in [ MSK_SOL_BAS, MSK_SOL_ITG ]
-        if solutiondef(m.task,sol)
-            xx = getxx(m.task,sol)
-            xx[cols] = vals
-            putxx(m.task,sol,xx)
-        else
-            xx = zeros(Float64, getnumvar(m.task))
-            xx[cols] = vals
-            putxx(m.task,sol,xx)
-        end
-    end
+                 vis::Vector{MOI.VariableIndex}, values::Vector{Float64})
+    set_primal_start(m, vis, values)
 end
 
 # function MOI.set(m::MosekModel,attr::MOI.ConstraintDualStart, vs::Vector{MOI.ConstraintIndex}, vals::Vector{Float64})
@@ -167,22 +202,22 @@ end
 
 #### Variable solution values
 
+function MOI.get(m::MosekModel, attr::MOI.VariablePrimal, vi::MOI.VariableIndex)
+    return variable_primal(m, attr.N, vi)
+end
 function MOI.get!(output::Vector{Float64}, m::MosekModel,
                   attr::MOI.VariablePrimal, vs::Vector{MOI.VariableIndex})
-    output[1:length(output)] = m.solutions[attr.N].xx[columns(m, vs)]
+    @assert eachindex(output) == eachindex(vs)
+    for i in eachindex(output)
+        output[i] = MOI.get(m, attr, vs[i])
+    end
 end
-
 function MOI.get(m::MosekModel, attr::MOI.VariablePrimal,
                  vs::Vector{MOI.VariableIndex})
     output = Vector{Float64}(undef, length(vs))
     MOI.get!(output, m, attr, vs)
     return output
 end
-
-function MOI.get(m::MosekModel, attr::MOI.VariablePrimal, vi::MOI.VariableIndex)
-    return m.solutions[attr.N].xx[column(m, vi)]
-end
-
 
 #### Constraint solution values
 
@@ -203,15 +238,11 @@ function MOI.get!(
     output::Vector{Float64},
     m     ::MosekModel,
     attr  ::MOI.ConstraintPrimal,
-    ci  ::MOI.ConstraintIndex{MOI.VectorOfVariables,MOI.PositiveSemidefiniteConeTriangle})
-
+    ci  ::MOI.ConstraintIndex{MOI.VectorOfVariables,
+                              MOI.PositiveSemidefiniteConeTriangle})
     whichsol = getsolcode(m,attr.N)
-    cid = ref2id(ci)
-    @assert(cid < 0)
-
-    # It is in fact a real constraint and cid is the id of an ordinary constraint
-    barvaridx = - m.c_block_slack[-cid]
-    output[1:length(output)] = reorder(getbarxj(m.task,whichsol,barvaridx), PositiveSemidefiniteCone)
+    output[1:length(output)] = reorder(getbarxj(m.task, whichsol, ci.value),
+                                       MOI.PositiveSemidefiniteConeTriangle)
 end
 
 # Any other domain for variable vector
@@ -239,8 +270,6 @@ function MOI.get(m     ::MosekModel,
     m.solutions[attr.N].xc[subi] + m.c_constant[subi]
 end
 
-
-
 function MOI.get!(
     output::Vector{Float64},
     m     ::MosekModel,
@@ -250,26 +279,9 @@ function MOI.get!(
     cid = ref2id(ci)
     subi = getindexes(m.c_block, cid)
 
-    if     m.c_block_slack[cid] == 0 # no slack
-        output[1:length(output)] = m.solutions[attr.N].xc[subi] + m.c_constant[subi]
-    else # psd slack
-        @assert m.c_block_slack[cid] < 0
-        xid = - m.c_block_slack[cid]
-        output[1:length(output)] = reorder(getbarxj(m.task,m.solutions[attr.N].whichsol,Int32(xid)), PositiveSemidefiniteCone)
-    end
+    @assert m.c_block_slack[cid] == 0
+    output[1:length(output)] = m.solutions[attr.N].xc[subi] + m.c_constant[subi]
 end
-
-
-
-
-
-
-
-
-
-
-
-
 
 function MOI.get(m::MosekModel, attr::MOI.ConstraintDual,
                  ci::MOI.ConstraintIndex{MOI.SingleVariable})
@@ -337,19 +349,15 @@ function MOI.get!(
     output::Vector{Float64},
     m     ::MosekModel,
     attr  ::MOI.ConstraintDual,
-    ci  ::MOI.ConstraintIndex{MOI.VectorOfVariables,MOI.PositiveSemidefiniteConeTriangle})
-
+    ci  ::MOI.ConstraintIndex{MOI.VectorOfVariables, MOI.PositiveSemidefiniteConeTriangle})
     whichsol = getsolcode(m,attr.N)
-    cid = ref2id(ci)
-    @assert(cid < 0)
-
     # It is in fact a real constraint and cid is the id of an ordinary constraint
-    barvaridx = - m.c_block_slack[-cid]
-    dual = reorder(getbarsj(m.task,whichsol,barvaridx), MOI.PositiveSemidefiniteConeTriangle)
+    dual = reorder(getbarsj(m.task, whichsol, ci.value),
+                   MOI.PositiveSemidefiniteConeTriangle)
     if (getobjsense(m.task) == MSK_OBJECTIVE_SENSE_MINIMIZE)
-        output[1:length(output)] = dual
+        output[1:length(output)] .= dual
     else
-        output[1:length(output)] = -dual
+        output[1:length(output)] .= -dual
     end
 end
 
@@ -421,23 +429,11 @@ function MOI.get!(
     subi = getindexes(m.c_block, cid)
 
     if getobjsense(m.task) == MSK_OBJECTIVE_SENSE_MINIMIZE
-        if     m.c_block_slack[cid] == 0 # no slack
-            output[1:length(output)] = m.solutions[attr.N].y[subi]
-        else # psd slack
-            @assert m.c_block_slack[cid] < 0
-            whichsol = getsolcode(m,attr.N)
-            xid = - m.c_block_slack[cid]
-            output[1:length(output)] = reorder(getbarsj(m.task,whichsol,Int32(xid)), PositiveSemidefiniteCone)
-        end
+        @assert m.c_block_slack[cid] == 0 # no slack
+        output[1:length(output)] = m.solutions[attr.N].y[subi]
     else
-        if     m.c_block_slack[cid] == 0 # no slack
-            output[1:length(output)] = - m.solutions[attr.N].y[subi]
-        else # psd slack
-            @assert m.c_block_slack[cid] < 0
-            whichsol = getsolcode(m,attr.N)
-            xid = - m.c_block_slack[cid]
-            output[1:length(output)] = reorder(-getbarsj(m.task,whichsol,Int32(xid)), PositiveSemidefiniteCone)
-        end
+        @assert m.c_block_slack[cid] == 0 # no slack
+        output[1:length(output)] = - m.solutions[attr.N].y[subi]
     end
 end
 
@@ -462,6 +458,12 @@ function solsize(m::MosekModel, ci::MOI.ConstraintIndex{MOI.VectorOfVariables})
     else
         blocksize(m.xc_block,cid)
     end
+end
+function solsize(m::MosekModel,
+                 ci::MOI.ConstraintIndex{MOI.VectorOfVariables,
+                                         MOI.PositiveSemidefiniteConeTriangle})
+    d = m.sd_dim[ci.value]
+    return MOI.dimension(MOI.PositiveSemidefiniteConeTriangle(d))
 end
 
 function solsize(m::MosekModel,

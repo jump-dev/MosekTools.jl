@@ -73,14 +73,13 @@ struct ConstraintMap
     axbs_nonnegatives    :: Dict{Int64,Int} # (VectorAffineFunction,Nonnegatives) -> constraint number
     axbs_zeros           :: Dict{Int64,Int} # (VectorAffineFunction,Zeros) -> constraint number
     axbs_reals           :: Dict{Int64,Int} # (VectorAffineFunction,Reals) -> constraint number
-    axbs_psdconetriangle :: Dict{Int64,Int} # (VectorAffineFunction,PositiveSemidefiniteConeTriangle) -> constraint number
     axbs_ppowcone        :: Dict{Int64,Int} # (VectorOfVariables,RotatedSecondOrderCone) -> constraint number
     axbs_dpowcone        :: Dict{Int64,Int} # (VectorOfVariables,RotatedSecondOrderCone) -> constraint number
     axbs_pexpcone        :: Dict{Int64,Int} # (VectorOfVariables,RotatedSecondOrderCone) -> constraint number
     axbs_dexpcone        :: Dict{Int64,Int} # (VectorOfVariables,RotatedSecondOrderCone) -> constraint number
 end
 
-ConstraintMap() = ConstraintMap([Dict{Int64,Int}() for i in 1:36]...)
+ConstraintMap() = ConstraintMap([Dict{Int64,Int}() for i in 1:35]...)
 select(cm::ConstraintMap,::Type{MOI.SingleVariable},               ::Type{MOI.LessThan{Float64}}) =                cm.x_lessthan
 select(cm::ConstraintMap,::Type{MOI.SingleVariable},               ::Type{MOI.GreaterThan{Float64}}) =             cm.x_greaterthan
 select(cm::ConstraintMap,::Type{MOI.SingleVariable},               ::Type{MOI.EqualTo{Float64}}) =                 cm.x_equalto
@@ -112,7 +111,6 @@ select(cm::ConstraintMap,::Type{MOI.VectorAffineFunction{Float64}},::Type{MOI.No
 select(cm::ConstraintMap,::Type{MOI.VectorAffineFunction{Float64}},::Type{MOI.Nonnegatives}) =                     cm.axbs_nonnegatives
 select(cm::ConstraintMap,::Type{MOI.VectorAffineFunction{Float64}},::Type{MOI.Zeros}) =                            cm.axbs_zeros
 select(cm::ConstraintMap,::Type{MOI.VectorAffineFunction{Float64}},::Type{MOI.Reals}) =                            cm.axbs_reals
-select(cm::ConstraintMap,::Type{MOI.VectorAffineFunction{Float64}},::Type{MOI.PositiveSemidefiniteConeTriangle}) = cm.axbs_psdconetriangle
 
 Base.getindex(cm::ConstraintMap,r :: MOI.ConstraintIndex{F,D}) where {F,D} = select(cm,F,D)[r.value]
 
@@ -124,6 +122,7 @@ struct MosekSolution
 
     xxstatus :: Vector{Stakey}
     xx       :: Vector{Float64}
+    barxj    :: Vector{Vector{Float64}}
     slx      :: Vector{Float64}
     sux      :: Vector{Float64}
     snx      :: Vector{Float64}
@@ -133,6 +132,26 @@ struct MosekSolution
     slc      :: Vector{Float64}
     suc      :: Vector{Float64}
     y        :: Vector{Float64}
+end
+
+@enum VariableType Undecided Deleted ScalarVariable MatrixVariable
+
+struct ColumnIndex
+    value::Int32
+end
+
+struct ColumnIndices
+    values::Vector{Int32}
+end
+
+struct MatrixIndex
+    matrix::Int32
+    row::Int32
+    column::Int32
+    function MatrixIndex(matrix::Integer, row::Integer, column::Integer)
+        @assert column ≤ row
+        new(matrix, row, column)
+    end
 end
 
 """
@@ -176,6 +195,8 @@ mutable struct MosekModel  <: MOI.AbstractOptimizer
     # and `VectorOfVariables`.
     con_to_name :: Dict{MOI.ConstraintIndex, String}
 
+    x_type::Vector{VariableType}
+
     """
         The total length of `x_block` matches the number of variables in
     the underlying task, and the number of blocks corresponds to the
@@ -196,6 +217,15 @@ mutable struct MosekModel  <: MOI.AbstractOptimizer
     (to get around the problem of deleting roots in conic constraints).
     """
     x_numxc :: Vector{Int}
+
+    """
+    One entry per scalar variable in the task indicating in which semidefinite
+    block it is and at which index.
+    MOI index -> MatrixIndex
+    """
+    x_sd::Vector{MatrixIndex}
+
+    sd_dim::Vector{Int}
 
     """
     One entry per variable-constraint
@@ -328,11 +358,14 @@ function Mosek.Optimizer(; kws...)
                       spars,
                       0, # public numvar
                       ConstraintMap(), # public constraints
-                      Dict{String, MOI.ConstraintIndex}(), # constrnames
+                      Dict{String, Vector{MOI.ConstraintIndex}}(), # constrnames
                       Dict{MOI.ConstraintIndex, String}(), # con_to_name
-                      LinkedInts(),# c_block
+                      VariableType[], # x_type
+                      LinkedInts(),# x_block
                       Int[], # x_boundflags
                       Int[], # x_numxc
+                      MatrixIndex[], # x_sd
+                      Int[], # sd_dim
                       LinkedInts(), # xc_block
                       UInt8[], # xc_bounds
                       Int[], # xc_coneid
@@ -348,23 +381,27 @@ function Mosek.Optimizer(; kws...)
                       fallback) # feasibility_sense
 end
 
-
+function matrix_solution(m::MosekModel, sol)
+    return Vector{Float64}[getbarxj(m.task, sol, j) for j in 1:length(m.sd_dim)]
+end
 
 function MOI.optimize!(m::MosekModel)
+    writedata(m.task, "data.cbf")
     m.trm = if m.fallback == nothing; optimize(m.task) else optimize(m.task,m.fallback) end
     m.solutions = MosekSolution[]
     if solutiondef(m.task,MSK_SOL_ITG)
         push!(m.solutions,
               MosekSolution(MSK_SOL_ITG,
-                            getsolsta(m.task,MSK_SOL_ITG),
-                            getprosta(m.task,MSK_SOL_ITG),
-                            getskx(m.task,MSK_SOL_ITG),
-                            getxx(m.task,MSK_SOL_ITG),
+                            getsolsta(m.task, MSK_SOL_ITG),
+                            getprosta(m.task, MSK_SOL_ITG),
+                            getskx(m.task, MSK_SOL_ITG),
+                            getxx(m.task, MSK_SOL_ITG),
+                            matrix_solution(m, MSK_SOL_ITG),
                             Float64[],
                             Float64[],
                             Float64[],
-                            getskc(m.task,MSK_SOL_ITG),
-                            getxc(m.task,MSK_SOL_ITG),
+                            getskc(m.task, MSK_SOL_ITG),
+                            getxc(m.task, MSK_SOL_ITG),
                             Float64[],
                             Float64[],
                             Float64[]))
@@ -376,6 +413,7 @@ function MOI.optimize!(m::MosekModel)
                             getprosta(m.task,MSK_SOL_BAS),
                             getskx(m.task,MSK_SOL_BAS),
                             getxx(m.task,MSK_SOL_BAS),
+                            matrix_solution(m, MSK_SOL_BAS),
                             getslx(m.task,MSK_SOL_BAS),
                             getsux(m.task,MSK_SOL_BAS),
                             Float64[],
@@ -392,6 +430,7 @@ function MOI.optimize!(m::MosekModel)
                             getprosta(m.task,MSK_SOL_ITR),
                             getskx(m.task,MSK_SOL_ITR),
                             getxx(m.task,MSK_SOL_ITR),
+                            matrix_solution(m, MSK_SOL_ITR),
                             getslx(m.task,MSK_SOL_ITR),
                             getsux(m.task,MSK_SOL_ITR),
                             getsnx(m.task,MSK_SOL_ITR),
@@ -434,9 +473,12 @@ function MOI.empty!(model::MosekModel)
     model.constrmap     = ConstraintMap()
     model.constrnames   = Dict{String, Vector{MOI.ConstraintIndex}}()
     model.con_to_name   = Dict{MOI.ConstraintIndex, String}()
+    model.x_type        = VariableType[]
     model.x_block       = LinkedInts()
     model.x_boundflags  = Int[]
     model.x_numxc       = Int[]
+    model.x_sd          = MatrixIndex[]
+    model.sd_dim        = Int[]
     model.xc_block      = LinkedInts()
     model.xc_bounds     = UInt8[]
     model.xc_coneid     = Int[]

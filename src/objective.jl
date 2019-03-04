@@ -5,7 +5,7 @@ end
 function MOI.get(m::MosekModel,
                  ::MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}})
     refs = MOI.get(m, MOI.ListOfVariableIndices())
-    cols = columns(m, refs)
+    cols = columns(m, refs).values
     coeffs = getclist(m.task, cols)
     constant = getcfix(m.task)
     @assert length(coeffs) == length(refs)
@@ -21,24 +21,19 @@ MOI.supports(::MosekModel,::MOI.ObjectiveSense) = true
 
 function MOI.set(m::MosekModel, ::MOI.ObjectiveFunction,
                  func::MOI.SingleVariable)
-    numvar = getnumvar(m.task)
-    c = zeros(Float64, numvar)
-    col = column(m, func.variable)
-    c[col] = 1.0
-    putclist(m.task, convert(Vector{Int32}, 1:numvar), c)
-    putcfix(m.task, 0.0)
+    MOI.set(m, MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
+            convert(MOI.ScalarAffineFunction{Float64}, func))
 end
 
 function MOI.set(m::MosekModel, ::MOI.ObjectiveFunction,
                  func::MOI.ScalarAffineFunction{Float64})
-    numvar = getnumvar(m.task)
-    c = zeros(Float64, numvar)
-    cols = columns(m, map(t -> t.variable_index, func.terms))
-    for i in 1:length(cols)
-        c[cols[i]] += func.terms[i].coefficient
+    cols, values = split_scalar_matrix(m, MOIU.canonical(func).terms,
+                                       (j, ids, coefs) -> putbarcj(m.task, j, ids, coefs))
+    c = zeros(Float64, getnumvar(m.task))
+    for (col, val) in zip(cols, values)
+        c[col] += val
     end
-
-    putclist(m.task, convert(Vector{Int32}, 1:numvar), c)
+    putclist(m.task, convert(Vector{Int32}, 1:length(c)), c)
     putcfix(m.task,func.constant)
 end
 
@@ -51,5 +46,5 @@ end
 function MOI.modify(m::MosekModel,
                     ::MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}},
                     change :: MOI.ScalarCoefficientChange)
-    putcj(m.task, column(m, change.variable), change.new_coefficient)
+    putcj(m.task, column(m, change.variable).values, change.new_coefficient)
 end
