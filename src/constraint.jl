@@ -490,6 +490,9 @@ function MOI.add_constraint(m  ::MosekModel,
     sd_row  = Dict{Int, Vector{Int32}}()
     sd_col  = Dict{Int, Vector{Int32}}()
     sd_coef = Dict{Int, Vector{Float64}}()
+    obj_row = Int32[]
+    obj_col = Int32[]
+    obj_coef = Float64[]
     k = 0
     for i in 1:N
         for j in 1:i
@@ -514,7 +517,12 @@ function MOI.add_constraint(m  ::MosekModel,
                     push!(sd_col[rows[ii]], j)
                     push!(sd_coef[rows[ii]], i == j ? vals[ii] : vals[ii] / 2)
                 end
-                # TODO objective
+                cj = getcj(m.task, column(m, vi).value)
+                if !iszero(cj)
+                    push!(obj_row, i)
+                    push!(obj_col, j)
+                    push!(obj_coef, i == j ? cj : cj / 2)
+                end
                 MOI.delete(m, vi)
             end
             m.x_type[vi.value] = MatrixVariable
@@ -524,6 +532,10 @@ function MOI.add_constraint(m  ::MosekModel,
         sid = appendsparsesymmat(m.task, N, sd_row[row], sd_col[row],
                                 sd_coef[row])
         putbaraij(m.task, row, id, [sid], [1.0])
+    end
+    if !isempty(obj_row)
+        sid = appendsparsesymmat(m.task, N, obj_row, obj_col, obj_coef)
+        putbarcj(m.task, id, [sid], [1.0])
     end
     @assert k == length(xs.variables)
 
