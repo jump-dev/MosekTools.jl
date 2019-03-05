@@ -43,15 +43,9 @@ struct ConstraintMap
     x_greaterthan        :: Dict{Int64,Int} # (SingleVariable,GreaterThan) -> constraint number
     x_equalto            :: Dict{Int64,Int} # (SingleVariable,EqualTo) -> constraint number
     x_interval           :: Dict{Int64,Int} # (SingleVariable,Interval) -> constraint number
-    x_nonpositives       :: Dict{Int64,Int} # (SingleVariable,Nonpositives) -> constraint number
-    x_nonnegatives       :: Dict{Int64,Int} # (SingleVariable,Nonnegatives) -> constraint number
     x_binary             :: Dict{Int64,Int} # (SingleVariable,ZeroOne) -> constraint number
     x_integer            :: Dict{Int64,Int} # (SingleVariable,Integer) -> constraint number
 
-    xs_nonpositives      :: Dict{Int64,Int} # (VectorOfVariables,Nonpositives) -> constraint number
-    xs_nonnegatives      :: Dict{Int64,Int} # (VectorOfVariables,Nonnegatives) -> constraint number
-    xs_zeros             :: Dict{Int64,Int} # (VectorOfVariables,Zeros) -> constraint number
-    xs_reals             :: Dict{Int64,Int} # (VectorOfVariables,Reals) -> constraint number
     xs_qcone             :: Dict{Int64,Int} # (VectorOfVariables,SecondOrderCone) -> constraint number
     xs_rqcone            :: Dict{Int64,Int} # (VectorOfVariables,RotatedSecondOrderCone) -> constraint number
     xs_psdconetriangle   :: Dict{Int64,Int} # (VectorOfVariables,PositiveSemidefiniteConeTriangle) -> constraint number
@@ -64,34 +58,22 @@ struct ConstraintMap
     axb_greaterthan      :: Dict{Int64,Int} # (ScalarAffineFunction,GreaterThan) -> constraint number
     axb_equalto          :: Dict{Int64,Int} # (ScalarAffineFunction,EqualTo) -> constraint number
     axb_interval         :: Dict{Int64,Int} # (ScalarAffineFunction,Interval) -> constraint number
-    axb_nonpositives     :: Dict{Int64,Int} # (ScalarAffineFunction,Nonpositives) -> constraint number
-    axb_nonnegatives     :: Dict{Int64,Int} # (ScalarAffineFunction,Nonnegatives) -> constraint number
     axb_binary           :: Dict{Int64,Int} # (ScalarAffineFunction,ZeroOne) -> constraint number
     axb_integer          :: Dict{Int64,Int} # (ScalarAffineFunction,Integer) -> constraint number
 
-    axbs_nonpositives    :: Dict{Int64,Int} # (VectorAffineFunction,Nonpositives) -> constraint number
-    axbs_nonnegatives    :: Dict{Int64,Int} # (VectorAffineFunction,Nonnegatives) -> constraint number
-    axbs_zeros           :: Dict{Int64,Int} # (VectorAffineFunction,Zeros) -> constraint number
-    axbs_reals           :: Dict{Int64,Int} # (VectorAffineFunction,Reals) -> constraint number
     axbs_ppowcone        :: Dict{Int64,Int} # (VectorOfVariables,RotatedSecondOrderCone) -> constraint number
     axbs_dpowcone        :: Dict{Int64,Int} # (VectorOfVariables,RotatedSecondOrderCone) -> constraint number
     axbs_pexpcone        :: Dict{Int64,Int} # (VectorOfVariables,RotatedSecondOrderCone) -> constraint number
     axbs_dexpcone        :: Dict{Int64,Int} # (VectorOfVariables,RotatedSecondOrderCone) -> constraint number
 end
 
-ConstraintMap() = ConstraintMap([Dict{Int64,Int}() for i in 1:35]...)
+ConstraintMap() = ConstraintMap([Dict{Int64,Int}() for i in 1:23]...)
 select(cm::ConstraintMap,::Type{MOI.SingleVariable},               ::Type{MOI.LessThan{Float64}}) =                cm.x_lessthan
 select(cm::ConstraintMap,::Type{MOI.SingleVariable},               ::Type{MOI.GreaterThan{Float64}}) =             cm.x_greaterthan
 select(cm::ConstraintMap,::Type{MOI.SingleVariable},               ::Type{MOI.EqualTo{Float64}}) =                 cm.x_equalto
 select(cm::ConstraintMap,::Type{MOI.SingleVariable},               ::Type{MOI.Interval{Float64}}) =                cm.x_interval
-select(cm::ConstraintMap,::Type{MOI.SingleVariable},               ::Type{MOI.Nonpositives}) =                     cm.x_nonpositives
-select(cm::ConstraintMap,::Type{MOI.SingleVariable},               ::Type{MOI.Nonnegatives}) =                     cm.x_nonnegatives
 select(cm::ConstraintMap,::Type{MOI.SingleVariable},               ::Type{MOI.ZeroOne}) =                          cm.x_binary
 select(cm::ConstraintMap,::Type{MOI.SingleVariable},               ::Type{MOI.Integer}) =                          cm.x_integer
-select(cm::ConstraintMap,::Type{MOI.VectorOfVariables},            ::Type{MOI.Nonpositives}) =                     cm.xs_nonpositives
-select(cm::ConstraintMap,::Type{MOI.VectorOfVariables},            ::Type{MOI.Nonnegatives}) =                     cm.xs_nonnegatives
-select(cm::ConstraintMap,::Type{MOI.VectorOfVariables},            ::Type{MOI.Zeros}) =                            cm.xs_zeros
-select(cm::ConstraintMap,::Type{MOI.VectorOfVariables},            ::Type{MOI.Reals}) =                            cm.xs_reals
 select(cm::ConstraintMap,::Type{MOI.VectorOfVariables},            ::Type{MOI.SecondOrderCone}) =                  cm.xs_qcone
 select(cm::ConstraintMap,::Type{MOI.VectorOfVariables},            ::Type{MOI.RotatedSecondOrderCone}) =           cm.xs_rqcone
 select(cm::ConstraintMap,::Type{MOI.VectorOfVariables},            ::Type{MOI.PositiveSemidefiniteConeTriangle}) = cm.xs_psdconetriangle
@@ -105,12 +87,6 @@ select(cm::ConstraintMap,::Type{MOI.ScalarAffineFunction{Float64}},::Type{MOI.Eq
 select(cm::ConstraintMap,::Type{MOI.ScalarAffineFunction{Float64}},::Type{MOI.Interval{Float64}}) =                cm.axb_interval
 select(cm::ConstraintMap,::Type{MOI.ScalarAffineFunction{Float64}},::Type{MOI.ZeroOne}) =                          cm.axb_binary
 select(cm::ConstraintMap,::Type{MOI.ScalarAffineFunction{Float64}},::Type{MOI.Integer}) =                          cm.axb_integer
-select(cm::ConstraintMap,::Type{MOI.ScalarAffineFunction{Float64}},::Type{MOI.Nonpositives}) =                     cm.axb_nonpositives
-select(cm::ConstraintMap,::Type{MOI.ScalarAffineFunction{Float64}},::Type{MOI.Nonnegatives}) =                     cm.axb_nonnegatives
-select(cm::ConstraintMap,::Type{MOI.VectorAffineFunction{Float64}},::Type{MOI.Nonpositives}) =                     cm.axbs_nonpositives
-select(cm::ConstraintMap,::Type{MOI.VectorAffineFunction{Float64}},::Type{MOI.Nonnegatives}) =                     cm.axbs_nonnegatives
-select(cm::ConstraintMap,::Type{MOI.VectorAffineFunction{Float64}},::Type{MOI.Zeros}) =                            cm.axbs_zeros
-select(cm::ConstraintMap,::Type{MOI.VectorAffineFunction{Float64}},::Type{MOI.Reals}) =                            cm.axbs_reals
 
 Base.getindex(cm::ConstraintMap,r :: MOI.ConstraintIndex{F,D}) where {F,D} = select(cm,F,D)[r.value]
 
@@ -190,9 +166,8 @@ mutable struct MosekModel  <: MOI.AbstractOptimizer
     """
     """
     constrnames :: Dict{String, Vector{MOI.ConstraintIndex}}
-    # Mosek only support names for `MOI.VectorAffineFunction` and
-    # `MOI.ScalarAffineFunction` so we need a fallback for `SingleVariable`
-    # and `VectorOfVariables`.
+    # Mosek only support names for `MOI.ScalarAffineFunction` so we need a
+    # fallback for `SingleVariable` and `VectorOfVariables`.
     con_to_name :: Dict{MOI.ConstraintIndex, String}
 
     x_type::Vector{VariableType}
@@ -513,13 +488,8 @@ end
 #    for (fun,dom) in constraint_types
 #        if  fun in [MOI.ScalarAffineFunction{Float64},
 #                    MOI.SingleVariable,
-#                    MOI.VectorAffineFunction{Float64},
 #                    MOI.VectorOfVariables] &&
-#            dom in [MOI.Zeros,
-#                    MOI.Reals,
-#                    MOI.Nonnegatives,
-#                    MOI.Nonpositives,
-#                    MOI.GreaterThan{Float64},
+#            dom in [MOI.GreaterThan{Float64},
 #                    MOI.LessThan{Float64},
 #                    MOI.EqualTo{Float64},
 #                    MOI.Interval{Float64},
