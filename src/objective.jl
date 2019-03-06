@@ -4,13 +4,14 @@ function MOI.get(m::MosekModel, ::MOI.ObjectiveFunction{F}) where F
 end
 function MOI.get(m::MosekModel,
                  ::MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}})
-    refs = MOI.get(m, MOI.ListOfVariableIndices())
-    cols = columns(m, refs).values
+    cis = MOI.get(m, MOI.ListOfVariableIndices())
+    cols = columns(m, cis).values
     coeffs = getclist(m.task, cols)
     constant = getcfix(m.task)
-    @assert length(coeffs) == length(refs)
+    @assert length(coeffs) == length(cis)
     terms = MOI.ScalarAffineTerm{Float64}[
-        MOI.ScalarAffineTerm(coeffs[i], refs[i]) for i in 1:length(refs)]
+        MOI.ScalarAffineTerm(coeffs[i], cis[i]) for i in 1:length(cis)]
+    # TODO add matrix terms
     return MOI.ScalarAffineFunction(terms, constant)
 end
 

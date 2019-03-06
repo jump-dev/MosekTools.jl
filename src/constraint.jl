@@ -453,6 +453,20 @@ function MOI.add_constraint(m  ::MosekModel,
     return conref
 end
 
+## Get ########################################################################
+###############################################################################
+
+function MOI.get(m::MosekModel, ::MOI.ConstraintFunction,
+                 ci::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},
+                                         <:ScalarLinearDomain})
+    nnz, cols, vals = getarow(m.task, row(m, ci))
+    @assert nnz == length(cols) == length(vals)
+    terms = MOI.ScalarAffineTerm{Float64}[
+        MOI.ScalarAffineTerm(vals[i], index_of_column(m, cols[i])) for i in 1:nnz]
+    # TODO add matrix terms
+    return MOI.ScalarAffineFunction(terms, 0.0)
+end
+
 ## Modify #####################################################################
 ###############################################################################
 
@@ -515,7 +529,7 @@ function MOI.transform(m::MosekModel,
                        newdom::D) where {F <: MOI.AbstractFunction,
                                          D <: MOI.AbstractSet}
     MOI.modify(m,cref,newdom)
-    cref
+    return cref
 end
 
 function MOI.transform(m::MosekModel,
@@ -529,10 +543,10 @@ function MOI.transform(m::MosekModel,
     r = row(m, cref)
     add_bound(m, r, m.c_constant[r], newdom)
 
-    newcref = MOI.ConstraintIndex{F,D2}(UInt64(cid) << 1)
-    delete!(select(m.constrmap,F,D1), cref.value)
+    newcref = MOI.ConstraintIndex{F, D2}(UInt64(cid) << 1)
+    delete!(select(m.constrmap, F, D1), cref.value)
     select(m.constrmap, F, D2)[newcref.value] = cid
-    newcref
+    return newcref
 end
 
 ## Delete #####################################################################

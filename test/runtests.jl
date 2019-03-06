@@ -54,7 +54,7 @@ end
     # linear1 is failing for two reasons
     # * it does not remove constraints using a variable if this variable is deleted, see https://github.com/JuliaOpt/MathOptInterface.jl/issues/511
     # * it does not support duplicated terms, see https://github.com/JuliaOpt/MosekTools.jl/issues/41
-    MOIT.contlineartest(optimizer, config, ["linear1"])
+    MOIT.contlineartest(bridged, config, ["linear1"])
 end
 
 # include("contquadratic.jl")
