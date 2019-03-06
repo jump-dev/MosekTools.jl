@@ -260,7 +260,7 @@ function MOI.get(m     ::MosekModel,
                  ci  ::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D}) where D
     cid = ref2id(ci)
     subi = getindex(m.c_block,cid)
-    m.solutions[attr.N].xc[subi] + m.c_constant[subi]
+    return m.solutions[attr.N].xc[subi]
 end
 
 function MOI.get(m::MosekModel, attr::MOI.ConstraintDual,

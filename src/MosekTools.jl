@@ -163,8 +163,7 @@ mutable struct MosekModel  <: MOI.AbstractOptimizer
     """
     constrmap :: ConstraintMap
 
-    """
-    """
+    has_variable_names::Bool
     constrnames :: Dict{String, Vector{MOI.ConstraintIndex}}
     # Mosek only support names for `MOI.ScalarAffineFunction` so we need a
     # fallback for `SingleVariable` and `VectorOfVariables`.
@@ -229,12 +228,6 @@ mutable struct MosekModel  <: MOI.AbstractOptimizer
     per constraint allocated in the Model.
     """
     c_block :: LinkedInts
-
-    """
-    One entry per allocated scalar constraint. Defines the fixed term
-    on the left-hand for each scalar constraint.
-    """
-    c_constant :: Vector{Float64}
 
     """
     One entry per allocated scalar constraint.
@@ -333,6 +326,7 @@ function Mosek.Optimizer(; kws...)
                       spars,
                       0, # public numvar
                       ConstraintMap(), # public constraints
+                      false, # has_variable_names
                       Dict{String, Vector{MOI.ConstraintIndex}}(), # constrnames
                       Dict{MOI.ConstraintIndex, String}(), # con_to_name
                       VariableType[], # x_type
@@ -346,7 +340,6 @@ function Mosek.Optimizer(; kws...)
                       Int[], # xc_coneid
                       Int[], # xc_idxs
                       LinkedInts(), # c_block
-                      Float64[], # c_constant
                       Int[], # c_block_slack
                       Int[], # c_coneid
                       0, # cone counter
@@ -443,28 +436,28 @@ end
 function MOI.empty!(model::MosekModel)
     model.task          = parametrized_task(model.be_quiet, model.ipars,
                                             model.dpars,    model.spars)
-    model.publicnumvar  = 0
-    model.constrmap     = ConstraintMap()
-    model.constrnames   = Dict{String, Vector{MOI.ConstraintIndex}}()
-    model.con_to_name   = Dict{MOI.ConstraintIndex, String}()
-    model.x_type        = VariableType[]
-    model.x_block       = LinkedInts()
-    model.x_boundflags  = Int[]
-    model.x_numxc       = Int[]
-    model.x_sd          = MatrixIndex[]
-    model.sd_dim        = Int[]
-    model.xc_block      = LinkedInts()
-    model.xc_bounds     = UInt8[]
-    model.xc_coneid     = Int[]
-    model.xc_idxs       = Int[]
-    model.c_block       = LinkedInts()
-    model.c_constant    = Float64[]
-    model.c_block_slack = Int[]
-    model.c_coneid      = Int[]
-    model.conecounter   = 0
-    model.trm           = nothing
-    model.solutions     = MosekSolution[]
-    model.feasibility   = true
+    model.publicnumvar       = 0
+    model.constrmap          = ConstraintMap()
+    model.has_variable_names = false
+    model.constrnames        = Dict{String, Vector{MOI.ConstraintIndex}}()
+    model.con_to_name        = Dict{MOI.ConstraintIndex, String}()
+    model.x_type             = VariableType[]
+    model.x_block            = LinkedInts()
+    model.x_boundflags       = Int[]
+    model.x_numxc            = Int[]
+    model.x_sd               = MatrixIndex[]
+    model.sd_dim             = Int[]
+    model.xc_block           = LinkedInts()
+    model.xc_bounds          = UInt8[]
+    model.xc_coneid          = Int[]
+    model.xc_idxs            = Int[]
+    model.c_block            = LinkedInts()
+    model.c_block_slack      = Int[]
+    model.c_coneid           = Int[]
+    model.conecounter        = 0
+    model.trm                = nothing
+    model.solutions          = MosekSolution[]
+    model.feasibility        = true
 end
 
 MOI.get(::MosekModel, ::MOI.SolverName) = "Mosek"
@@ -510,19 +503,8 @@ end
 #    true
 #end
 
-
-#MOI.supportsproblem(m::MosekSolver, ::Type{MOI.SingleVariable},                constraint_types) :: Bool = supportsconstraints(m,constraint_types)
-#MOI.supportsproblem(m::MosekSolver, ::Type{MOI.ScalarAffineFunction{Float64}}, constraint_types) :: Bool = supportsconstraints(m,constraint_types)
-#MOI.supportsproblem{F}(m::MosekSolver, ::Type{F}, constraint_types) :: Bool = false
-
-ref2id(ref :: MOI.VariableIndex) :: Int = Int(ref.value)
-
-ref2id(ref :: MOI.ConstraintIndex) :: Int =
-    if ref.value & 1 == 0
-        Int(ref.value >> 1)
-    else
-        - Int(ref.value >> 1)
-    end
+ref2id(vi::MOI.VariableIndex)::Int = vi.value
+ref2id(ci::MOI.ConstraintIndex)::Int = ci.value
 
 include("objective.jl")
 include("variable.jl")

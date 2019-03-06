@@ -254,10 +254,18 @@ end
 
 ## List #######################################################################
 ###############################################################################
-MOI.get(m::MosekModel, attr::MOI.NumberOfVariables) = m.publicnumvar
-function MOI.get(m::MosekModel, attr::MOI.ListOfVariableIndices)
+MOI.get(m::MosekModel, ::MOI.NumberOfVariables) = m.publicnumvar
+function MOI.get(m::MosekModel, ::MOI.ListOfVariableIndices)
     ids = allocatedlist(m.x_block)
     return MOI.VariableIndex[MOI.VariableIndex(vid) for vid in ids]
+end
+function MOI.get(m::MosekModel, ::MOI.ListOfVariableAttributesSet)
+    set = MOI.AbstractVariableAttribute[]
+    if m.has_variable_names
+        push!(set, MOI.VariableName())
+    end
+    # TODO add VariablePrimalStart when get is implemented on it
+    return set
 end
 
 ## Name #######################################################################
@@ -265,6 +273,7 @@ end
 MOI.supports(::MosekModel, ::MOI.VariableName, ::Type{MOI.VariableIndex}) = true
 function MOI.set(m::MosekModel, ::MOI.VariableName, vi::MOI.VariableIndex,
                  name::String)
+    m.has_variable_names = true
     set_column_name(m, vi, name)
 end
 function MOI.get(m::MosekModel, ::MOI.VariableName, vi::MOI.VariableIndex)

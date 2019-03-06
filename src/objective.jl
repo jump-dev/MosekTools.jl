@@ -1,3 +1,6 @@
+function MOI.get(::MosekModel, ::MOI.ObjectiveFunctionType)
+    return MOI.ScalarAffineFunction{Float64}
+end
 function MOI.get(m::MosekModel, ::MOI.ObjectiveFunction{F}) where F
     obj = MOI.get(m, MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}())
     return convert(F, obj)
@@ -47,5 +50,5 @@ end
 function MOI.modify(m::MosekModel,
                     ::MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}},
                     change :: MOI.ScalarCoefficientChange)
-    putcj(m.task, column(m, change.variable).values, change.new_coefficient)
+    putcj(m.task, column(m, change.variable).value, change.new_coefficient)
 end
