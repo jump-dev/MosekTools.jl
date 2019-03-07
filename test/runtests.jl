@@ -16,8 +16,7 @@ const MOIU = MOI.Utilities
 const MOIB = MOI.Bridges
 
 const optimizer = Mosek.Optimizer(QUIET = true, fallback = "mosek://solve.mosek.com:30080")
-# 1e-3 needed for rotatedsoc3 test
-const config = MOIT.TestConfig(atol=1e-3, rtol=1e-3, query=false)
+config = MOIT.TestConfig(atol=1e-3, rtol=1e-3)
 
 const bridged = MOIB.full_bridge_optimizer(optimizer, Float64)
 
@@ -31,9 +30,8 @@ end
 end
 
 @testset "Copy" begin
-    # Currently does not work because get is missing for ConstraintSet
-    # and ConstraintFunction, see https://github.com/JuliaOpt/MosekTools.jl/issues/50
-    #MOIT.copytest(optimizer, Model{Float64}())
+    model = MOIB.full_bridge_optimizer(Mosek.Optimizer(), Float64)
+    MOIT.copytest(bridged, model)
 end
 
 @testset "Unit" begin
@@ -51,10 +49,10 @@ end
 end
 
 @testset "Continuous linear problems" begin
-    # linear1 is failing for two reasons
-    # * it does not remove constraints using a variable if this variable is deleted, see https://github.com/JuliaOpt/MathOptInterface.jl/issues/511
-    # * it does not support duplicated terms, see https://github.com/JuliaOpt/MosekTools.jl/issues/41
-    MOIT.contlineartest(optimizer, config, ["linear1"])
+    # linear1 is failing because it does not remove the SingleVariable
+    # constraint using a variable if this variable is deleted, see
+    # https://github.com/JuliaOpt/MathOptInterface.jl/issues/511
+    MOIT.contlineartest(bridged, config, ["linear1"])
 end
 
 # include("contquadratic.jl")

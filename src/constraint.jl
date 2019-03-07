@@ -13,7 +13,6 @@ function allocateconstraints(m::MosekModel, N::Int)
     M = numblocks(m.c_block) - length(m.c_block_slack)
     if alloced > 0
         appendcons(m.task, alloced)
-        append!(m.c_constant, zeros(Float64,alloced))
     end
     if M > 0
         append!(m.c_block_slack, zeros(Float64,M))
@@ -104,14 +103,31 @@ function set_coefficient(m::MosekModel, row::Int32, vi::MOI.VariableIndex,
     set_coefficient(m.task, row, mosek_index(m, vi), value)
 end
 
-add_bound(m::MosekModel, rows::Vector{Int32}, constant::Vector{Float64}, dom::MOI.Reals)        = putconboundlist(m.task, rows, fill(MSK_BK_FR, MOI.dimension(dom)), -constant, -constant)
-add_bound(m::MosekModel, rows::Vector{Int32}, constant::Vector{Float64}, dom::MOI.Zeros)        = putconboundlist(m.task, rows, fill(MSK_BK_FX, MOI.dimension(dom)), -constant, -constant)
-add_bound(m::MosekModel, rows::Vector{Int32}, constant::Vector{Float64}, dom::MOI.Nonnegatives) = putconboundlist(m.task, rows, fill(MSK_BK_LO, MOI.dimension(dom)), -constant, -constant)
-add_bound(m::MosekModel, rows::Vector{Int32}, constant::Vector{Float64}, dom::MOI.Nonpositives) = putconboundlist(m.task, rows, fill(MSK_BK_UP, MOI.dimension(dom)), -constant, -constant)
-add_bound(m::MosekModel, row::Int32, constant::Float64, dom::MOI.GreaterThan{Float64}) = putconbound(m.task, row, MSK_BK_LO, dom.lower - constant, dom.lower - constant)
-add_bound(m::MosekModel, row::Int32, constant::Float64, dom::MOI.LessThan{Float64})    = putconbound(m.task, row, MSK_BK_UP, dom.upper - constant, dom.upper - constant)
-add_bound(m::MosekModel, row::Int32, constant::Float64, dom::MOI.EqualTo{Float64})     = putconbound(m.task, row, MSK_BK_FX, dom.value - constant, dom.value - constant)
-add_bound(m::MosekModel, row::Int32, constant::Float64, dom::MOI.Interval{Float64})    = putconbound(m.task, row, MSK_BK_RA, dom.lower - constant, dom.upper - constant)
+add_bound(m::MosekModel, row::Int32, dom::MOI.GreaterThan{Float64}) = putconbound(m.task, row, MSK_BK_LO, dom.lower, dom.lower)
+add_bound(m::MosekModel, row::Int32, dom::MOI.LessThan{Float64})    = putconbound(m.task, row, MSK_BK_UP, dom.upper, dom.upper)
+add_bound(m::MosekModel, row::Int32, dom::MOI.EqualTo{Float64})     = putconbound(m.task, row, MSK_BK_FX, dom.value, dom.value)
+add_bound(m::MosekModel, row::Int32, dom::MOI.Interval{Float64})    = putconbound(m.task, row, MSK_BK_RA, dom.lower, dom.upper)
+function bounds_to_set(::Type{S}, bk, bl, bu) where S
+    if S == MOI.GreaterThan{Float64}
+        @assert bk == MSK_BK_LO
+        return S(bl)
+    elseif S == MOI.LessThan{Float64}
+        @assert bk == MSK_BK_UP
+        return S(bu)
+    elseif S == MOI.EqualTo{Float64}
+        @assert bk == MSK_BK_FX
+        @assert bl == bu
+        return S(bu)
+    else
+        @assert S == MOI.Interval{Float64}
+        @assert bk == MSK_BK_RA
+        return S(bl, bu)
+    end
+end
+function get_bound(m::MosekModel,
+                   ci::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}, S}) where {S}
+    bounds_to_set(S, getconbound(m.task, row(m, ci))...)
+end
 
 ## Variable Constraints #######################################################
 ####################### lx ≤ x ≤ u ############################################
@@ -156,43 +172,14 @@ function add_variable_constraint(m::MosekModel, col::Int32,
     bk = if (bk == MSK_BK_FR) MSK_BK_LO else MSK_BK_RA end
     putvarbound(m.task, Int32(col), bk, dom.lower, up)
 end
-
-add_variable_constraint(::MosekModel, ::Vector{Int32}, ::MOI.Reals) = nothing
-function add_variable_constraint(m::MosekModel, cols::Vector{Int32},
-                                 dom::MOI.Zeros)
-    n = length(cols)
-    @assert n == MOI.dimension(dom)
-    bnd = zeros(Float64, n)
-    putvarboundlist(m.task, cols, fill(MSK_BK_FX, n), bnd, bnd)
+function get_variable_constraint(m::MosekModel,
+                                 col::ColumnIndex,
+                                 ci::MOI.ConstraintIndex{MOI.SingleVariable, S}) where S
+    return bounds_to_set(S, getvarbound(m.task, col.value)...)
 end
-function add_variable_constraint(m::MosekModel, cols::Vector{Int32},
-                                 dom::MOI.Nonnegatives)
-    n = length(cols)
-    @assert n == MOI.dimension(dom)
-    bkx = Vector{Boundkey}(undef, n)
-    blx = zeros(Float64, n)
-    bux = zeros(Float64, n)
-    for (i, col) in enumerate(cols)
-        bk, lo, up = getvarbound(m.task, col)
-        bkx[i] = bk == MSK_BK_FR ? MSK_BK_LO : MSK_BK_RA
-        bux[i] = up
-    end
-    putvarboundlist(m.task, cols, bkx, blx, bux)
-end
-
-function add_variable_constraint(m::MosekModel, cols::Vector{Int32},
-                                 dom::MOI.Nonpositives)
-    n = length(cols)
-    @assert n == MOI.dimension(dom)
-    bkx = Vector{Boundkey}(undef, n)
-    blx = zeros(Float64, n)
-    bux = zeros(Float64, n)
-    for (i, col) in enumerate(cols)
-        bk, lo, up = getvarbound(m.task, col)
-        bkx[i] = bk == MSK_BK_FR ? MSK_BK_UP : MSK_BK_RA
-        blx[i] = lo
-    end
-    putvarboundlist(m.task, cols, bkx, blx, bux)
+function get_variable_constraint(m::MosekModel, vi::MOI.VariableIndex,
+                                 ci::MOI.ConstraintIndex)
+    return get_variable_constraint(m, mosek_index(m, vi), ci)
 end
 
 cone_parameter(dom :: MOI.PowerCone{Float64})     = dom.exponent
@@ -227,13 +214,6 @@ function set_row_name(task::Mosek.MSKtask, row::Int32, name::String)
 end
 
 function set_row_name(m::MosekModel,
-                      c::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64}},
-                      name::AbstractString) where {D}
-    for row in rows(m, c)
-        set_row_name(m.task, row, name)
-    end
-end
-function set_row_name(m::MosekModel,
                       c::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}},
                       name::AbstractString)
     set_row_name(m.task, row(m, c), name)
@@ -256,10 +236,6 @@ end
 # INDEXING ####################################################################
 ###############################################################################
 
-function rows(m::MosekModel,
-              c::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64}})::Vector{Int32} # TODO shouldn't need to convert
-    return getindexes(m.c_block, ref2id(c))
-end
 function row(m::MosekModel,
              c::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}})::Int32
     return getindex(m.c_block, ref2id(c))
@@ -289,27 +265,19 @@ end
 const PositiveSemidefiniteCone = MOI.PositiveSemidefiniteConeTriangle
 const LinearFunction = Union{MOI.SingleVariable,
                              MOI.VectorOfVariables,
-                             MOI.ScalarAffineFunction,
-                             MOI.VectorAffineFunction}
-const AffineFunction = Union{MOI.ScalarAffineFunction,
-                             MOI.VectorAffineFunction}
+                             MOI.ScalarAffineFunction}
+const AffineFunction = MOI.ScalarAffineFunction
 
 const ScalarLinearDomain = Union{MOI.LessThan{Float64},
                                  MOI.GreaterThan{Float64},
                                  MOI.EqualTo{Float64},
                                  MOI.Interval{Float64}}
-const VectorLinearDomain = Union{MOI.Nonpositives,
-                                 MOI.Nonnegatives,
-                                 MOI.Reals,
-                                 MOI.Zeros}
-const LinearDomain = Union{ScalarLinearDomain,VectorLinearDomain}
 const ScalarIntegerDomain = Union{MOI.ZeroOne, MOI.Integer}
 
 ## Add ########################################################################
 ###############################################################################
 
 MOI.supports_constraint(m::MosekModel, ::Type{<:Union{MOI.SingleVariable, MOI.ScalarAffineFunction}}, ::Type{<:ScalarLinearDomain}) = true
-MOI.supports_constraint(m::MosekModel, ::Type{<:Union{MOI.VectorOfVariables, MOI.VectorAffineFunction}}, ::Type{<:VectorLinearDomain}) = true
 MOI.supports_constraint(m::MosekModel, ::Type{MOI.VectorOfVariables}, ::Type{<:Union{VectorCone, MOI.PositiveSemidefiniteConeTriangle}}) = true
 MOI.supports_constraint(m::MosekModel, ::Type{MOI.SingleVariable}, ::Type{<:ScalarIntegerDomain}) = true
 
@@ -320,49 +288,21 @@ function MOI.add_constraint(m   :: MosekModel,
                             axb :: MOI.ScalarAffineFunction{Float64},
                             dom :: D) where {D <: MOI.AbstractScalarSet}
 
+    if !iszero(axb.constant)
+        throw(MOI.ScalarFunctionConstantNotZero{Float64, typeof(axb), D}(axb.constant))
+    end
+
     # Duplicate indices not supported
     axb = MOIU.canonical(axb)
 
     N = 1
     conid = allocateconstraints(m, N)
-    ci = MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}, D}(UInt64(conid) << 1)
+    ci = MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}, D}(conid)
     r = row(m, ci)
     set_row(m, r, axb.terms)
 
-    if length(m.c_constant) < length(m.c_block)
-        append!(m.c_constant,
-                zeros(Float64, length(m.c_block) - length(m.c_constant)))
-    end
-    m.c_constant[r] = axb.constant
-
-    add_bound(m, r, axb.constant, dom)
+    add_bound(m, r, dom)
     select(m.constrmap, MOI.ScalarAffineFunction{Float64}, D)[ci.value] = conid
-
-    return ci
-end
-
-# TODO remove once ScalarizeBridge is done:
-# https://github.com/JuliaOpt/MathOptInterface.jl/pull/664
-function MOI.add_constraint(m   :: MosekModel,
-                            axb :: MOI.VectorAffineFunction{Float64},
-                            dom :: D) where { D <: VectorLinearDomain }
-
-    # Duplicate indices not supported
-    axb = MOIU.canonical(axb)
-
-    N = MOI.dimension(dom)
-    conid = allocateconstraints(m,N)
-    ci = MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64}, D}(UInt64(conid) << 1)
-    r = rows(m, ci)
-    fs = MOIU.eachscalar(axb)
-    for i in 1:N
-        set_row(m, r[i], fs[i].terms)
-    end
-
-    m.c_constant[r] .= axb.constants
-
-    add_bound(m, r, axb.constants, dom)
-    select(m.constrmap, MOI.VectorAffineFunction{Float64}, D)[ci.value] = conid
 
     return ci
 end
@@ -376,22 +316,16 @@ end
 # - belong to at most one non-semidefinite cone
 # - any number of semidefinite cones, which are implemented as ordinary constraints
 # This is when things get a bit funky; By default a variable has no
-# bounds, i.e. "free". Adding a `GreaterThan` or `Nonnegatives`
+# bounds, i.e. "free". Adding a `GreaterThan`
 # constraint causes it to have a defined lower bound but no upper
-# bound, allowing a `LessThan` or ``Nonpositives` constraint to be
+# bound, allowing a `LessThan` constraint to be
 # added later. Adding a `Interval` constraint defines both upper and
-# lower bounds. Adding a `Reals` constraint will effectively be the
-# same as an interval ]-infty;infty[, in that it will define both
-# upper and lower bounds, and not allow those to be set afterwards.
+# lower bounds.
 
-domain_type_mask(dom :: MOI.Reals)        = (boundflag_lower | boundflag_upper)
 domain_type_mask(dom :: MOI.Interval)     = (boundflag_lower | boundflag_upper)
 domain_type_mask(dom :: MOI.EqualTo)      = (boundflag_lower | boundflag_upper)
-domain_type_mask(dom :: MOI.Zeros)        = (boundflag_lower | boundflag_upper)
 domain_type_mask(dom :: MOI.GreaterThan)  = boundflag_lower
-domain_type_mask(dom :: MOI.Nonnegatives) = boundflag_lower
 domain_type_mask(dom :: MOI.LessThan)     = boundflag_upper
-domain_type_mask(dom :: MOI.Nonpositives) = boundflag_upper
 
 domain_type_mask(dom :: MOI.SecondOrderCone)        = boundflag_cone
 domain_type_mask(dom :: MOI.RotatedSecondOrderCone) = boundflag_cone
@@ -439,7 +373,7 @@ function MOI.add_constraint(
 
     m.x_boundflags[col] |= mask
 
-    conref = MOI.ConstraintIndex{MOI.SingleVariable,D}(UInt64(xcid) << 1)
+    conref = MOI.ConstraintIndex{MOI.SingleVariable,D}(xcid)
 
     select(m.constrmap,MOI.SingleVariable,D)[conref.value] = xcid
     conref
@@ -468,7 +402,7 @@ function MOI.add_constraint(m::MosekModel, xs::MOI.VectorOfVariables,
 
     m.x_boundflags[cols] .|= mask
 
-    conref = MOI.ConstraintIndex{MOI.VectorOfVariables, D}(UInt64(xcid) << 1)
+    conref = MOI.ConstraintIndex{MOI.VectorOfVariables, D}(xcid)
     select(m.constrmap,MOI.VectorOfVariables, D)[conref.value] = xcid
     return conref
 end
@@ -546,6 +480,41 @@ function MOI.add_constraint(m  ::MosekModel,
     return conref
 end
 
+## Get ########################################################################
+###############################################################################
+
+function MOI.get(m::MosekModel, ::MOI.ConstraintFunction,
+                 ci::MOI.ConstraintIndex{MOI.SingleVariable}) where S <: ScalarLinearDomain
+    xc_sub = getindex(m.xc_block, ci.value)
+    col = Int32(m.xc_idxs[xc_sub])
+    return MOI.SingleVariable(index_of_column(m, col))
+end
+function MOI.get(m::MosekModel, ::MOI.ConstraintSet,
+                 ci::MOI.ConstraintIndex{MOI.SingleVariable, S}) where S <: ScalarIntegerDomain
+    return S()
+end
+function MOI.get(m::MosekModel, ::MOI.ConstraintSet,
+                 ci::MOI.ConstraintIndex{MOI.SingleVariable, S}) where S <: ScalarLinearDomain
+    sv = MOI.get(m, MOI.ConstraintFunction(), ci)
+    return get_variable_constraint(m, sv.variable, ci)
+end
+
+function MOI.get(m::MosekModel, ::MOI.ConstraintFunction,
+                 ci::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},
+                                         <:ScalarLinearDomain})
+    nnz, cols, vals = getarow(m.task, row(m, ci))
+    @assert nnz == length(cols) == length(vals)
+    terms = MOI.ScalarAffineTerm{Float64}[
+        MOI.ScalarAffineTerm(vals[i], index_of_column(m, cols[i])) for i in 1:nnz]
+    # TODO add matrix terms
+    return MOI.ScalarAffineFunction(terms, 0.0)
+end
+function MOI.get(m::MosekModel, ::MOI.ConstraintSet,
+                 ci::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},
+                                         S}) where S
+    return get_bound(m, ci)
+end
+
 ## Modify #####################################################################
 ###############################################################################
 
@@ -585,15 +554,9 @@ end
 function MOI.modify(m   ::MosekModel,
                     c   ::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D},
                     func::MOI.ScalarConstantChange{Float64}) where {D <: MOI.AbstractSet}
-
-    cid = ref2id(c)
-
-    i = getindex(m.c_block, cid)
-    bk,bl,bu = getconbound(m.task,i)
-    bl += m.c_constant[i] - func.new_constant
-    bu += m.c_constant[i] - func.new_constant
-    m.c_constant[i] = func.new_constant
-    putconbound(m.task,i,bk,bl,bu)
+    if !iszero(func.new_constant)
+        throw(MOI.ScalarFunctionConstantNotZero{Float64, MOI.ScalarAffineFunction{Float64}, D}(func.new_constant))
+    end
 end
 
 function MOI.modify(m   ::MosekModel,
@@ -602,40 +565,13 @@ function MOI.modify(m   ::MosekModel,
     set_coefficient(m, row(m, c), func.variable, func.new_coefficient)
 end
 
-function MOI.modify(m::MosekModel,
-                    c::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64}},
-                    func::MOI.VectorConstantChange{Float64})
-    cid = ref2id(c)
-    @assert(cid > 0)
-
-    subi = getindexes(m.c_block, cid)
-    bk = Vector{Int32}(undef,length(subi))
-    bl = Vector{Float64}(undef,length(subi))
-    bu = Vector{Float64}(undef,length(subi))
-
-    bk,bl,bu = getconboundlist(m.task,convert(Vector{Int32},subi))
-    bl += m.c_constant[subi] - func.new_constant
-    bu += m.c_constant[subi] - func.new_constant
-    m.c_constant[subi] = func.new_constant
-
-    putconboundlist(m.task, convert(Vector{Int32}, subi), bk, bl, bu)
-end
-
-function MOI.modify(m::MosekModel,
-                    c::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64}},
-                    func::MOI.MultirowChange{Float64})
-    @assert ref2id(c) > 0
-    set_coefficients(m, rows(m, c)[getindex.(func.new_coefficients, 1)],
-                     func.variable, getindex.(func.new_coefficients, 2))
-end
-
 ### TRANSFORM
 function MOI.transform(m::MosekModel,
                        cref::MOI.ConstraintIndex{F,D},
                        newdom::D) where {F <: MOI.AbstractFunction,
                                          D <: MOI.AbstractSet}
     MOI.modify(m,cref,newdom)
-    cref
+    return cref
 end
 
 function MOI.transform(m::MosekModel,
@@ -647,30 +583,12 @@ function MOI.transform(m::MosekModel,
     cid = ref2id(cref)
 
     r = row(m, cref)
-    add_bound(m, r, m.c_constant[r], newdom)
+    add_bound(m, r, newdom)
 
-    newcref = MOI.ConstraintIndex{F,D2}(UInt64(cid) << 1)
-    delete!(select(m.constrmap,F,D1), cref.value)
+    newcref = MOI.ConstraintIndex{F, D2}(cid)
+    delete!(select(m.constrmap, F, D1), cref.value)
     select(m.constrmap, F, D2)[newcref.value] = cid
-    newcref
-end
-
-function MOI.transform(m::MosekModel,
-                       cref::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},D1},
-                       newdom::D2) where {D1 <: VectorLinearDomain,
-                                          D2 <: VectorLinearDomain}
-    F = MOI.VectorAffineFunction{Float64}
-
-    cid = ref2id(cref)
-
-    r = rows(m, cref)
-
-    add_bound(m, r, m.c_constant[r], newdom)
-
-    newcref = MOI.ConstraintIndex{F,D2}(UInt64(cid) << 1)
-    delete!(select(m.constrmap,F,D1), cref.value)
-    select(m.constrmap,F,D2)[newcref.value] = cid
-    newcref
+    return newcref
 end
 
 ## Delete #####################################################################
@@ -684,8 +602,7 @@ end
 function MOI.delete(
     m::MosekModel,
     cref::MOI.ConstraintIndex{F,D}) where {F <: AffineFunction,
-                                           D <: Union{ScalarLinearDomain,
-                                                      VectorLinearDomain}}
+                                           D <: ScalarLinearDomain}
     if !MOI.is_valid(m, cref)
         throw(MOI.InvalidIndex(cref))
     end
@@ -704,7 +621,6 @@ function MOI.delete(
     b = fill(0.0,n)
     putconboundlist(m.task,subi_i32,fill(MSK_BK_FX,n),b,b)
 
-    m.c_constant[subi] .= 0.0
     deleteblock(m.c_block,cid)
 end
 
@@ -713,7 +629,6 @@ function MOI.delete(
     cref::MOI.ConstraintIndex{F,D}) where {F <: Union{MOI.SingleVariable,
                                                       MOI.VectorOfVariables},
                                            D <: Union{ScalarLinearDomain,
-                                                      VectorLinearDomain,
                                                       ScalarIntegerDomain}}
     if !MOI.is_valid(m, cref)
         throw(MOI.InvalidIndex(cref))
@@ -779,6 +694,14 @@ end
 
 ## List #######################################################################
 ###############################################################################
+function MOI.get(m::MosekModel, ::MOI.ListOfConstraintAttributesSet)
+    set = MOI.AbstractConstraintAttribute[]
+    if !isempty(m.constrnames)
+        push!(set, MOI.ConstraintName())
+    end
+    # TODO add VariablePrimalStart when get is implemented on it
+    return set
+end
 
 ## Name #######################################################################
 ###############################################################################
@@ -796,8 +719,7 @@ function MOI.set(m::MosekModel, ::MOI.ConstraintName, ci::MOI.ConstraintIndex,
     set_row_name(m, ci, name)
 end
 function MOI.get(m::MosekModel, ::MOI.ConstraintName,
-                 ci::MOI.ConstraintIndex{<:Union{MOI.ScalarAffineFunction{Float64},
-                                                 MOI.VectorAffineFunction{Float64}}})
+                 ci::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}})
     # All rows should have same name so we take the first one
     return getconname(m.task, getindexes(m.c_block, ref2id(ci))[1])
 end

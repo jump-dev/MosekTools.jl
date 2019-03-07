@@ -1,16 +1,20 @@
+function MOI.get(::MosekModel, ::MOI.ObjectiveFunctionType)
+    return MOI.ScalarAffineFunction{Float64}
+end
 function MOI.get(m::MosekModel, ::MOI.ObjectiveFunction{F}) where F
     obj = MOI.get(m, MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}())
     return convert(F, obj)
 end
 function MOI.get(m::MosekModel,
                  ::MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}})
-    refs = MOI.get(m, MOI.ListOfVariableIndices())
-    cols = columns(m, refs).values
+    cis = MOI.get(m, MOI.ListOfVariableIndices())
+    cols = columns(m, cis).values
     coeffs = getclist(m.task, cols)
     constant = getcfix(m.task)
-    @assert length(coeffs) == length(refs)
+    @assert length(coeffs) == length(cis)
     terms = MOI.ScalarAffineTerm{Float64}[
-        MOI.ScalarAffineTerm(coeffs[i], refs[i]) for i in 1:length(refs)]
+        MOI.ScalarAffineTerm(coeffs[i], cis[i]) for i in 1:length(cis)]
+    # TODO add matrix terms
     return MOI.ScalarAffineFunction(terms, constant)
 end
 
@@ -46,5 +50,5 @@ end
 function MOI.modify(m::MosekModel,
                     ::MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}},
                     change :: MOI.ScalarCoefficientChange)
-    putcj(m.task, column(m, change.variable).values, change.new_coefficient)
+    putcj(m.task, column(m, change.variable).value, change.new_coefficient)
 end

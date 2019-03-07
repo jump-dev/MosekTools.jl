@@ -149,17 +149,10 @@ function MOI.get(model::MosekModel,
         end
     end
     F = MOI.VectorOfVariables
-    for D in [MOI.Nonpositives, MOI.Nonnegatives, MOI.Reals, MOI.Zeros,
-              MOI.SecondOrderCone, MOI.RotatedSecondOrderCone,
+    for D in [MOI.SecondOrderCone, MOI.RotatedSecondOrderCone,
               MOI.PowerCone{Float64}, MOI.DualPowerCone{Float64},
               MOI.ExponentialCone, MOI.DualExponentialCone,
               MOI.PositiveSemidefiniteConeTriangle]
-        if !isempty(select(model.constrmap, F, D))
-            push!(list, (F, D))
-        end
-    end
-    F = MOI.VectorAffineFunction{Float64}
-    for D in [MOI.Nonpositives, MOI.Nonnegatives, MOI.Reals, MOI.Zeros]
         if !isempty(select(model.constrmap, F, D))
             push!(list, (F, D))
         end
@@ -267,20 +260,7 @@ function MOI.get(m     ::MosekModel,
                  ci  ::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D}) where D
     cid = ref2id(ci)
     subi = getindex(m.c_block,cid)
-    m.solutions[attr.N].xc[subi] + m.c_constant[subi]
-end
-
-function MOI.get!(
-    output::Vector{Float64},
-    m     ::MosekModel,
-    attr  ::MOI.ConstraintPrimal,
-    ci  ::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},D}) where D
-
-    cid = ref2id(ci)
-    subi = getindexes(m.c_block, cid)
-
-    @assert m.c_block_slack[cid] == 0
-    output[1:length(output)] = m.solutions[attr.N].xc[subi] + m.c_constant[subi]
+    return m.solutions[attr.N].xc[subi]
 end
 
 function MOI.get(m::MosekModel, attr::MOI.ConstraintDual,
@@ -418,38 +398,6 @@ function MOI.get(m     ::MosekModel,
     end
 end
 
-
-function MOI.get!(
-    output::Vector{Float64},
-    m     ::MosekModel,
-    attr  ::MOI.ConstraintDual,
-    ci  ::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},D}) where { D <: MOI.AbstractSet }
-
-    cid = ref2id(ci)
-    subi = getindexes(m.c_block, cid)
-
-    if getobjsense(m.task) == MSK_OBJECTIVE_SENSE_MINIMIZE
-        @assert m.c_block_slack[cid] == 0 # no slack
-        output[1:length(output)] = m.solutions[attr.N].y[subi]
-    else
-        @assert m.c_block_slack[cid] == 0 # no slack
-        output[1:length(output)] = - m.solutions[attr.N].y[subi]
-    end
-end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 solsize(m::MosekModel, ::MOI.ConstraintIndex{<:MOI.AbstractScalarFunction}) = 1
 function solsize(m::MosekModel, ci::MOI.ConstraintIndex{MOI.VectorOfVariables})
     cid = ref2id(ci)
@@ -466,11 +414,6 @@ function solsize(m::MosekModel,
     return MOI.dimension(MOI.PositiveSemidefiniteConeTriangle(d))
 end
 
-function solsize(m::MosekModel,
-                 ci::MOI.ConstraintIndex{<:MOI.VectorAffineFunction})
-    return blocksize(m.c_block, ref2id(ci))
-end
-
 function MOI.get(m::MosekModel,
                  attr::Union{MOI.ConstraintPrimal, MOI.ConstraintDual},
                  ci::MOI.ConstraintIndex{<:MOI.AbstractVectorFunction})
@@ -479,11 +422,6 @@ function MOI.get(m::MosekModel,
     MOI.get!(output, m, attr, ci)
     return output
 end
-
-
-
-
-
 
 #### Status codes
 function MOI.get(m::MosekModel,attr::MOI.TerminationStatus)
