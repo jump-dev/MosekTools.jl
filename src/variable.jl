@@ -221,7 +221,7 @@ function MOI.add_variable(m::MosekModel)
 end
 
 function MOI.add_variables(m::MosekModel, n::Int)
-    @assert n > 0
+    @assert n ≥ 0
     return MOI.VariableIndex[MOI.add_variable(m) for i in 1:n]
 end
 
