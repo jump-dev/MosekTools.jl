@@ -453,14 +453,12 @@ function MOI.get(m::MosekModel,attr::MOI.TerminationStatus)
     elseif m.trm == MSK_RES_TRM_NUM_MAX_NUM_INT_SOLUTIONS
         MOI.SOLUTION_LIMIT
     elseif m.trm == MSK_RES_TRM_STALL
-        println("STALL")
         MOI.SLOW_PROGRESS
     elseif m.trm == MSK_RES_TRM_USER_CALLBACK
         MOI.INTERRUPTED
     elseif m.trm == MSK_RES_TRM_MAX_NUM_SETBACKS
         MOI.OTHER_LIMIT
     elseif m.trm == MSK_RES_TRM_NUMERICAL_PROBLEM
-        println("NUMERICAL_PROBLEM")
         MOI.SLOW_PROGRESS
     elseif m.trm == MSK_RES_TRM_INTERNAL
         MOI.OTHER_ERROR
