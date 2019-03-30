@@ -55,10 +55,9 @@ end
     MOIT.contlineartest(bridged, config, ["linear1"])
 end
 
-# include("contquadratic.jl")
-# @testset "Continuous quadratic problems" begin
-#     # contquadratictest(GurobiSolver())
-# end
+@testset "Continuous quadratic problems" begin
+    MOIT.qcptest(bridged, config)
+end
 
 @testset "Continuous conic problems" begin
     MOIT.contconictest(bridged, config, ["exp", "rootdets", "logdet"])
