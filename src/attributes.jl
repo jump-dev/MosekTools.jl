@@ -133,17 +133,47 @@ MOI.get(m::MosekModel,attr::MOI.ResultCount) = length(m.solutions)
 
 #### Problem information
 
-function MOI.get(m::MosekModel, ::MOI.NumberOfConstraints{F,D}) where {F,D}
-    return length(select(m.constrmap, F, D))
+function MOI.get(model::MosekModel,
+                 ci::MOI.NumberOfConstraints{MOI.ScalarAffineFunction{Float64},
+                                             S}) where S <: ScalarLinearDomain
+    F = MOI.ScalarAffineFunction{Float64}
+    return count(id -> MOI.is_valid(model, MOI.ConstraintIndex{F, S}(id)),
+                 allocatedlist(model.c_block))
 end
-
+function MOI.get(model::MosekModel,
+                 ci::MOI.ListOfConstraintIndices{MOI.ScalarAffineFunction{Float64},
+                                           S}) where S <: ScalarLinearDomain
+    F = MOI.ScalarAffineFunction{Float64}
+    ids = filter(id -> MOI.is_valid(model, MOI.ConstraintIndex{F, S}(id)),
+                 allocatedlist(model.c_block))
+    return [MOI.ConstraintIndex{F, S}(id) for id in ids]
+end
+function MOI.get(model::MosekModel,
+                 ci::MOI.NumberOfConstraints{F, S}) where {F<:Union{MOI.SingleVariable,
+                                                                    MOI.VectorOfVariables},
+                                                           S<:Union{ScalarLinearDomain,
+                                                                    ScalarIntegerDomain,
+                                                                    MOI.AbstractVectorSet}}
+    return count(id -> MOI.is_valid(model, MOI.ConstraintIndex{F, S}(id)),
+                 allocatedlist(model.xc_block))
+end
+function MOI.get(model::MosekModel,
+                 ci::MOI.ListOfConstraintIndices{F, S}) where {F<:Union{MOI.SingleVariable,
+                                                                  MOI.VectorOfVariables},
+                                                         S<:Union{ScalarLinearDomain,
+                                                                  ScalarIntegerDomain,
+                                                                  MOI.AbstractVectorSet}}
+    ids = filter(id -> MOI.is_valid(model, MOI.ConstraintIndex{F, S}(id)),
+                 allocatedlist(model.xc_block))
+    return [MOI.ConstraintIndex{F, S}(id) for id in ids]
+end
 function MOI.get(model::MosekModel,
                  ::MOI.ListOfConstraints)
     list = Tuple{DataType, DataType}[]
     for F in [MOI.SingleVariable, MOI.ScalarAffineFunction{Float64}]
         for D in [MOI.LessThan{Float64}, MOI.GreaterThan{Float64},
                   MOI.EqualTo{Float64}, MOI.Interval{Float64}]
-            if !isempty(select(model.constrmap, F, D))
+            if !iszero(MOI.get(model, MOI.NumberOfConstraints{F, D}()))
                 push!(list, (F, D))
             end
         end
@@ -153,16 +183,11 @@ function MOI.get(model::MosekModel,
               MOI.PowerCone{Float64}, MOI.DualPowerCone{Float64},
               MOI.ExponentialCone, MOI.DualExponentialCone,
               MOI.PositiveSemidefiniteConeTriangle]
-        if !isempty(select(model.constrmap, F, D))
+        if !iszero(MOI.get(model, MOI.NumberOfConstraints{F, D}()))
             push!(list, (F, D))
         end
     end
     return list
-end
-
-function MOI.get(model::MosekModel,
-                 ::MOI.ListOfConstraintIndices{F, D}) where {F, D}
-    return MOI.ConstraintIndex{F, D}.(keys(select(model.constrmap, F, D)))
 end
 
 #### Warm start values

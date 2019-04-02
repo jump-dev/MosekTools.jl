@@ -36,61 +36,6 @@ boundflag_cone  = 0x4
 boundflag_int   = 0x8
 boundflag_all   = 0x0f
 
-
-# Mapping of all constraint types to its index
-struct ConstraintMap
-    x_lessthan           :: Dict{Int64,Int} # (SingleVariable,LessThan) -> constraint number
-    x_greaterthan        :: Dict{Int64,Int} # (SingleVariable,GreaterThan) -> constraint number
-    x_equalto            :: Dict{Int64,Int} # (SingleVariable,EqualTo) -> constraint number
-    x_interval           :: Dict{Int64,Int} # (SingleVariable,Interval) -> constraint number
-    x_binary             :: Dict{Int64,Int} # (SingleVariable,ZeroOne) -> constraint number
-    x_integer            :: Dict{Int64,Int} # (SingleVariable,Integer) -> constraint number
-
-    xs_qcone             :: Dict{Int64,Int} # (VectorOfVariables,SecondOrderCone) -> constraint number
-    xs_rqcone            :: Dict{Int64,Int} # (VectorOfVariables,RotatedSecondOrderCone) -> constraint number
-    xs_psdconetriangle   :: Dict{Int64,Int} # (VectorOfVariables,PositiveSemidefiniteConeTriangle) -> constraint number
-    xs_ppowcone          :: Dict{Int64,Int} # (VectorOfVariables,RotatedSecondOrderCone) -> constraint number
-    xs_dpowcone          :: Dict{Int64,Int} # (VectorOfVariables,RotatedSecondOrderCone) -> constraint number
-    xs_pexpcone          :: Dict{Int64,Int} # (VectorOfVariables,RotatedSecondOrderCone) -> constraint number
-    xs_dexpcone          :: Dict{Int64,Int} # (VectorOfVariables,RotatedSecondOrderCone) -> constraint number
-
-    axb_lessthan         :: Dict{Int64,Int} # (ScalarAffineFunction,LessThan) -> constraint number
-    axb_greaterthan      :: Dict{Int64,Int} # (ScalarAffineFunction,GreaterThan) -> constraint number
-    axb_equalto          :: Dict{Int64,Int} # (ScalarAffineFunction,EqualTo) -> constraint number
-    axb_interval         :: Dict{Int64,Int} # (ScalarAffineFunction,Interval) -> constraint number
-    axb_binary           :: Dict{Int64,Int} # (ScalarAffineFunction,ZeroOne) -> constraint number
-    axb_integer          :: Dict{Int64,Int} # (ScalarAffineFunction,Integer) -> constraint number
-
-    axbs_ppowcone        :: Dict{Int64,Int} # (VectorOfVariables,RotatedSecondOrderCone) -> constraint number
-    axbs_dpowcone        :: Dict{Int64,Int} # (VectorOfVariables,RotatedSecondOrderCone) -> constraint number
-    axbs_pexpcone        :: Dict{Int64,Int} # (VectorOfVariables,RotatedSecondOrderCone) -> constraint number
-    axbs_dexpcone        :: Dict{Int64,Int} # (VectorOfVariables,RotatedSecondOrderCone) -> constraint number
-end
-
-ConstraintMap() = ConstraintMap([Dict{Int64,Int}() for i in 1:23]...)
-select(cm::ConstraintMap,::Type{MOI.SingleVariable},               ::Type{MOI.LessThan{Float64}}) =                cm.x_lessthan
-select(cm::ConstraintMap,::Type{MOI.SingleVariable},               ::Type{MOI.GreaterThan{Float64}}) =             cm.x_greaterthan
-select(cm::ConstraintMap,::Type{MOI.SingleVariable},               ::Type{MOI.EqualTo{Float64}}) =                 cm.x_equalto
-select(cm::ConstraintMap,::Type{MOI.SingleVariable},               ::Type{MOI.Interval{Float64}}) =                cm.x_interval
-select(cm::ConstraintMap,::Type{MOI.SingleVariable},               ::Type{MOI.ZeroOne}) =                          cm.x_binary
-select(cm::ConstraintMap,::Type{MOI.SingleVariable},               ::Type{MOI.Integer}) =                          cm.x_integer
-select(cm::ConstraintMap,::Type{MOI.VectorOfVariables},            ::Type{MOI.SecondOrderCone}) =                  cm.xs_qcone
-select(cm::ConstraintMap,::Type{MOI.VectorOfVariables},            ::Type{MOI.RotatedSecondOrderCone}) =           cm.xs_rqcone
-select(cm::ConstraintMap,::Type{MOI.VectorOfVariables},            ::Type{MOI.PositiveSemidefiniteConeTriangle}) = cm.xs_psdconetriangle
-select(cm::ConstraintMap,::Type{MOI.VectorOfVariables},            ::Type{MOI.PowerCone{Float64}}) =               cm.xs_ppowcone
-select(cm::ConstraintMap,::Type{MOI.VectorOfVariables},            ::Type{MOI.DualPowerCone{Float64}}) =           cm.xs_dpowcone
-select(cm::ConstraintMap,::Type{MOI.VectorOfVariables},            ::Type{MOI.ExponentialCone}) =                  cm.xs_pexpcone
-select(cm::ConstraintMap,::Type{MOI.VectorOfVariables},            ::Type{MOI.DualExponentialCone}) =              cm.xs_dexpcone
-select(cm::ConstraintMap,::Type{MOI.ScalarAffineFunction{Float64}},::Type{MOI.LessThan{Float64}}) =                cm.axb_lessthan
-select(cm::ConstraintMap,::Type{MOI.ScalarAffineFunction{Float64}},::Type{MOI.GreaterThan{Float64}}) =             cm.axb_greaterthan
-select(cm::ConstraintMap,::Type{MOI.ScalarAffineFunction{Float64}},::Type{MOI.EqualTo{Float64}}) =                 cm.axb_equalto
-select(cm::ConstraintMap,::Type{MOI.ScalarAffineFunction{Float64}},::Type{MOI.Interval{Float64}}) =                cm.axb_interval
-select(cm::ConstraintMap,::Type{MOI.ScalarAffineFunction{Float64}},::Type{MOI.ZeroOne}) =                          cm.axb_binary
-select(cm::ConstraintMap,::Type{MOI.ScalarAffineFunction{Float64}},::Type{MOI.Integer}) =                          cm.axb_integer
-
-Base.getindex(cm::ConstraintMap,r :: MOI.ConstraintIndex{F,D}) where {F,D} = select(cm,F,D)[r.value]
-
-
 struct MosekSolution
     whichsol :: Soltype
     solsta   :: Solsta
@@ -158,10 +103,6 @@ mutable struct MosekModel  <: MOI.AbstractOptimizer
     Number of variables explicitly created by user
     """
     publicnumvar :: Int
-
-    """
-    """
-    constrmap :: ConstraintMap
 
     has_variable_names::Bool
     constrnames :: Dict{String, Vector{MOI.ConstraintIndex}}
@@ -340,7 +281,6 @@ function Mosek.Optimizer(; kws...)
                        Dict{String, Float64}(), # dpars
                        Dict{String, AbstractString}(), # spars
                        0, # public numvar
-                       ConstraintMap(), # public constraints
                        false, # has_variable_names
                        Dict{String, Vector{MOI.ConstraintIndex}}(), # constrnames
                        Dict{MOI.ConstraintIndex, String}(), # con_to_name
@@ -468,7 +408,6 @@ function MOI.empty!(model::MosekModel)
         Mosek.putstreamfunc(model.task, Mosek.MSK_STREAM_LOG, m -> print(m))
     end
     model.publicnumvar       = 0
-    model.constrmap          = ConstraintMap()
     model.has_variable_names = false
     model.constrnames        = Dict{String, Vector{MOI.ConstraintIndex}}()
     model.con_to_name        = Dict{MOI.ConstraintIndex, String}()

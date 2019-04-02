@@ -56,6 +56,7 @@ function LinkedInts(capacity=128)
                       Int[], Int[])
 end
 
+num_allocated(s::LinkedInts) = count(b -> b > 0, s.block)
 allocatedlist(s::LinkedInts) = findall(s.block .> 0)
 allocated(s::LinkedInts, id :: Int) = id > 0 && id <= length(s.block) && s.block[id] > 0
 blocksize(s::LinkedInts, id :: Int) = s.size[id]
