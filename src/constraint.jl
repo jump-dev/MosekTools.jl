@@ -112,7 +112,6 @@ add_bound(m::MosekModel, row::Int32, dom::MOI.LessThan{Float64})    = putconboun
 add_bound(m::MosekModel, row::Int32, dom::MOI.EqualTo{Float64})     = putconbound(m.task, row, bound_key(typeof(dom)), dom.value, dom.value)
 add_bound(m::MosekModel, row::Int32, dom::MOI.Interval{Float64})    = putconbound(m.task, row, bound_key(typeof(dom)), dom.lower, dom.upper)
 function bounds_to_set(::Type{S}, bk, bl, bu) where S
-    @assert bk == bound_key(S)
     if S == MOI.GreaterThan{Float64}
         return S(bl)
     elseif S == MOI.LessThan{Float64}
@@ -196,7 +195,7 @@ const VectorCone = Union{MOI.SecondOrderCone,
 
 function set_variable_domain(m::MosekModel, xcid::Int, cols::Vector{Int32},
                              dom::VectorCone)
-    appendcone(m.task, cone_type(dom), cone_parameter(dom), cols)
+    appendcone(m.task, cone_type(typeof(dom)), cone_parameter(dom), cols)
     coneidx = getnumcone(m.task)
     m.conecounter += 1
     putconename(m.task,coneidx,"$(m.conecounter)")
@@ -284,9 +283,9 @@ MOI.supports_constraint(m::MosekModel, ::Type{MOI.SingleVariable}, ::Type{<:Scal
 ## Affine Constraints #########################################################
 ##################### lc ≤ Ax ≤ uc ############################################
 
-function MOI.add_constraint(m   :: MosekModel,
-                            axb :: MOI.ScalarAffineFunction{Float64},
-                            dom :: D) where {D <: MOI.AbstractScalarSet}
+function MOI.add_constraint(m  ::MosekModel,
+                            axb::MOI.ScalarAffineFunction{Float64},
+                            dom::D) where {D <: MOI.AbstractScalarSet}
 
     if !iszero(axb.constant)
         throw(MOI.ScalarFunctionConstantNotZero{Float64, typeof(axb), D}(axb.constant))
@@ -338,12 +337,12 @@ domain_type_mask(::Type{MOI.PositiveSemidefiniteConeTriangle}) = 0
 domain_type_mask(::Type{MOI.Integer}) = boundflag_int
 domain_type_mask(::Type{MOI.ZeroOne}) = (boundflag_int | boundflag_upper | boundflag_lower)
 
-cone_type(::MOI.ExponentialCone)        = MSK_CT_PEXP
-cone_type(::MOI.DualExponentialCone)    = MSK_CT_DEXP
-cone_type(::MOI.PowerCone)              = MSK_CT_PPOW
-cone_type(::MOI.DualPowerCone)          = MSK_CT_DPOW
-cone_type(::MOI.SecondOrderCone)        = MSK_CT_QUAD
-cone_type(::MOI.RotatedSecondOrderCone) = MSK_CT_RQUAD
+cone_type(::Type{MOI.ExponentialCone})        = MSK_CT_PEXP
+cone_type(::Type{MOI.DualExponentialCone})    = MSK_CT_DEXP
+cone_type(::Type{MOI.PowerCone{Float64}})     = MSK_CT_PPOW
+cone_type(::Type{MOI.DualPowerCone{Float64}}) = MSK_CT_DPOW
+cone_type(::Type{MOI.SecondOrderCone})        = MSK_CT_QUAD
+cone_type(::Type{MOI.RotatedSecondOrderCone}) = MSK_CT_RQUAD
 
 function MOI.add_constraint(
     m   :: MosekModel,
@@ -364,6 +363,8 @@ function MOI.add_constraint(
     xcid = allocatevarconstraints(m, 1)
 
     xc_sub = getindex(m.xc_block, xcid)
+
+    m.x_constraints[xs.variable.value] |= flag(D)
 
     m.xc_bounds[xcid] = mask
     m.xc_idxs[xc_sub] = col
@@ -400,8 +401,8 @@ function MOI.add_constraint(m::MosekModel, xs::MOI.VectorOfVariables,
 
     m.x_boundflags[cols] .|= mask
 
-    conref = MOI.ConstraintIndex{MOI.VectorOfVariables, D}(xcid)
-    return conref
+    ci = MOI.ConstraintIndex{MOI.VectorOfVariables, D}(xcid)
+    return ci
 end
 
 ################################################################################
@@ -616,19 +617,19 @@ function MOI.delete(
 end
 
 function MOI.is_valid(model::MosekModel,
-                      ci::MOI.ConstraintIndex{<:Union{MOI.SingleVariable,
-                                                      MOI.VectorOfVariables},
+                      ci::MOI.ConstraintIndex{MOI.SingleVariable,
                                               S}) where S<:Union{ScalarLinearDomain,
                                                                  ScalarIntegerDomain}
-    return allocated(model.xc_block, ci.value) &&
-        model.xc_bounds[ci.value] == domain_type_mask(S)
+    if !allocated(model.xc_block, ci.value) || model.xc_block.size[ci.value] > 1
+        return false
+    end
+    # FIXME won't be needed after https://github.com/JuliaOpt/MathOptInterface.jl/issues/570
+    vi = MOI.get(model, MOI.ConstraintFunction(), ci).variable
+    return !iszero(model.x_constraints[vi.value] & flag(S))
 end
 function MOI.delete(
     m::MosekModel,
-    cref::MOI.ConstraintIndex{F,D}) where {F <: Union{MOI.SingleVariable,
-                                                      MOI.VectorOfVariables},
-                                           D <: Union{ScalarLinearDomain,
-                                                      ScalarIntegerDomain}}
+    cref::MOI.ConstraintIndex{MOI.SingleVariable, D}) where D <: Union{ScalarLinearDomain, ScalarIntegerDomain}
     if !MOI.is_valid(m, cref)
         throw(MOI.InvalidIndex(cref))
     end
@@ -637,6 +638,8 @@ function MOI.delete(
 
     xcid = ref2id(cref)
     sub = getindexes(m.xc_block, xcid)
+
+    m.x_constraints[sub] &= ~flag(D)
 
     subj = [ getindex(m.x_block,i) for i in sub ]
     N = length(subj)
@@ -688,6 +691,20 @@ function MOI.delete(
 
     deleteblock(m.xc_block, xcid)
 end
+function MOI.is_valid(model::MosekModel,
+                      ci::MOI.ConstraintIndex{MOI.VectorOfVariables,
+                                              S}) where S<:Union{MOI.AbstractVectorSet}
+    return allocated(model.xc_block, ci.value) &&
+        !iszero(model.xc_coneid[ci.value]) &&
+        getconeinfo(model.task, model.xc_coneid[ci.value])[1] == cone_type(S)
+end
+function MOI.is_valid(model::MosekModel,
+                      ci::MOI.ConstraintIndex{MOI.VectorOfVariables,
+                                              MOI.PositiveSemidefiniteConeTriangle})
+    # TODO add supports for deletion
+    return 1 ≤ ci.value ≤ length(model.sd_dim)
+end
+
 
 ## List #######################################################################
 ###############################################################################

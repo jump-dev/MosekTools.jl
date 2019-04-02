@@ -216,6 +216,7 @@ function MOI.add_variable(m::MosekModel)
     m.publicnumvar += 1
     id = create_block(m.x_block, 1)
     push!(m.x_type, Undecided)
+    push!(m.x_constraints, 0x0)
     push!(m.x_sd, MatrixIndex(0, 0, 0))
     return MOI.VariableIndex(id)
 end

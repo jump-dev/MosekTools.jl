@@ -75,6 +75,13 @@ struct MatrixIndex
     end
 end
 
+flag(::Type{MOI.EqualTo{Float64}}) = 0x1
+flag(::Type{MOI.GreaterThan{Float64}}) = 0x2
+flag(::Type{MOI.LessThan{Float64}}) = 0x4
+flag(::Type{MOI.Interval{Float64}}) = 0x8
+flag(::Type{MOI.Integer}) = 0x10
+flag(::Type{MOI.ZeroOne}) = 0x20
+
 """
     MosekModel <: MathOptInterface.AbstractModel
 
@@ -111,6 +118,10 @@ mutable struct MosekModel  <: MOI.AbstractOptimizer
     con_to_name :: Dict{MOI.ConstraintIndex, String}
 
     x_type::Vector{VariableType}
+    # For each MOI index of variables, gives the flags of constraints present
+    # The SingleVariable constraints added cannot just be inferred from getvartype
+    # and getvarbound so we need to keep them here so implement `MOI.is_valid`
+    x_constraints::Vector{UInt8}
 
     """
         The total length of `x_block` matches the number of variables in
@@ -285,6 +296,7 @@ function Mosek.Optimizer(; kws...)
                        Dict{String, Vector{MOI.ConstraintIndex}}(), # constrnames
                        Dict{MOI.ConstraintIndex, String}(), # con_to_name
                        VariableType[], # x_type
+                       UInt8[], # x_constraints
                        LinkedInts(),# x_block
                        Int[], # x_boundflags
                        Int[], # x_numxc
@@ -412,6 +424,7 @@ function MOI.empty!(model::MosekModel)
     model.constrnames        = Dict{String, Vector{MOI.ConstraintIndex}}()
     model.con_to_name        = Dict{MOI.ConstraintIndex, String}()
     model.x_type             = VariableType[]
+    model.x_constraints      = UInt8[]
     model.x_block            = LinkedInts()
     model.x_boundflags       = Int[]
     model.x_numxc            = Int[]

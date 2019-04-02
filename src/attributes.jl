@@ -159,10 +159,10 @@ function MOI.get(model::MosekModel,
 end
 function MOI.get(model::MosekModel,
                  ci::MOI.ListOfConstraintIndices{F, S}) where {F<:Union{MOI.SingleVariable,
-                                                                  MOI.VectorOfVariables},
-                                                         S<:Union{ScalarLinearDomain,
-                                                                  ScalarIntegerDomain,
-                                                                  MOI.AbstractVectorSet}}
+                                                                        MOI.VectorOfVariables},
+                                                               S<:Union{ScalarLinearDomain,
+                                                                        ScalarIntegerDomain,
+                                                                        MOI.AbstractVectorSet}}
     ids = filter(id -> MOI.is_valid(model, MOI.ConstraintIndex{F, S}(id)),
                  allocatedlist(model.xc_block))
     return [MOI.ConstraintIndex{F, S}(id) for id in ids]
@@ -180,8 +180,9 @@ function MOI.get(model::MosekModel,
     end
     F = MOI.VectorOfVariables
     for D in [MOI.SecondOrderCone, MOI.RotatedSecondOrderCone,
-              MOI.PowerCone{Float64}, MOI.DualPowerCone{Float64},
-              MOI.ExponentialCone, MOI.DualExponentialCone,
+              # TODO reenable for Mosek 9
+              #MOI.PowerCone{Float64}, MOI.DualPowerCone{Float64},
+              #MOI.ExponentialCone, MOI.DualExponentialCone,
               MOI.PositiveSemidefiniteConeTriangle]
         if !iszero(MOI.get(model, MOI.NumberOfConstraints{F, D}()))
             push!(list, (F, D))
