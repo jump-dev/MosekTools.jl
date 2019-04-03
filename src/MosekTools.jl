@@ -28,14 +28,6 @@ problemtype_quadratic = 2
 
 import MathOptInterface
 
-
-
-boundflag_lower = 0x1
-boundflag_upper = 0x2
-boundflag_cone  = 0x4
-boundflag_int   = 0x8
-boundflag_all   = 0x0f
-
 struct MosekSolution
     whichsol :: Soltype
     solsta   :: Solsta
@@ -74,13 +66,6 @@ struct MatrixIndex
         new(matrix, row, column)
     end
 end
-
-flag(::Type{MOI.EqualTo{Float64}}) = 0x1
-flag(::Type{MOI.GreaterThan{Float64}}) = 0x2
-flag(::Type{MOI.LessThan{Float64}}) = 0x4
-flag(::Type{MOI.Interval{Float64}}) = 0x8
-flag(::Type{MOI.Integer}) = 0x10
-flag(::Type{MOI.ZeroOne}) = 0x20
 
 """
     MosekModel <: MathOptInterface.AbstractModel
@@ -131,20 +116,6 @@ mutable struct MosekModel  <: MOI.AbstractOptimizer
     x_block      :: LinkedInts
 
     """
-    One entry per scalar variable in the task indicating which bound
-    types are defined
-    """
-    x_boundflags :: Vector{Int}
-
-    """
-    One entry per scalar variable in the task defining the number of
-    variable constraints imposed on that variable. It is not allowed
-    to delete a variable without deleting the constraints on it first
-    (to get around the problem of deleting roots in conic constraints).
-    """
-    x_numxc :: Vector{Int}
-
-    """
     One entry per scalar variable in the task indicating in which semidefinite
     block it is and at which index.
     MOI index -> MatrixIndex
@@ -158,11 +129,6 @@ mutable struct MosekModel  <: MOI.AbstractOptimizer
     """
     xc_block     :: LinkedInts
 
-    """
-    One entry per variable-constraint block indicating which bound
-    types it defines. The values are binary ORed `boundflag_...` values.
-    """
-    xc_bounds    :: Vector{UInt8}
     """
     One entry per variable-constraint block indicating which cone it belongs to, 0 if none.
     """
@@ -298,12 +264,9 @@ function Mosek.Optimizer(; kws...)
                        VariableType[], # x_type
                        UInt8[], # x_constraints
                        LinkedInts(),# x_block
-                       Int[], # x_boundflags
-                       Int[], # x_numxc
                        MatrixIndex[], # x_sd
                        Int[], # sd_dim
                        LinkedInts(), # xc_block
-                       UInt8[], # xc_bounds
                        Int[], # xc_coneid
                        Int[], # xc_idxs
                        LinkedInts(), # c_block
@@ -426,12 +389,9 @@ function MOI.empty!(model::MosekModel)
     model.x_type             = VariableType[]
     model.x_constraints      = UInt8[]
     model.x_block            = LinkedInts()
-    model.x_boundflags       = Int[]
-    model.x_numxc            = Int[]
     model.x_sd               = MatrixIndex[]
     model.sd_dim             = Int[]
     model.xc_block           = LinkedInts()
-    model.xc_bounds          = UInt8[]
     model.xc_coneid          = Int[]
     model.xc_idxs            = Int[]
     model.c_block            = LinkedInts()

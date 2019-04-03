@@ -148,29 +148,74 @@ function getvarboundlist(t::Mosek.Task, subj::Vector{Int32})
 end
 
 
-function add_variable_constraint(m::MosekModel, col::Int32, dom::MOI.Interval)
-    putvarbound(m.task, col, MSK_BK_RA, dom.lower, dom.upper)
+function delete_variable_constraint(m::MosekModel, col::ColumnIndex,
+                                    ::Type{<:Union{MOI.Interval, MOI.EqualTo}})
+    putvarbound(m.task, col.value, MSK_BK_FR, 0.0, 0.0)
 end
-function add_variable_constraint(m::MosekModel, col::Int32, dom::MOI.EqualTo)
-    putvarbound(m.task, col, MSK_BK_FX, dom.value, dom.value)
+function delete_variable_constraint(m::MosekModel, col::ColumnIndex,
+                                    ::Type{MOI.Integer})
+    putvartype(m.task, col.value, MSK_VAR_TYPE_CONT)
 end
-function add_variable_constraint(m::MosekModel, col::Int32, ::MOI.Integer)
-    putvartype(m.task, col, MSK_VAR_TYPE_INT)
+function delete_variable_constraint(m::MosekModel, col::ColumnIndex,
+                                    ::Type{MOI.ZeroOne})
+    putvartype(m.task, col.value, MSK_VAR_TYPE_CONT)
+    putvarbound(m.task, col.value, MSK_BK_FR, 0.0, 0.0)
 end
-function add_variable_constraint(m::MosekModel, col::Int32, ::MOI.ZeroOne)
-    putvartype(m.task, col, MSK_VAR_TYPE_INT)
-    putvarbound(m.task, col, MSK_BK_RA, 0.0, 1.0)
+function delete_variable_constraint(m::MosekModel, col::ColumnIndex,
+                                    ::Type{MOI.LessThan{Float64}})
+    bk, lo, up = getvarbound(m.task, col.value)
+    if bk == MSK_BK_UP
+        bk = MSK_BK_FR
+    else
+        @assert bk == MSK_BK_RA
+        bk = MSK_BK_LO
+    end
+    putvarbound(m.task, col.value, bk, lo, 0.0)
 end
-function add_variable_constraint(m::MosekModel, col::Int32, dom::MOI.LessThan)
-    bk, lo, up = getvarbound(m.task, col)
-    bk = if (bk == MSK_BK_FR) MSK_BK_UP else MSK_BK_RA end
-    putvarbound(m.task, Int32(col), bk, lo, dom.upper)
+function delete_variable_constraint(m::MosekModel, col::ColumnIndex,
+                                    ::Type{MOI.GreaterThan{Float64}})
+    bk, lo, up = getvarbound(m.task, col.value)
+    if bk == MSK_BK_LO
+        bk = MSK_BK_FR
+    else
+        @assert bk == MSK_BK_RA
+        bk = MSK_BK_UP
+    end
+    putvarbound(m.task, col.value, bk, 0.0, up)
 end
-function add_variable_constraint(m::MosekModel, col::Int32,
+function add_variable_constraint(m::MosekModel, col::ColumnIndex, dom::MOI.Interval)
+    putvarbound(m.task, col.value, MSK_BK_RA, dom.lower, dom.upper)
+end
+function add_variable_constraint(m::MosekModel, col::ColumnIndex, dom::MOI.EqualTo)
+    putvarbound(m.task, col.value, MSK_BK_FX, dom.value, dom.value)
+end
+function add_variable_constraint(m::MosekModel, col::ColumnIndex, ::MOI.Integer)
+    putvartype(m.task, col.value, MSK_VAR_TYPE_INT)
+end
+function add_variable_constraint(m::MosekModel, col::ColumnIndex, ::MOI.ZeroOne)
+    putvartype(m.task, col.value, MSK_VAR_TYPE_INT)
+    putvarbound(m.task, col.value, MSK_BK_RA, 0.0, 1.0)
+end
+function add_variable_constraint(m::MosekModel, col::ColumnIndex, dom::MOI.LessThan)
+    bk, lo, up = getvarbound(m.task, col.value)
+    if bk == MSK_BK_FR
+        bk = MSK_BK_UP
+    else
+        @assert bk == MSK_BK_LO
+        bk = MSK_BK_RA
+    end
+    putvarbound(m.task, col.value, bk, lo, dom.upper)
+end
+function add_variable_constraint(m::MosekModel, col::ColumnIndex,
                                  dom::MOI.GreaterThan)
-    bk, lo, up = getvarbound(m.task, col)
-    bk = if (bk == MSK_BK_FR) MSK_BK_LO else MSK_BK_RA end
-    putvarbound(m.task, Int32(col), bk, dom.lower, up)
+    bk, lo, up = getvarbound(m.task, col.value)
+    if bk == MSK_BK_FR
+        bk = MSK_BK_LO
+    else
+        @assert bk == MSK_BK_UP
+        bk = MSK_BK_RA
+    end
+    putvarbound(m.task, col.value, bk, dom.lower, up)
 end
 function get_variable_constraint(m::MosekModel,
                                  col::ColumnIndex,
@@ -186,24 +231,12 @@ cone_parameter(dom :: MOI.PowerCone{Float64})     = dom.exponent
 cone_parameter(dom :: MOI.DualPowerCone{Float64}) = dom.exponent
 cone_parameter(dom :: C) where C <: MOI.AbstractSet = 0.0
 
-const VectorCone = Union{MOI.SecondOrderCone,
-                         MOI.RotatedSecondOrderCone,
-                         MOI.PowerCone,
-                         MOI.DualPowerCone,
-                         MOI.ExponentialCone,
-                         MOI.DualExponentialCone}
-
-function set_variable_domain(m::MosekModel, xcid::Int, cols::Vector{Int32},
-                             dom::VectorCone)
-    appendcone(m.task, cone_type(typeof(dom)), cone_parameter(dom), cols)
+function set_variable_domain(m::MosekModel, xcid::Int, cols::Vector{Int32}, set)
+    appendcone(m.task, cone_type(typeof(set)), cone_parameter(set), cols)
     coneidx = getnumcone(m.task)
     m.conecounter += 1
     putconename(m.task,coneidx,"$(m.conecounter)")
     m.xc_coneid[xcid] = m.conecounter
-end
-function set_variable_domain(m::MosekModel, ::Int, cols::Vector{Int32},
-                             dom::MOI.AbstractSet)
-    add_variable_constraint(m, cols, dom)
 end
 
 ## Name #######################################################################
@@ -246,9 +279,8 @@ function allocatevarconstraints(m :: MosekModel,
     nalloc = ensurefree(m.xc_block, N)
     id = newblock(m.xc_block, N)
 
-    M = numblocks(m.xc_block) - length(m.xc_bounds)
+    M = numblocks(m.xc_block) - length(m.xc_coneid)
     if M > 0
-        append!(m.xc_bounds, zeros(Float64, M))
         append!(m.xc_coneid, zeros(Float64, M))
     end
     if nalloc > 0
@@ -256,6 +288,44 @@ function allocatevarconstraints(m :: MosekModel,
     end
 
     return id
+end
+
+const VectorCone = Union{MOI.SecondOrderCone,
+                         MOI.RotatedSecondOrderCone,
+                         MOI.PowerCone,
+                         MOI.DualPowerCone,
+                         MOI.ExponentialCone,
+                         MOI.DualExponentialCone}
+
+# Two `SingleVariable`-in-`S` cannot be set to the same variable if
+# the two constraints
+# * both set a lower bound, or
+# * both set an upper bound, or
+# * both set it to integer.
+# The `incompatible_mask` are computed according to these rules.
+flag(::Type{MOI.EqualTo{Float64}}) = 0x1
+incompatible_mask(::Type{MOI.EqualTo{Float64}}) = 0x2f
+flag(::Type{MOI.GreaterThan{Float64}}) = 0x2
+incompatible_mask(::Type{MOI.GreaterThan{Float64}}) = 0x2b
+flag(::Type{MOI.LessThan{Float64}}) = 0x4
+incompatible_mask(::Type{MOI.LessThan{Float64}}) = 0x2d
+flag(::Type{MOI.Interval{Float64}}) = 0x8
+incompatible_mask(::Type{MOI.Interval{Float64}}) = 0x2f
+flag(::Type{MOI.Integer}) = 0x10
+incompatible_mask(::Type{MOI.Integer}) = 0x30
+flag(::Type{MOI.ZeroOne}) = 0x20
+incompatible_mask(::Type{MOI.ZeroOne}) = 0x3f
+flag(::Type{<:VectorCone}) = 0x40
+incompatible_mask(::Type{<:VectorCone}) = 0x40
+
+function set_flag(model::MosekModel, vi::MOI.VariableIndex, S::Type)
+    model.x_constraints[vi.value] |= flag(S)
+end
+function unset_flag(model::MosekModel, vi::MOI.VariableIndex, S::Type)
+    model.x_constraints[vi.value] &= ~flag(S)
+end
+function has_flag(model::MosekModel, vi::MOI.VariableIndex, S::Type)
+    return !iszero(model.x_constraints[vi.value] & flag(S))
 end
 
 ###############################################################################
@@ -315,23 +385,6 @@ end
 # added later. Adding a `Interval` constraint defines both upper and
 # lower bounds.
 
-domain_type_mask(::Type{MOI.Interval{Float64}})     = (boundflag_lower | boundflag_upper)
-domain_type_mask(::Type{MOI.EqualTo{Float64}})      = (boundflag_lower | boundflag_upper)
-domain_type_mask(::Type{MOI.GreaterThan{Float64}})  = boundflag_lower
-domain_type_mask(::Type{MOI.LessThan{Float64}})     = boundflag_upper
-
-domain_type_mask(::Type{MOI.SecondOrderCone})        = boundflag_cone
-domain_type_mask(::Type{MOI.RotatedSecondOrderCone}) = boundflag_cone
-domain_type_mask(::Type{MOI.ExponentialCone})        = boundflag_cone
-domain_type_mask(::Type{MOI.PowerCone})              = boundflag_cone
-domain_type_mask(::Type{MOI.DualExponentialCone})    = boundflag_cone
-domain_type_mask(::Type{MOI.DualPowerCone})          = boundflag_cone
-
-domain_type_mask(::Type{MOI.PositiveSemidefiniteConeTriangle}) = 0
-
-domain_type_mask(::Type{MOI.Integer}) = boundflag_int
-domain_type_mask(::Type{MOI.ZeroOne}) = (boundflag_int | boundflag_upper | boundflag_lower)
-
 cone_type(::Type{MOI.ExponentialCone})        = MSK_CT_PEXP
 cone_type(::Type{MOI.DualExponentialCone})    = MSK_CT_DEXP
 cone_type(::Type{MOI.PowerCone{Float64}})     = MSK_CT_PPOW
@@ -348,31 +401,26 @@ function MOI.add_constraint(
     if !(msk_idx isa ColumnIndex)
         error("Cannot add $D constraint on a matrix variable")
     end
-    col = msk_idx.value
 
-    mask = domain_type_mask(typeof(dom))
-    if mask & m.x_boundflags[col] != 0
+    if !iszero(incompatible_mask(D) & m.x_constraints[xs.variable.value])
         error("Cannot put multiple bound sets of the same type on a variable")
     end
 
-    m.x_constraints[xs.variable.value] |= flag(D)
+    set_flag(m, xs.variable, D)
 
-    add_variable_constraint(m, col, dom)
-
-    m.x_boundflags[col] |= mask
+    add_variable_constraint(m, msk_idx, dom)
 
     return MOI.ConstraintIndex{MOI.SingleVariable, D}(xs.variable.value)
 end
 
 function MOI.add_constraint(m::MosekModel, xs::MOI.VectorOfVariables,
-                            dom::D) where {D <: MOI.AbstractVectorSet}
+                            dom::D) where {D<:VectorCone}
     if any(vi -> is_matrix(m, vi), xs.variables)
         error("Cannot add $D constraint on a matrix variable")
     end
     cols = reorder(columns(m, xs.variables).values, D)
 
-    mask = domain_type_mask(typeof(dom))
-    if any(mask .& m.x_boundflags[cols] .> 0)
+    if !all(vi -> iszero(incompatible_mask(D) & m.x_constraints[vi.value]), xs.variables)
         error("Cannot multiple bound sets of the same type to a variable")
     end
 
@@ -380,12 +428,9 @@ function MOI.add_constraint(m::MosekModel, xs::MOI.VectorOfVariables,
     xcid = allocatevarconstraints(m, N)
     xc_sub = getindexes(m.xc_block, xcid)
 
-    m.xc_bounds[xcid] = mask
     m.xc_idxs[xc_sub] = cols
 
     set_variable_domain(m, xcid, cols, dom)
-
-    m.x_boundflags[cols] .|= mask
 
     ci = MOI.ConstraintIndex{MOI.VectorOfVariables, D}(xcid)
     return ci
@@ -604,70 +649,23 @@ function MOI.is_valid(model::MosekModel,
                       ci::MOI.ConstraintIndex{MOI.SingleVariable,
                                               S}) where S<:Union{ScalarLinearDomain,
                                                                  ScalarIntegerDomain}
-    return allocated(model.x_block, ci.value) &&
-        !iszero(model.x_constraints[ci.value] & flag(S))
+    return allocated(model.x_block, ci.value) && has_flag(model, _variable(ci), S)
 end
 function MOI.delete(
     m::MosekModel,
-    ci::MOI.ConstraintIndex{MOI.SingleVariable, D}) where D <: Union{ScalarLinearDomain, ScalarIntegerDomain}
+    ci::MOI.ConstraintIndex{MOI.SingleVariable, S}) where S<:Union{ScalarLinearDomain,
+                                                                   ScalarIntegerDomain}
     if !MOI.is_valid(m, ci)
         throw(MOI.InvalidIndex(ci))
     end
-
     delete_name(m, ci)
-
-    col = column(m, _variable(ci))
-
-    m.x_constraints[sub] &= ~flag(D)
-
-    mask = domain_type_mask(D)
-    m.x_boundflags[subj] .&= ~mask
-    if mask & boundflag_int != 0
-        putvartype(m.task, col.value, MSK_VAR_TYPE_CONT)
-    end
-
-    if mask & boundflag_lower != 0 && mask & boundflag_upper != 0
-        putvarbound(m.task, col.value, MSK_BK_FR, 0.0, 0.0)
-    elseif m.xc_bounds[xcid] & boundflag_lower != 0
-        bnd = fill(0.0, length(N))
-        bk,bl,bu = getvarboundlist(m.task, convert(Vector{Int32},subj))
-
-        for i in 1:N
-            if MSK_BK_RA == bk[i] || MSK_BK_FX == bk[i]
-                bk[i] = MSK_BK_UP
-            else
-                bk[i] = MSK_BK_FR
-            end
-        end
-
-        putvarboundlist(m.task,convert(Vector{Int32},subj),bk,bl,bu)
-    elseif m.xc_bounds[xcid] & boundflag_upper != 0
-        bnd = fill(0.0, length(N))
-        bk,bl,bu = getvarboundlist(m.task, subj)
-
-        for i in 1:N
-            if MSK_BK_RA == bk[i] || MSK_BK_FX == bk[i]
-                bk[i] = MSK_BK_LO
-            else
-                bk[i] = MSK_BK_FR
-            end
-        end
-
-        putvarboundlist(m.task,convert(Vector{Int32},subj),bk,bl,bu)
-    else
-        @assert(false)
-        # should not happen
-    end
-
-    m.x_numxc[subj] .-= 1
-    m.xc_idxs[sub] .= 0
-    m.xc_bounds[xcid] = 0
-
-    deleteblock(m.xc_block, xcid)
+    vi = _variable(ci)
+    unset_flag(m, vi, S)
+    delete_variable_constraint(m, column(m, vi), S)
 end
 function MOI.is_valid(model::MosekModel,
                       ci::MOI.ConstraintIndex{MOI.VectorOfVariables,
-                                              S}) where S<:Union{MOI.AbstractVectorSet}
+                                              S}) where S<:VectorCone
     return allocated(model.xc_block, ci.value) &&
         !iszero(model.xc_coneid[ci.value]) &&
         getconeinfo(model.task, model.xc_coneid[ci.value])[1] == cone_type(S)

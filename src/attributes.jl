@@ -164,13 +164,13 @@ function MOI.get(model::MosekModel,
     return [MOI.ConstraintIndex{F, S}(id) for id in ids]
 end
 function MOI.get(model::MosekModel,
-                 ::MOI.NumberOfConstraints{MOI.VectorOfVariables, S}) where S<:MOI.AbstractVectorSet
+                 ::MOI.NumberOfConstraints{MOI.VectorOfVariables, S}) where S<:VectorCone
     F = MOI.VectorOfVariables
     return count(id -> MOI.is_valid(model, MOI.ConstraintIndex{F, S}(id)),
                  allocatedlist(model.xc_block))
 end
 function MOI.get(model::MosekModel,
-                 ::MOI.ListOfConstraintIndices{MOI.VectorOfVariables, S}) where S<:MOI.AbstractVectorSet
+                 ::MOI.ListOfConstraintIndices{MOI.VectorOfVariables, S}) where S<:VectorCone
     ids = filter(id -> MOI.is_valid(model, MOI.ConstraintIndex{F, S}(id)),
                  allocatedlist(model.xc_block))
     return [MOI.ConstraintIndex{F, S}(id) for id in ids]
@@ -192,12 +192,19 @@ end
 function MOI.get(model::MosekModel,
                  ::MOI.ListOfConstraints)
     list = Tuple{DataType, DataType}[]
-    for F in [MOI.SingleVariable, MOI.ScalarAffineFunction{Float64}]
-        for D in [MOI.LessThan{Float64}, MOI.GreaterThan{Float64},
-                  MOI.EqualTo{Float64}, MOI.Interval{Float64}]
-            if !iszero(MOI.get(model, MOI.NumberOfConstraints{F, D}()))
-                push!(list, (F, D))
-            end
+    F = MOI.SingleVariable
+    for D in [MOI.LessThan{Float64}, MOI.GreaterThan{Float64},
+              MOI.EqualTo{Float64}, MOI.Interval{Float64},
+              MOI.Integer, MOI.ZeroOne]
+        if !iszero(MOI.get(model, MOI.NumberOfConstraints{F, D}()))
+            push!(list, (F, D))
+        end
+    end
+    F = MOI.ScalarAffineFunction{Float64}
+    for D in [MOI.LessThan{Float64}, MOI.GreaterThan{Float64},
+              MOI.EqualTo{Float64}, MOI.Interval{Float64}]
+        if !iszero(MOI.get(model, MOI.NumberOfConstraints{F, D}()))
+            push!(list, (F, D))
         end
     end
     F = MOI.VectorOfVariables
@@ -292,7 +299,6 @@ function MOI.get!(
     xcid = ref2id(ci)
     @assert(xcid > 0)
 
-    mask = m.xc_bounds[xcid]
     idxs = getindexes(m.xc_block, xcid)
     subj = m.xc_idxs[idxs]
 
@@ -350,8 +356,7 @@ function reorder(x, ::Type{<:Union{MOI.ExponentialCone,
                                    MOI.DualExponentialCone}})
     return [x[3], x[2], x[1]]
 end
-reorder(x, ::Type{<:MOI.AbstractVectorSet}) = x
-
+reorder(x, ::Type{<:VectorCone}) = x
 
 
 # Semidefinite domain for a variable
@@ -381,36 +386,15 @@ function MOI.get!(
     xcid = ref2id(ci)
     @assert(xcid > 0)
 
-    mask = m.xc_bounds[xcid]
     idxs = getindexes(m.xc_block,xcid)
     subj = m.xc_idxs[idxs]
 
     idx = reorder(1:length(output), D)
 
     if (getobjsense(m.task) == MSK_OBJECTIVE_SENSE_MINIMIZE)
-        if     mask & boundflag_lower != 0 && mask & boundflag_upper != 0
-            output[idx] = m.solutions[attr.N].slx[subj] - m.solutions[attr.N].sux[subj]
-        elseif (mask & boundflag_lower) != 0
-            output[idx] = m.solutions[attr.N].slx[subj]
-        elseif (mask & boundflag_upper) != 0
-            output[idx] = - m.solutions[attr.N].sux[subj]
-        elseif (mask & boundflag_cone) != 0
-            output[idx] = m.solutions[attr.N].snx[subj]
-        else
-            error("Dual value available for this constraint")
-        end
+        output[idx] = m.solutions[attr.N].snx[subj]
     else
-        if     mask & boundflag_lower != 0 && mask & boundflag_upper != 0
-            output[idx] = m.solutions[attr.N].sux[subj] - m.solutions[attr.N].slx[subj]
-        elseif (mask & boundflag_lower) != 0
-            output[idx] = - m.solutions[attr.N].slx[subj]
-        elseif (mask & boundflag_upper) != 0
-            output[idx] = m.solutions[attr.N].sux[subj]
-        elseif (mask & boundflag_cone) != 0
-            output[idx] = - m.solutions[attr.N].snx[subj]
-        else
-            error("Dual value available for this constraint")
-        end
+        output[idx] = -m.solutions[attr.N].snx[subj]
     end
 end
 
