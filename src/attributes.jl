@@ -171,6 +171,7 @@ function MOI.get(model::MosekModel,
 end
 function MOI.get(model::MosekModel,
                  ::MOI.ListOfConstraintIndices{MOI.VectorOfVariables, S}) where S<:VectorCone
+    F = MOI.VectorOfVariables
     ids = filter(id -> MOI.is_valid(model, MOI.ConstraintIndex{F, S}(id)),
                  allocatedlist(model.xc_block))
     return [MOI.ConstraintIndex{F, S}(id) for id in ids]
