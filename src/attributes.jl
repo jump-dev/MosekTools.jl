@@ -301,7 +301,7 @@ function MOI.get!(
     @assert(xcid > 0)
 
     idxs = getindexes(m.xc_block, xcid)
-    subj = m.xc_idxs[idxs]
+    subj = getcone(m.task, m.xc_coneid[ci.value])[4]
 
     output[1:length(output)] = reorder(m.solutions[attr.N].xx[subj], D)
 end
@@ -388,7 +388,7 @@ function MOI.get!(
     @assert(xcid > 0)
 
     idxs = getindexes(m.xc_block,xcid)
-    subj = m.xc_idxs[idxs]
+    subj = getcone(m.task, m.xc_coneid[ci.value])[4]
 
     idx = reorder(1:length(output), D)
 
