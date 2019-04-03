@@ -49,10 +49,7 @@ end
 end
 
 @testset "Continuous linear problems" begin
-    # linear1 is failing because it does not remove the SingleVariable
-    # constraint using a variable if this variable is deleted, see
-    # https://github.com/JuliaOpt/MathOptInterface.jl/issues/511
-    MOIT.contlineartest(bridged, config, ["linear1"])
+    MOIT.contlineartest(bridged, config)
 end
 
 @testset "Continuous quadratic problems" begin
