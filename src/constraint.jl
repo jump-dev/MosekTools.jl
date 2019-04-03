@@ -262,11 +262,6 @@ end
 # MOI #########################################################################
 ###############################################################################
 
-const PositiveSemidefiniteCone = MOI.PositiveSemidefiniteConeTriangle
-const LinearFunction = Union{MOI.SingleVariable,
-                             MOI.VectorOfVariables,
-                             MOI.ScalarAffineFunction}
-
 const ScalarLinearDomain = Union{MOI.LessThan{Float64},
                                  MOI.GreaterThan{Float64},
                                  MOI.EqualTo{Float64},
@@ -360,22 +355,13 @@ function MOI.add_constraint(
         error("Cannot put multiple bound sets of the same type on a variable")
     end
 
-    xcid = allocatevarconstraints(m, 1)
-
-    xc_sub = getindex(m.xc_block, xcid)
-
     m.x_constraints[xs.variable.value] |= flag(D)
-
-    m.xc_bounds[xcid] = mask
-    m.xc_idxs[xc_sub] = col
 
     add_variable_constraint(m, col, dom)
 
     m.x_boundflags[col] |= mask
 
-    conref = MOI.ConstraintIndex{MOI.SingleVariable,D}(xcid)
-
-    return conref
+    return MOI.ConstraintIndex{MOI.SingleVariable, D}(xs.variable.value)
 end
 
 function MOI.add_constraint(m::MosekModel, xs::MOI.VectorOfVariables,
@@ -480,11 +466,10 @@ end
 ## Get ########################################################################
 ###############################################################################
 
+_variable(ci::MOI.ConstraintIndex{MOI.SingleVariable}) = MOI.VariableIndex(ci.value)
 function MOI.get(m::MosekModel, ::MOI.ConstraintFunction,
                  ci::MOI.ConstraintIndex{MOI.SingleVariable}) where S <: ScalarLinearDomain
-    xc_sub = getindex(m.xc_block, ci.value)
-    col = Int32(m.xc_idxs[xc_sub])
-    return MOI.SingleVariable(index_of_column(m, col))
+    return MOI.SingleVariable(_variable(ci))
 end
 function MOI.get(m::MosekModel, ::MOI.ConstraintSet,
                  ci::MOI.ConstraintIndex{MOI.SingleVariable, S}) where S <: ScalarIntegerDomain
@@ -523,14 +508,13 @@ chgbound(bl::Float64,bu::Float64,k::Float64,dom :: MOI.Interval{Float64})    = d
 
 function MOI.set(m::MosekModel,
                  ::MOI.ConstraintSet,
-                 xcref::MOI.ConstraintIndex{F,D},
-                 dom::D) where { F    <: MOI.SingleVariable,
-                                 D    <: ScalarLinearDomain }
-    xcid = ref2id(xcref)
-    col = m.xc_idxs[getindex(m.xc_block, xcid)]
-    bk, bl, bu = getvarbound(m.task, col)
+                 ci::MOI.ConstraintIndex{F,D},
+                 dom::D) where {F<:MOI.SingleVariable,
+                                D<:ScalarLinearDomain}
+    col = column(m, _variable(ci))
+    bk, bl, bu = getvarbound(m.task, col.value)
     bl, bu = chgbound(bl, bu, 0.0, dom)
-    putvarbound(m.task, col, bk, bl, bu)
+    putvarbound(m.task, col.value, bk, bl, bu)
 end
 
 
@@ -620,40 +604,30 @@ function MOI.is_valid(model::MosekModel,
                       ci::MOI.ConstraintIndex{MOI.SingleVariable,
                                               S}) where S<:Union{ScalarLinearDomain,
                                                                  ScalarIntegerDomain}
-    if !allocated(model.xc_block, ci.value) || model.xc_block.size[ci.value] > 1
-        return false
-    end
-    # FIXME won't be needed after https://github.com/JuliaOpt/MathOptInterface.jl/issues/570
-    vi = MOI.get(model, MOI.ConstraintFunction(), ci).variable
-    return !iszero(model.x_constraints[vi.value] & flag(S))
+    return allocated(model.x_block, ci.value) &&
+        !iszero(model.x_constraints[ci.value] & flag(S))
 end
 function MOI.delete(
     m::MosekModel,
-    cref::MOI.ConstraintIndex{MOI.SingleVariable, D}) where D <: Union{ScalarLinearDomain, ScalarIntegerDomain}
-    if !MOI.is_valid(m, cref)
-        throw(MOI.InvalidIndex(cref))
+    ci::MOI.ConstraintIndex{MOI.SingleVariable, D}) where D <: Union{ScalarLinearDomain, ScalarIntegerDomain}
+    if !MOI.is_valid(m, ci)
+        throw(MOI.InvalidIndex(ci))
     end
 
-    delete_name(m, cref)
+    delete_name(m, ci)
 
-    xcid = ref2id(cref)
-    sub = getindexes(m.xc_block, xcid)
+    col = column(m, _variable(ci))
 
     m.x_constraints[sub] &= ~flag(D)
 
-    subj = [ getindex(m.x_block,i) for i in sub ]
-    N = length(subj)
-
-    m.x_boundflags[subj] .&= ~m.xc_bounds[xcid]
-    if m.xc_bounds[xcid] & boundflag_int != 0
-        for i in 1:length(subj)
-            putvartype(m.task,subj[i],MSK_VAR_TYPE_CONT)
-        end
+    mask = domain_type_mask(D)
+    m.x_boundflags[subj] .&= ~mask
+    if mask & boundflag_int != 0
+        putvartype(m.task, col.value, MSK_VAR_TYPE_CONT)
     end
 
-    if m.xc_bounds[xcid] & boundflag_lower != 0 && m.xc_bounds[xcid] & boundflag_upper != 0
-        bnd = fill(0.0, length(N))
-        putvarboundlist(m.task,convert(Vector{Int32},subj),fill(MSK_BK_FR,N),bnd,bnd)
+    if mask & boundflag_lower != 0 && mask & boundflag_upper != 0
+        putvarbound(m.task, col.value, MSK_BK_FR, 0.0, 0.0)
     elseif m.xc_bounds[xcid] & boundflag_lower != 0
         bnd = fill(0.0, length(N))
         bk,bl,bu = getvarboundlist(m.task, convert(Vector{Int32},subj))
