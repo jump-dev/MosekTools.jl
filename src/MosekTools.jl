@@ -125,9 +125,6 @@ mutable struct MosekModel  <: MOI.AbstractOptimizer
     c_block :: LinkedInts
 
     ###########################
-    conecounter :: Int
-
-    ###########################
     trm :: Union{Nothing, Rescode}
     solutions :: Vector{MosekSolution}
 
@@ -233,7 +230,6 @@ function Mosek.Optimizer(; kws...)
                        LinkedInts(), # xc_block
                        Int[], # xc_coneid
                        LinkedInts(), # c_block
-                       0, # cone counter
                        nothing,# trm
                        MosekSolution[],
                        true, # feasibility_sense
@@ -355,7 +351,6 @@ function MOI.empty!(model::MosekModel)
     model.xc_block           = LinkedInts()
     model.xc_coneid          = Int[]
     model.c_block            = LinkedInts()
-    model.conecounter        = 0
     model.trm                = nothing
     model.solutions          = MosekSolution[]
     model.feasibility        = true

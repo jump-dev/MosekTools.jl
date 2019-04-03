@@ -226,12 +226,13 @@ cone_parameter(dom :: MOI.PowerCone{Float64})     = dom.exponent
 cone_parameter(dom :: MOI.DualPowerCone{Float64}) = dom.exponent
 cone_parameter(dom :: C) where C <: MOI.AbstractSet = 0.0
 
-function add_cone(m::MosekModel, xcid::Int, cols::ColumnIndices, set)
-    appendcone(m.task, cone_type(typeof(set)), cone_parameter(set), cols)
-    coneidx = getnumcone(m.task)
-    m.conecounter += 1
-    putconename(m.task,coneidx,"$(m.conecounter)")
-    m.xc_coneid[xcid] = m.conecounter
+function add_cone(m::MosekModel, cols::ColumnIndices, set)
+    appendcone(m.task, cone_type(typeof(set)), cone_parameter(set), cols.values)
+    id = getnumcone(m.task)
+    if DEBUG
+        putconename(m.task, id, "$id")
+    end
+    return id
 end
 
 ## Name #######################################################################
@@ -420,7 +421,7 @@ function MOI.add_constraint(m::MosekModel, xs::MOI.VectorOfVariables,
     xcid = allocatevarconstraints(m, N)
     xc_sub = getindexes(m.xc_block, xcid)
 
-    add_cone(m, xcid, cols, dom)
+    m.xc_coneid[xcid] = add_cone(m, cols, dom)
 
     ci = MOI.ConstraintIndex{MOI.VectorOfVariables, D}(xcid)
     return ci
