@@ -4,29 +4,12 @@ import MathOptInterface
 const MOI = MathOptInterface
 const MOIU = MOI.Utilities
 using Mosek
-#using Mosek.Ext
 
 using Compat # for findall
 
 include("LinkedInts.jl")
 
 const DEBUG = false
-
-mosek_block_type_unallocated = 0
-mosek_block_type_zero   = 1
-mosek_block_type_nonneg = 2
-mosek_block_type_nonpos = 3
-mosek_block_type_range  = 4
-mosek_block_type_qcone  = 5
-mosek_block_type_rqcone = 6
-mosek_block_type_psd    = 7
-mosek_block_type_integer = 8
-
-problemtype_linear    = 0
-problemtype_conic     = 1
-problemtype_quadratic = 2
-
-import MathOptInterface
 
 struct MosekSolution
     whichsol :: Soltype
