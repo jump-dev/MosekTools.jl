@@ -269,18 +269,8 @@ function row(m::MosekModel,
              c::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}})::Int32
     return getindex(m.c_block, c.value)
 end
-
-function allocatevarconstraints(m :: MosekModel,
-                                N :: Int)
-    ensurefree(m.xc_block, N)
-    id = newblock(m.xc_block, N)
-
-    M = numblocks(m.xc_block) - length(m.xc_coneid)
-    if M > 0
-        append!(m.xc_coneid, zeros(Float64, M))
-    end
-
-    return id
+function columns(m::MosekModel, ci::MOI.ConstraintIndex{MOI.VectorOfVariables})
+    return ColumnIndices(getcone(m.task, ci.value)[4])
 end
 
 const VectorCone = Union{MOI.SecondOrderCone,
@@ -418,13 +408,9 @@ function MOI.add_constraint(m::MosekModel, xs::MOI.VectorOfVariables,
     end
 
     N = MOI.dimension(dom)
-    xcid = allocatevarconstraints(m, N)
-    xc_sub = getindexes(m.xc_block, xcid)
+    id = add_cone(m, cols, dom)
 
-    m.xc_coneid[xcid] = add_cone(m, cols, dom)
-
-    ci = MOI.ConstraintIndex{MOI.VectorOfVariables, D}(xcid)
-    return ci
+    return MOI.ConstraintIndex{MOI.VectorOfVariables, D}(id)
 end
 
 ################################################################################
@@ -657,9 +643,8 @@ end
 function MOI.is_valid(model::MosekModel,
                       ci::MOI.ConstraintIndex{MOI.VectorOfVariables,
                                               S}) where S<:VectorCone
-    return allocated(model.xc_block, ci.value) &&
-        !iszero(model.xc_coneid[ci.value]) &&
-        getconeinfo(model.task, model.xc_coneid[ci.value])[1] == cone_type(S)
+    return 1 ≤ ci.value ≤ getnumcone(model.task) &&
+        getconeinfo(model.task, ci.value)[1] == cone_type(S)
 end
 function MOI.is_valid(model::MosekModel,
                       ci::MOI.ConstraintIndex{MOI.VectorOfVariables,

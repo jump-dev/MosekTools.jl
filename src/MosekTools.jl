@@ -107,16 +107,6 @@ mutable struct MosekModel  <: MOI.AbstractOptimizer
 
     sd_dim::Vector{Int}
 
-    """
-    One entry per variable-constraint
-    """
-    xc_block     :: LinkedInts
-
-    """
-    One entry per variable-constraint block indicating which cone it belongs to, 0 if none.
-    """
-    xc_coneid    :: Vector{Int}
-
     ###########################
     """
     One scalar entry per constraint in the underlying task. One block
@@ -227,8 +217,6 @@ function Mosek.Optimizer(; kws...)
                        LinkedInts(),# x_block
                        MatrixIndex[], # x_sd
                        Int[], # sd_dim
-                       LinkedInts(), # xc_block
-                       Int[], # xc_coneid
                        LinkedInts(), # c_block
                        nothing,# trm
                        MosekSolution[],
@@ -348,8 +336,6 @@ function MOI.empty!(model::MosekModel)
     model.x_block            = LinkedInts()
     model.x_sd               = MatrixIndex[]
     model.sd_dim             = Int[]
-    model.xc_block           = LinkedInts()
-    model.xc_coneid          = Int[]
     model.c_block            = LinkedInts()
     model.trm                = nothing
     model.solutions          = MosekSolution[]
