@@ -10,15 +10,10 @@ function allocateconstraints(m::MosekModel, N::Int)
     alloced = ensurefree(m.c_block,N)
     id = newblock(m.c_block, N)
 
-    M = numblocks(m.c_block) - length(m.c_block_slack)
     if alloced > 0
         appendcons(m.task, alloced)
     end
-    if M > 0
-        append!(m.c_block_slack, zeros(Float64,M))
-        append!(m.c_coneid, zeros(Float64,M))
-    end
-    id
+    return id
 end
 
 function getconboundlist(t::Mosek.Task, subj::Vector{Int32})
