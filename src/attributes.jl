@@ -133,36 +133,92 @@ MOI.get(m::MosekModel,attr::MOI.ResultCount) = length(m.solutions)
 
 #### Problem information
 
-function MOI.get(m::MosekModel, ::MOI.NumberOfConstraints{F,D}) where {F,D}
-    return length(select(m.constrmap, F, D))
+function MOI.get(model::MosekModel,
+                 ::MOI.NumberOfConstraints{MOI.ScalarAffineFunction{Float64},
+                                           S}) where S <: ScalarLinearDomain
+    F = MOI.ScalarAffineFunction{Float64}
+    return count(id -> MOI.is_valid(model, MOI.ConstraintIndex{F, S}(id)),
+                 allocatedlist(model.c_block))
+end
+function MOI.get(model::MosekModel,
+                 ::MOI.ListOfConstraintIndices{MOI.ScalarAffineFunction{Float64},
+                                               S}) where S <: ScalarLinearDomain
+    F = MOI.ScalarAffineFunction{Float64}
+    ids = filter(id -> MOI.is_valid(model, MOI.ConstraintIndex{F, S}(id)),
+                 allocatedlist(model.c_block))
+    return [MOI.ConstraintIndex{F, S}(id) for id in ids]
+end
+function MOI.get(model::MosekModel,
+                 ::MOI.NumberOfConstraints{MOI.SingleVariable, S}) where S<:Union{ScalarLinearDomain,
+                                                                                    ScalarIntegerDomain}
+    F = MOI.SingleVariable
+    return count(id -> MOI.is_valid(model, MOI.ConstraintIndex{F, S}(id)),
+                 allocatedlist(model.x_block))
+end
+function MOI.get(model::MosekModel,
+                 ::MOI.ListOfConstraintIndices{MOI.SingleVariable, S}) where S<:Union{ScalarLinearDomain,
+                                                                                        ScalarIntegerDomain}
+    F = MOI.SingleVariable
+    ids = filter(id -> MOI.is_valid(model, MOI.ConstraintIndex{F, S}(id)),
+                 allocatedlist(model.x_block))
+    return [MOI.ConstraintIndex{F, S}(id) for id in ids]
+end
+function MOI.get(model::MosekModel,
+                 ::MOI.NumberOfConstraints{MOI.VectorOfVariables, S}) where S<:VectorCone
+    F = MOI.VectorOfVariables
+    return count(id -> MOI.is_valid(model, MOI.ConstraintIndex{F, S}(id)),
+                 allocatedlist(model.xc_block))
+end
+function MOI.get(model::MosekModel,
+                 ::MOI.ListOfConstraintIndices{MOI.VectorOfVariables, S}) where S<:VectorCone
+    F = MOI.VectorOfVariables
+    ids = filter(id -> MOI.is_valid(model, MOI.ConstraintIndex{F, S}(id)),
+                 allocatedlist(model.xc_block))
+    return [MOI.ConstraintIndex{F, S}(id) for id in ids]
+end
+function MOI.get(model::MosekModel,
+                 ::MOI.NumberOfConstraints{MOI.VectorOfVariables,
+                                           MOI.PositiveSemidefiniteConeTriangle})
+    # TODO this only works because deletion of PSD constraints is not supported yet
+    return length(model.sd_dim)
+end
+function MOI.get(model::MosekModel,
+                 ::MOI.ListOfConstraintIndices{MOI.VectorOfVariables,
+                                               MOI.PositiveSemidefiniteConeTriangle})
+    # TODO this only works because deletion of PSD constraints is not supported yet
+    return [MOI.ConstraintIndex{MOI.VectorOfVariables,
+                                MOI.PositiveSemidefiniteConeTriangle}(id) for id in 1:length(model.sd_dim)]
 end
 
 function MOI.get(model::MosekModel,
                  ::MOI.ListOfConstraints)
     list = Tuple{DataType, DataType}[]
-    for F in [MOI.SingleVariable, MOI.ScalarAffineFunction{Float64}]
-        for D in [MOI.LessThan{Float64}, MOI.GreaterThan{Float64},
-                  MOI.EqualTo{Float64}, MOI.Interval{Float64}]
-            if !isempty(select(model.constrmap, F, D))
-                push!(list, (F, D))
-            end
+    F = MOI.SingleVariable
+    for D in [MOI.LessThan{Float64}, MOI.GreaterThan{Float64},
+              MOI.EqualTo{Float64}, MOI.Interval{Float64},
+              MOI.Integer, MOI.ZeroOne]
+        if !iszero(MOI.get(model, MOI.NumberOfConstraints{F, D}()))
+            push!(list, (F, D))
+        end
+    end
+    F = MOI.ScalarAffineFunction{Float64}
+    for D in [MOI.LessThan{Float64}, MOI.GreaterThan{Float64},
+              MOI.EqualTo{Float64}, MOI.Interval{Float64}]
+        if !iszero(MOI.get(model, MOI.NumberOfConstraints{F, D}()))
+            push!(list, (F, D))
         end
     end
     F = MOI.VectorOfVariables
     for D in [MOI.SecondOrderCone, MOI.RotatedSecondOrderCone,
-              MOI.PowerCone{Float64}, MOI.DualPowerCone{Float64},
-              MOI.ExponentialCone, MOI.DualExponentialCone,
+              # TODO reenable for Mosek 9
+              #MOI.PowerCone{Float64}, MOI.DualPowerCone{Float64},
+              #MOI.ExponentialCone, MOI.DualExponentialCone,
               MOI.PositiveSemidefiniteConeTriangle]
-        if !isempty(select(model.constrmap, F, D))
+        if !iszero(MOI.get(model, MOI.NumberOfConstraints{F, D}()))
             push!(list, (F, D))
         end
     end
     return list
-end
-
-function MOI.get(model::MosekModel,
-                 ::MOI.ListOfConstraintIndices{F, D}) where {F, D}
-    return MOI.ConstraintIndex{F, D}.(keys(select(model.constrmap, F, D)))
 end
 
 #### Warm start values
@@ -218,12 +274,8 @@ function MOI.get(
     m     ::MosekModel,
     attr  ::MOI.ConstraintPrimal,
     ci  ::MOI.ConstraintIndex{MOI.SingleVariable,D}) where D
-
-    conid = ref2id(ci)
-    idx  = getindex(m.xc_block, conid)
-    subj  = m.xc_idxs[idx]
-
-    m.solutions[attr.N].xx[subj]
+    col = column(m, _variable(ci))
+    return m.solutions[attr.N].xx[col.value]
 end
 
 # Semidefinite domain for a variable
@@ -248,7 +300,6 @@ function MOI.get!(
     xcid = ref2id(ci)
     @assert(xcid > 0)
 
-    mask = m.xc_bounds[xcid]
     idxs = getindexes(m.xc_block, xcid)
     subj = m.xc_idxs[idxs]
 
@@ -263,38 +314,24 @@ function MOI.get(m     ::MosekModel,
     return m.solutions[attr.N].xc[subi]
 end
 
+function _variable_constraint_dual(sol::MosekSolution, col::ColumnIndex,
+                                   ::Type{<:Union{MOI.Interval{Float64}, MOI.EqualTo{Float64}}})
+    return sol.slx[col.value] - sol.sux[col.value]
+end
+function _variable_constraint_dual(sol::MosekSolution, col::ColumnIndex, ::Type{MOI.GreaterThan{Float64}})
+    return sol.slx[col.value]
+end
+function _variable_constraint_dual(sol::MosekSolution, col::ColumnIndex, ::Type{MOI.LessThan{Float64}})
+    return -sol.sux[col.value]
+end
 function MOI.get(m::MosekModel, attr::MOI.ConstraintDual,
-                 ci::MOI.ConstraintIndex{MOI.SingleVariable})
-    xcid = ref2id(ci)
-    idx = getindex(m.xc_block, xcid) # variable id
-
-    @assert(blocksize(m.xc_block,xcid) > 0)
-
-    subj = m.xc_idxs[idx]
-    if (getobjsense(m.task) == MSK_OBJECTIVE_SENSE_MINIMIZE)
-        if     m.xc_bounds[xcid] & boundflag_lower != 0 && m.xc_bounds[xcid] & boundflag_upper != 0
-            m.solutions[attr.N].slx[subj] - m.solutions[attr.N].sux[subj]
-        elseif (m.xc_bounds[xcid] & boundflag_lower) != 0
-            m.solutions[attr.N].slx[subj]
-        elseif (m.xc_bounds[xcid] & boundflag_upper) != 0
-            - m.solutions[attr.N].sux[subj]
-        elseif (m.xc_bounds[xcid] & boundflag_cone) != 0
-            m.solutions[attr.N].snx[subj]
-        else
-            error("Dual value available for this constraint")
-        end
+                 ci::MOI.ConstraintIndex{MOI.SingleVariable, S}) where S <: ScalarLinearDomain
+    col = column(m, _variable(ci))
+    dual = _variable_constraint_dual(m.solutions[attr.N], col, S)
+    if getobjsense(m.task) == MSK_OBJECTIVE_SENSE_MINIMIZE
+        return dual
     else
-        if     m.xc_bounds[xcid] & boundflag_lower != 0 && m.xc_bounds[xcid] & boundflag_upper != 0
-            m.solutions[attr.N].sux[subj] - m.solutions[attr.N].slx[subj]
-        elseif (m.xc_bounds[xcid] & boundflag_lower) != 0
-            - m.solutions[attr.N].slx[subj]
-        elseif (m.xc_bounds[xcid] & boundflag_upper) != 0
-            m.solutions[attr.N].sux[subj]
-        elseif (m.xc_bounds[xcid] & boundflag_cone) != 0
-            - m.solutions[attr.N].snx[subj]
-        else
-            error("Dual value available for this constraint")
-        end
+        return -dual
     end
 end
 
@@ -302,9 +339,9 @@ getsolcode(m::MosekModel, N) = m.solutions[N].whichsol
 
 # The dual or primal of an SDP variable block is returned in lower triangular
 # form but the constraint is in upper triangular form.
-function reorder(x, ::Type{PositiveSemidefiniteCone})
+function reorder(x, ::Type{MOI.PositiveSemidefiniteConeTriangle})
     n = div(isqrt(1 + 8length(x)) - 1, 2)
-    @assert length(x) == MOI.dimension(PositiveSemidefiniteCone(n))
+    @assert length(x) == MOI.dimension(MOI.PositiveSemidefiniteConeTriangle(n))
     y = similar(x)
     k = 0
     for j in 1:n, i in j:n
@@ -320,8 +357,7 @@ function reorder(x, ::Type{<:Union{MOI.ExponentialCone,
                                    MOI.DualExponentialCone}})
     return [x[3], x[2], x[1]]
 end
-reorder(x, ::Type{<:MOI.AbstractVectorSet}) = x
-
+reorder(x, ::Type{<:VectorCone}) = x
 
 
 # Semidefinite domain for a variable
@@ -351,36 +387,15 @@ function MOI.get!(
     xcid = ref2id(ci)
     @assert(xcid > 0)
 
-    mask = m.xc_bounds[xcid]
     idxs = getindexes(m.xc_block,xcid)
     subj = m.xc_idxs[idxs]
 
     idx = reorder(1:length(output), D)
 
     if (getobjsense(m.task) == MSK_OBJECTIVE_SENSE_MINIMIZE)
-        if     mask & boundflag_lower != 0 && mask & boundflag_upper != 0
-            output[idx] = m.solutions[attr.N].slx[subj] - m.solutions[attr.N].sux[subj]
-        elseif (mask & boundflag_lower) != 0
-            output[idx] = m.solutions[attr.N].slx[subj]
-        elseif (mask & boundflag_upper) != 0
-            output[idx] = - m.solutions[attr.N].sux[subj]
-        elseif (mask & boundflag_cone) != 0
-            output[idx] = m.solutions[attr.N].snx[subj]
-        else
-            error("Dual value available for this constraint")
-        end
+        output[idx] = m.solutions[attr.N].snx[subj]
     else
-        if     mask & boundflag_lower != 0 && mask & boundflag_upper != 0
-            output[idx] = m.solutions[attr.N].sux[subj] - m.solutions[attr.N].slx[subj]
-        elseif (mask & boundflag_lower) != 0
-            output[idx] = - m.solutions[attr.N].slx[subj]
-        elseif (mask & boundflag_upper) != 0
-            output[idx] = m.solutions[attr.N].sux[subj]
-        elseif (mask & boundflag_cone) != 0
-            output[idx] = - m.solutions[attr.N].snx[subj]
-        else
-            error("Dual value available for this constraint")
-        end
+        output[idx] = -m.solutions[attr.N].snx[subj]
     end
 end
 

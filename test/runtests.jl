@@ -29,6 +29,37 @@ end
     MOI.empty!(optimizer)
 end
 
+@testset "Basic" begin
+    @testset "Linear" begin
+        MOIT.basic_constraint_tests(
+            optimizer, config,
+            include=[
+                (MOI.SingleVariable, MOI.EqualTo{Float64}),
+                (MOI.SingleVariable, MOI.LessThan{Float64}),
+                (MOI.SingleVariable, MOI.GreaterThan{Float64}),
+                (MOI.SingleVariable, MOI.Interval{Float64}),
+                (MOI.SingleVariable, MOI.ZeroOne),
+                (MOI.SingleVariable, MOI.Integer),
+                (MOI.ScalarAffineFunction{Float64}, MOI.EqualTo{Float64}),
+                (MOI.ScalarAffineFunction{Float64}, MOI.LessThan{Float64}),
+                (MOI.ScalarAffineFunction{Float64}, MOI.GreaterThan{Float64}),
+                (MOI.ScalarAffineFunction{Float64}, MOI.Interval{Float64})
+        ])
+    end
+#    @testset "Conic" begin
+#        # Doesn't work, see https://github.com/JuliaOpt/MathOptInterface.jl/pull/703
+#        MOIT.basic_constraint_tests(
+#            optimizer, config,
+#            delete = false, # TODO
+#            get_constraint_function = false, # TODO
+#            get_constraint_set = false, # TODO
+#            include=[
+#                (MOI.VectorOfVariables, MOI.SecondOrderCone),
+#                (MOI.VectorOfVariables, MOI.RotatedSecondOrderCone)
+#        ])
+#    end
+end
+
 @testset "Copy" begin
     model = MOIB.full_bridge_optimizer(Mosek.Optimizer(), Float64)
     MOIT.copytest(bridged, model)
@@ -49,10 +80,7 @@ end
 end
 
 @testset "Continuous linear problems" begin
-    # linear1 is failing because it does not remove the SingleVariable
-    # constraint using a variable if this variable is deleted, see
-    # https://github.com/JuliaOpt/MathOptInterface.jl/issues/511
-    MOIT.contlineartest(bridged, config, ["linear1"])
+    MOIT.contlineartest(bridged, config)
 end
 
 @testset "Continuous quadratic problems" begin

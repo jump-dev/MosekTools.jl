@@ -163,7 +163,6 @@ deleted), we use it and don't create any new column, i.e. don't call
 See [`clear_variable`](@ref) which is kind of the reverse operation.
 """
 function allocate_variable(m::MosekModel, vi::MOI.VariableIndex)
-    @assert length(m.x_boundflags) == length(m.x_block)
     numvar = num_columns(m)
     alloced = ensurefree(m.x_block, 1)
     if !iszero(alloced)
@@ -171,8 +170,6 @@ function allocate_variable(m::MosekModel, vi::MOI.VariableIndex)
         @assert length(m.x_block) == num_columns(m) + 1
         add_column(m)
         @assert length(m.x_block) == num_columns(m)
-        push!(m.x_boundflags, 0)
-        push!(m.x_numxc, 0)
     end
     allocate_block(m.x_block, 1, vi.value)
 end
@@ -187,8 +184,20 @@ function throw_if_cannot_delete(m::MosekModel, vi::MOI.VariableIndex)
         @assert m.x_type[ref2id(vi)] == Deleted
         throw(MOI.InvalidIndex(vi))
     end
-    if is_scalar(m, vi) && !iszero(m.x_numxc[column(m, vi).value])
-        throw(CannotDelete("Cannot delete variable $vi while a bound constraint is defined on it"))
+    if is_scalar(m, vi)
+        col = column(m, vi)
+        for S in [MOI.LessThan{Float64}, MOI.GreaterThan{Float64},
+                  MOI.EqualTo{Float64}, MOI.Interval{Float64},
+                  MOI.Integer, MOI.ZeroOne]
+            if has_flag(m, vi, S)
+                MOI.delete(m, MOI.ConstraintIndex{MOI.SingleVariable, S}(vi.value))
+            end
+        end
+        # All bounds have been removed so there can only be not constraint left
+        # on the variable or a `VectorOfVariable`-in-`VectorCone` constraint.
+        if has_flag(m, vi, VectorCone)
+            throw(MOI.DeleteNotAllowed("Cannot delete variable $vi as it is involved in a `VectorOfVariables` constraint."))
+        end
     end
 end
 
@@ -216,6 +225,7 @@ function MOI.add_variable(m::MosekModel)
     m.publicnumvar += 1
     id = create_block(m.x_block, 1)
     push!(m.x_type, Undecided)
+    push!(m.x_constraints, 0x0)
     push!(m.x_sd, MatrixIndex(0, 0, 0))
     return MOI.VariableIndex(id)
 end
