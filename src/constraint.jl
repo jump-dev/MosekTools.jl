@@ -10,15 +10,10 @@ function allocateconstraints(m::MosekModel, N::Int)
     alloced = ensurefree(m.c_block,N)
     id = newblock(m.c_block, N)
 
-    M = numblocks(m.c_block) - length(m.c_block_slack)
     if alloced > 0
         appendcons(m.task, alloced)
     end
-    if M > 0
-        append!(m.c_block_slack, zeros(Float64,M))
-        append!(m.c_coneid, zeros(Float64,M))
-    end
-    id
+    return id
 end
 
 function getconboundlist(t::Mosek.Task, subj::Vector{Int32})
@@ -231,12 +226,13 @@ cone_parameter(dom :: MOI.PowerCone{Float64})     = dom.exponent
 cone_parameter(dom :: MOI.DualPowerCone{Float64}) = dom.exponent
 cone_parameter(dom :: C) where C <: MOI.AbstractSet = 0.0
 
-function set_variable_domain(m::MosekModel, xcid::Int, cols::Vector{Int32}, set)
-    appendcone(m.task, cone_type(typeof(set)), cone_parameter(set), cols)
-    coneidx = getnumcone(m.task)
-    m.conecounter += 1
-    putconename(m.task,coneidx,"$(m.conecounter)")
-    m.xc_coneid[xcid] = m.conecounter
+function add_cone(m::MosekModel, cols::ColumnIndices, set)
+    appendcone(m.task, cone_type(typeof(set)), cone_parameter(set), cols.values)
+    id = getnumcone(m.task)
+    if DEBUG
+        putconename(m.task, id, "$id")
+    end
+    return id
 end
 
 ## Name #######################################################################
@@ -273,21 +269,8 @@ function row(m::MosekModel,
              c::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}})::Int32
     return getindex(m.c_block, c.value)
 end
-
-function allocatevarconstraints(m :: MosekModel,
-                                N :: Int)
-    nalloc = ensurefree(m.xc_block, N)
-    id = newblock(m.xc_block, N)
-
-    M = numblocks(m.xc_block) - length(m.xc_coneid)
-    if M > 0
-        append!(m.xc_coneid, zeros(Float64, M))
-    end
-    if nalloc > 0
-        append!(m.xc_idxs, zeros(Float64, nalloc))
-    end
-
-    return id
+function columns(m::MosekModel, ci::MOI.ConstraintIndex{MOI.VectorOfVariables})
+    return ColumnIndices(getcone(m.task, ci.value)[4])
 end
 
 const VectorCone = Union{MOI.SecondOrderCone,
@@ -418,22 +401,16 @@ function MOI.add_constraint(m::MosekModel, xs::MOI.VectorOfVariables,
     if any(vi -> is_matrix(m, vi), xs.variables)
         error("Cannot add $D constraint on a matrix variable")
     end
-    cols = reorder(columns(m, xs.variables).values, D)
+    cols = ColumnIndices(reorder(columns(m, xs.variables).values, D))
 
     if !all(vi -> iszero(incompatible_mask(D) & m.x_constraints[vi.value]), xs.variables)
         error("Cannot multiple bound sets of the same type to a variable")
     end
 
     N = MOI.dimension(dom)
-    xcid = allocatevarconstraints(m, N)
-    xc_sub = getindexes(m.xc_block, xcid)
+    id = add_cone(m, cols, dom)
 
-    m.xc_idxs[xc_sub] = cols
-
-    set_variable_domain(m, xcid, cols, dom)
-
-    ci = MOI.ConstraintIndex{MOI.VectorOfVariables, D}(xcid)
-    return ci
+    return MOI.ConstraintIndex{MOI.VectorOfVariables, D}(id)
 end
 
 ################################################################################
@@ -666,9 +643,8 @@ end
 function MOI.is_valid(model::MosekModel,
                       ci::MOI.ConstraintIndex{MOI.VectorOfVariables,
                                               S}) where S<:VectorCone
-    return allocated(model.xc_block, ci.value) &&
-        !iszero(model.xc_coneid[ci.value]) &&
-        getconeinfo(model.task, model.xc_coneid[ci.value])[1] == cone_type(S)
+    return 1 ≤ ci.value ≤ getnumcone(model.task) &&
+        getconeinfo(model.task, ci.value)[1] == cone_type(S)
 end
 function MOI.is_valid(model::MosekModel,
                       ci::MOI.ConstraintIndex{MOI.VectorOfVariables,

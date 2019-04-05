@@ -167,13 +167,13 @@ function MOI.get(model::MosekModel,
                  ::MOI.NumberOfConstraints{MOI.VectorOfVariables, S}) where S<:VectorCone
     F = MOI.VectorOfVariables
     return count(id -> MOI.is_valid(model, MOI.ConstraintIndex{F, S}(id)),
-                 allocatedlist(model.xc_block))
+                 1:getnumcone(model.task))
 end
 function MOI.get(model::MosekModel,
                  ::MOI.ListOfConstraintIndices{MOI.VectorOfVariables, S}) where S<:VectorCone
     F = MOI.VectorOfVariables
     ids = filter(id -> MOI.is_valid(model, MOI.ConstraintIndex{F, S}(id)),
-                 allocatedlist(model.xc_block))
+                 1:getnumcone(model.task))
     return [MOI.ConstraintIndex{F, S}(id) for id in ids]
 end
 function MOI.get(model::MosekModel,
@@ -296,14 +296,8 @@ function MOI.get!(
     m     ::MosekModel,
     attr  ::MOI.ConstraintPrimal,
     ci  ::MOI.ConstraintIndex{MOI.VectorOfVariables,D}) where D
-
-    xcid = ref2id(ci)
-    @assert(xcid > 0)
-
-    idxs = getindexes(m.xc_block, xcid)
-    subj = m.xc_idxs[idxs]
-
-    output[1:length(output)] = reorder(m.solutions[attr.N].xx[subj], D)
+    cols = columns(m, ci)
+    output[1:length(output)] = reorder(m.solutions[attr.N].xx[cols.values], D)
 end
 
 function MOI.get(m     ::MosekModel,
@@ -387,15 +381,14 @@ function MOI.get!(
     xcid = ref2id(ci)
     @assert(xcid > 0)
 
-    idxs = getindexes(m.xc_block,xcid)
-    subj = m.xc_idxs[idxs]
+    cols = columns(m, ci)
 
     idx = reorder(1:length(output), D)
 
     if (getobjsense(m.task) == MSK_OBJECTIVE_SENSE_MINIMIZE)
-        output[idx] = m.solutions[attr.N].snx[subj]
+        output[idx] = m.solutions[attr.N].snx[cols.values]
     else
-        output[idx] = -m.solutions[attr.N].snx[subj]
+        output[idx] = -m.solutions[attr.N].snx[cols.values]
     end
 end
 
@@ -415,12 +408,7 @@ end
 
 solsize(m::MosekModel, ::MOI.ConstraintIndex{<:MOI.AbstractScalarFunction}) = 1
 function solsize(m::MosekModel, ci::MOI.ConstraintIndex{MOI.VectorOfVariables})
-    cid = ref2id(ci)
-    if cid < 0
-        blocksize(m.c_block,-cid)
-    else
-        blocksize(m.xc_block,cid)
-    end
+    return getconeinfo(m.task, ci.value)[3]
 end
 function solsize(m::MosekModel,
                  ci::MOI.ConstraintIndex{MOI.VectorOfVariables,

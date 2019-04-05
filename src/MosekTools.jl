@@ -4,29 +4,12 @@ import MathOptInterface
 const MOI = MathOptInterface
 const MOIU = MOI.Utilities
 using Mosek
-#using Mosek.Ext
 
 using Compat # for findall
 
 include("LinkedInts.jl")
 
 const DEBUG = false
-
-mosek_block_type_unallocated = 0
-mosek_block_type_zero   = 1
-mosek_block_type_nonneg = 2
-mosek_block_type_nonpos = 3
-mosek_block_type_range  = 4
-mosek_block_type_qcone  = 5
-mosek_block_type_rqcone = 6
-mosek_block_type_psd    = 7
-mosek_block_type_integer = 8
-
-problemtype_linear    = 0
-problemtype_conic     = 1
-problemtype_quadratic = 2
-
-import MathOptInterface
 
 struct MosekSolution
     whichsol :: Soltype
@@ -113,7 +96,7 @@ mutable struct MosekModel  <: MOI.AbstractOptimizer
     the underlying task, and the number of blocks corresponds to the
     number variables allocated in the Model.
     """
-    x_block      :: LinkedInts
+    x_block::LinkedInts
 
     """
     One entry per scalar variable in the task indicating in which semidefinite
@@ -124,44 +107,12 @@ mutable struct MosekModel  <: MOI.AbstractOptimizer
 
     sd_dim::Vector{Int}
 
-    """
-    One entry per variable-constraint
-    """
-    xc_block     :: LinkedInts
-
-    """
-    One entry per variable-constraint block indicating which cone it belongs to, 0 if none.
-    """
-    xc_coneid    :: Vector{Int}
-
-    """
-    One entry per scalar variable-constraint, defining which native
-    variables the bound block covers.
-    """
-    xc_idxs      :: Vector{Int}
-
     ###########################
     """
     One scalar entry per constraint in the underlying task. One block
     per constraint allocated in the Model.
     """
     c_block :: LinkedInts
-
-    """
-    One entry per allocated scalar constraint.
-    Each element is either
-    - 0: meaning: no slack, when domain is defined directly as a bound,
-    - positive: a `x_block` reference, e.g. for qcones, or
-    - negative: Negated index of a PSD variable in the underlying task
-    """
-    c_block_slack   :: Vector{Int}
-    """
-    One entry per variable-constraint block indicating which cone it belongs to, 0 if none.
-    """
-    c_coneid   :: Vector{Int}
-
-    ###########################
-    conecounter :: Int
 
     ###########################
     trm :: Union{Nothing, Rescode}
@@ -266,13 +217,7 @@ function Mosek.Optimizer(; kws...)
                        LinkedInts(),# x_block
                        MatrixIndex[], # x_sd
                        Int[], # sd_dim
-                       LinkedInts(), # xc_block
-                       Int[], # xc_coneid
-                       Int[], # xc_idxs
                        LinkedInts(), # c_block
-                       Int[], # c_block_slack
-                       Int[], # c_coneid
-                       0, # cone counter
                        nothing,# trm
                        MosekSolution[],
                        true, # feasibility_sense
@@ -391,13 +336,7 @@ function MOI.empty!(model::MosekModel)
     model.x_block            = LinkedInts()
     model.x_sd               = MatrixIndex[]
     model.sd_dim             = Int[]
-    model.xc_block           = LinkedInts()
-    model.xc_coneid          = Int[]
-    model.xc_idxs            = Int[]
     model.c_block            = LinkedInts()
-    model.c_block_slack      = Int[]
-    model.c_coneid           = Int[]
-    model.conecounter        = 0
     model.trm                = nothing
     model.solutions          = MosekSolution[]
     model.feasibility        = true
