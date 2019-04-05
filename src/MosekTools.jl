@@ -177,7 +177,6 @@ function MOI.set(m::MosekModel, p::Parameter, value)
                                     m -> print(m))
             end
         end
-        m.be_quiet = m.be_quiet || convert(Bool, val)
     elseif p.name == "fallback"
         m.fallback = value
     else
@@ -200,6 +199,9 @@ function MOI.set(m::MosekModel, p::Parameter, value)
     end
 end
 
+function MOI.set(model::MosekModel, ::MOI.Silent, value::Bool)
+    MOI.set(model, Parameter("QUIET"), value)
+end
 
 export Mosek
 function Mosek.Optimizer(; kws...)
