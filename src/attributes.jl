@@ -59,9 +59,13 @@ end
 ###############################################################################
 
 #### objective
-function MOI.get(m::MosekModel,attr::MOI.ObjectiveValue)
+function MOI.get(m::MosekModel, attr::MOI.ObjectiveValue)
     return getprimalobj(m.task, m.solutions[attr.resultindex].whichsol)
 end
+# For MOI v0.9
+#function MOI.get(m::MosekModel, attr::MOI.DualObjectiveValue)
+#    return getdualobj(m.task, m.solutions[attr.result_index].whichsol)
+#end
 
 MOI.get(m::MosekModel,attr::MOI.ObjectiveBound) = getdouinf(m.task,MSK_DINF_MIO_OBJ_BOUND)
 
@@ -427,7 +431,17 @@ function MOI.get(m::MosekModel,
 end
 
 #### Status codes
-function MOI.get(m::MosekModel,attr::MOI.TerminationStatus)
+function MOI.get(m::MosekModel, attr::MOI.RawStatusString)
+    if     m.trm === nothing
+        return "MOI.OPTIMIZE_NOT_CALLED"
+    elseif m.trm == MSK_RES_OK
+        return join([string(sol.solsta) for sol in m.solutions], ", ")
+    else
+        return string(m.trm)
+    end
+
+end
+function MOI.get(m::MosekModel, attr::MOI.TerminationStatus)
     if     m.trm === nothing
         MOI.OPTIMIZE_NOT_CALLED
     elseif m.trm == MSK_RES_OK
