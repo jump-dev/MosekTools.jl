@@ -5,8 +5,6 @@ const MOI = MathOptInterface
 const MOIU = MOI.Utilities
 using Mosek
 
-using Compat # for findall
-
 include("LinkedInts.jl")
 
 const DEBUG = false
