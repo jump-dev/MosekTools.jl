@@ -4,9 +4,6 @@
 # change is submitted).
 # If there is no valid license file, we default to that file.
 
-using MosekTools
-
-
 using Test
 
 using MathOptInterface
@@ -17,11 +14,9 @@ const MOIB = MOI.Bridges
 
 const FALLBACK_URL = "mosek://solve.mosek.com:30080"
 
+using MosekTools
 const optimizer = Mosek.Optimizer(fallback = FALLBACK_URL)
 MOI.set(optimizer, MOI.Silent(), true)
-config = MOIT.TestConfig(atol=1e-3, rtol=1e-3)
-
-const bridged = MOIB.full_bridge_optimizer(optimizer, Float64)
 
 @testset "SolverName" begin
     @test MOI.get(optimizer, MOI.SolverName()) == "Mosek"
@@ -50,10 +45,17 @@ end
     end
 end
 
+@testset "supports_default_copy_to" begin
+    @test MOIU.supports_default_copy_to(optimizer, false)
+    @test MOIU.supports_default_copy_to(optimizer, true)
+end
+
 @testset "Name" begin
     MOIT.nametest(optimizer)
     MOI.empty!(optimizer)
 end
+
+const config = MOIT.TestConfig(atol=1e-3, rtol=1e-3)
 
 @testset "Basic" begin
     @testset "Linear" begin
@@ -86,6 +88,8 @@ end
 #    end
 end
 
+const bridged = MOIB.full_bridge_optimizer(optimizer, Float64)
+
 @testset "Copy" begin
     model = MOIB.full_bridge_optimizer(Mosek.Optimizer(), Float64)
     MOIT.copytest(bridged, model)
@@ -105,19 +109,19 @@ end
                   ])
 end
 
-@testset "Continuous linear problems" begin
+@testset "Continuous Linear" begin
     MOIT.contlineartest(bridged, config)
 end
 
-@testset "Continuous quadratic problems" begin
+@testset "Continuous Quadratic" begin
     MOIT.qcptest(bridged, config)
 end
 
-@testset "Continuous conic problems" begin
+@testset "Continuous Conic" begin
     MOIT.contconictest(bridged, config, ["exp", "rootdets", "logdet"])
 end
 
-@testset "Mixed-integer linear problems" begin
+@testset "Integer Linear" begin
     MOIT.intlineartest(optimizer, config, ["int2"])
 end
 
