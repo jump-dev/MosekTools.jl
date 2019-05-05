@@ -15,7 +15,9 @@ const MOIT = MOI.Test
 const MOIU = MOI.Utilities
 const MOIB = MOI.Bridges
 
-const optimizer = Mosek.Optimizer(fallback = "mosek://solve.mosek.com:30080")
+const FALLBACK_URL = "mosek://solve.mosek.com:30080"
+
+const optimizer = Mosek.Optimizer(fallback = FALLBACK_URL)
 MOI.set(optimizer, MOI.Silent(), true)
 config = MOIT.TestConfig(atol=1e-3, rtol=1e-3)
 
@@ -23,6 +25,29 @@ const bridged = MOIB.full_bridge_optimizer(optimizer, Float64)
 
 @testset "SolverName" begin
     @test MOI.get(optimizer, MOI.SolverName()) == "Mosek"
+end
+
+@testset "Parameters" begin
+    optimizer = Mosek.Optimizer(fallback = FALLBACK_URL)
+    @testset "Double Parameter" begin
+        MOI.set(optimizer, MosekTools.Parameter("INTPNT_CO_TOL_DFEAS"), 1e-7)
+        @test MOI.get(optimizer, MosekTools.Parameter("MSK_DPAR_INTPNT_CO_TOL_DFEAS")) == 1e-7
+        MOI.set(optimizer, MosekTools.Parameter("MSK_DPAR_INTPNT_CO_TOL_DFEAS"), 1e-8)
+        @test MOI.get(optimizer, MosekTools.Parameter("MSK_DPAR_INTPNT_CO_TOL_DFEAS")) == 1e-8
+    end
+    @testset "Integer Parameter" begin
+        MOI.set(optimizer, MosekTools.Parameter("MSK_IPAR_INTPNT_MAX_ITERATIONS"), 100)
+        @test MOI.get(optimizer, MosekTools.Parameter("MSK_IPAR_INTPNT_MAX_ITERATIONS")) == 100
+        MOI.set(optimizer, MosekTools.Parameter("INTPNT_MAX_ITERATIONS"), 200)
+        @test MOI.get(optimizer, MosekTools.Parameter("MSK_IPAR_INTPNT_MAX_ITERATIONS")) == 200
+    end
+    @testset "String Parameter" begin
+        MOI.set(optimizer, MosekTools.Parameter("PARAM_WRITE_FILE_NAME"), "foo.txt")
+        # Needs https://github.com/JuliaOpt/Mosek.jl/pull/174
+        #@test MOI.get(optimizer, MosekTools.Parameter("MSK_SPAR_PARAM_WRITE_FILE_NAME")) == "foo.txt"
+        MOI.set(optimizer, MosekTools.Parameter("MSK_SPAR_PARAM_WRITE_FILE_NAME"), "bar.txt")
+        #@test MOI.get(optimizer, MosekTools.Parameter("MSK_SPAR_PARAM_WRITE_FILE_NAME")) == "bar.txt"
+    end
 end
 
 @testset "Name" begin
