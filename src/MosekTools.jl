@@ -159,7 +159,10 @@ function MOI.set(m::MosekModel, p::StringParameter, value::AbstractString)
     Mosek.putnastrparam(m.task, p.name, value)
 end
 function MOI.get(m::MosekModel, p::StringParameter)
-    Mosek.getnastrparam(m.task, p.name)
+    # We need to give the maximum length of the value of the parameter.
+    # 255 should be ok in most cases.
+    len, str = Mosek.getnastrparam(m.task, p.name, 255)
+    return str
 end
 
 struct Parameter <: MOI.AbstractOptimizerAttribute
@@ -186,16 +189,35 @@ function MOI.set(m::MosekModel, p::Parameter, value)
             par = DoubleParameter(p.name)
         elseif startswith(p.name, "MSK_SPAR_")
             par = StringParameter(p.name)
-        elseif isa(val, Integer)
+        elseif isa(value, Integer)
             par = IntegerParameter("MSK_IPAR_" * p.name)
-        elseif isa(val, AbstractFloat)
+        elseif isa(value, AbstractFloat)
             par = DoubleParameter("MSK_DPAR_" * p.name)
-        elseif isa(val, AbstractString)
+        elseif isa(value, AbstractString)
             par = StringParameter("MSK_SPAR_" * p.name)
         else
-            error("Value $val for parameter $option has unrecognized type")
+            error("Value $value for parameter $(p.name) has unrecognized type")
         end
         MOI.set(m, par, value)
+    end
+end
+
+function MOI.get(m::MosekModel, p::Parameter)
+    if p.name == "QUIET"
+        return m.be_quiet
+    elseif p.name == "fallback"
+        return m.fallback
+    else
+        if startswith(p.name, "MSK_IPAR_")
+            par = IntegerParameter(p.name)
+        elseif startswith(p.name, "MSK_DPAR_")
+            par = DoubleParameter(p.name)
+        elseif startswith(p.name, "MSK_SPAR_")
+            par = StringParameter(p.name)
+        else
+            error("The parameter $(p.name) should start by `MSK_IPAR_`, `MSK_DPAR_` or `MSK_SPAR_`.")
+        end
+        MOI.get(m, par)
     end
 end
 
