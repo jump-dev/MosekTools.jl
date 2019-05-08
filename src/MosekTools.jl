@@ -130,7 +130,7 @@ end
 struct IntegerParameter <: MOI.AbstractOptimizerAttribute
     name::String
 end
-function MOI.set(m::MosekModel, p::IntegerParameter, value::Integer)
+function MOI.set(m::MosekModel, p::IntegerParameter, value)
     m.ipars[p.name] = value
     Mosek.putnaintparam(m.task, p.name, value)
 end
@@ -141,7 +141,7 @@ end
 struct DoubleParameter <: MOI.AbstractOptimizerAttribute
     name::String
 end
-function MOI.set(m::MosekModel, p::DoubleParameter, value::AbstractFloat)
+function MOI.set(m::MosekModel, p::DoubleParameter, value)
     m.dpars[p.name] = value
     Mosek.putnadouparam(m.task, p.name, value)
 end

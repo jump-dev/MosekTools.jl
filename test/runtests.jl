@@ -29,12 +29,20 @@ end
         @test MOI.get(optimizer, MosekTools.Parameter("MSK_DPAR_INTPNT_CO_TOL_DFEAS")) == 1e-7
         MOI.set(optimizer, MosekTools.Parameter("MSK_DPAR_INTPNT_CO_TOL_DFEAS"), 1e-8)
         @test MOI.get(optimizer, MosekTools.Parameter("MSK_DPAR_INTPNT_CO_TOL_DFEAS")) == 1e-8
+        @testset "with integer value" begin
+            MOI.set(optimizer, MosekTools.Parameter("MSK_DPAR_INTPNT_CO_TOL_DFEAS"), 1)
+            @test MOI.get(optimizer, MosekTools.Parameter("MSK_DPAR_INTPNT_CO_TOL_DFEAS")) == 1
+        end
     end
     @testset "Integer Parameter" begin
         MOI.set(optimizer, MosekTools.Parameter("MSK_IPAR_INTPNT_MAX_ITERATIONS"), 100)
         @test MOI.get(optimizer, MosekTools.Parameter("MSK_IPAR_INTPNT_MAX_ITERATIONS")) == 100
         MOI.set(optimizer, MosekTools.Parameter("INTPNT_MAX_ITERATIONS"), 200)
         @test MOI.get(optimizer, MosekTools.Parameter("MSK_IPAR_INTPNT_MAX_ITERATIONS")) == 200
+        @testset "with enum value" begin
+            MOI.set(optimizer, MosekTools.Parameter("MSK_IPAR_OPTIMIZER"), MosekTools.Mosek.MSK_OPTIMIZER_DUAL_SIMPLEX)
+            @test MOI.get(optimizer, MosekTools.Parameter("MSK_IPAR_OPTIMIZER")) == convert(Int32, MosekTools.Mosek.MSK_OPTIMIZER_DUAL_SIMPLEX)
+        end
     end
     @testset "String Parameter" begin
         MOI.set(optimizer, MosekTools.Parameter("PARAM_WRITE_FILE_NAME"), "foo.txt")
