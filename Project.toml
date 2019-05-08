@@ -1,7 +1,7 @@
 name = "MosekTools"
 uuid = "1ec41992-ff65-5c91-ac43-2df89e9693a4"
 repo = "https://github.com/JuliaOpt/MosekTools.jl.git"
-version = "0.7.3"
+version = "0.7.4"
 
 [deps]
 MathOptInterface = "b8f27783-ece8-5eb3-8dc8-9495eed66fee"
