@@ -491,6 +491,7 @@ end
 _variable(ci::MOI.ConstraintIndex{MOI.SingleVariable}) = MOI.VariableIndex(ci.value)
 function MOI.get(m::MosekModel, ::MOI.ConstraintFunction,
                  ci::MOI.ConstraintIndex{MOI.SingleVariable}) where S <: ScalarLinearDomain
+    MOI.throw_if_not_valid(m, ci)
     return MOI.SingleVariable(_variable(ci))
 end
 function MOI.get(m::MosekModel, ::MOI.ConstraintSet,
@@ -499,6 +500,7 @@ function MOI.get(m::MosekModel, ::MOI.ConstraintSet,
 end
 function MOI.get(m::MosekModel, ::MOI.ConstraintSet,
                  ci::MOI.ConstraintIndex{MOI.SingleVariable, S}) where S <: ScalarLinearDomain
+    MOI.throw_if_not_valid(m, ci)
     sv = MOI.get(m, MOI.ConstraintFunction(), ci)
     return get_variable_constraint(m, sv.variable, ci)
 end
@@ -604,9 +606,7 @@ function MOI.delete(
     m::MosekModel,
     cref::MOI.ConstraintIndex{F,D}) where {F <: MOI.ScalarAffineFunction{Float64},
                                            D <: ScalarLinearDomain}
-    if !MOI.is_valid(m, cref)
-        throw(MOI.InvalidIndex(cref))
-    end
+    MOI.throw_if_not_valid(m, cref)
 
     delete_name(m, cref)
 
@@ -632,9 +632,7 @@ function MOI.delete(
     m::MosekModel,
     ci::MOI.ConstraintIndex{MOI.SingleVariable, S}) where S<:Union{ScalarLinearDomain,
                                                                    ScalarIntegerDomain}
-    if !MOI.is_valid(m, ci)
-        throw(MOI.InvalidIndex(ci))
-    end
+    MOI.throw_if_not_valid(m, ci)
     delete_name(m, ci)
     vi = _variable(ci)
     unset_flag(m, vi, S)
