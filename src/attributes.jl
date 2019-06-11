@@ -459,10 +459,6 @@ function MOI.get(m::MosekModel, attr::MOI.TerminationStatus)
         MOI.TIME_LIMIT
     elseif m.trm == MSK_RES_TRM_OBJECTIVE_RANGE
         MOI.OBJECTIVE_LIMIT
-    elseif m.trm == MSK_RES_TRM_MIO_NEAR_REL_GAP
-        MOI.ALMOST_OPTIMAL
-    elseif m.trm == MSK_RES_TRM_MIO_NEAR_ABS_GAP
-        MOI.ALMOST_OPTIMAL
     elseif m.trm == MSK_RES_TRM_MIO_NUM_RELAXS
         MOI.OTHER_LIMIT
     elseif m.trm == MSK_RES_TRM_MIO_NUM_BRANCHES
