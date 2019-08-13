@@ -224,6 +224,14 @@ function MOI.get(model::MosekModel, ::MOI.Silent)
     MOI.get(model, MOI.RawParameter("QUIET"))
 end
 
+MOI.supports(::MosekModel, ::MOI.TimeLimitSec) = true
+function MOI.set(model::MosekModel, ::MOI.TimeLimitSec, value::Real)
+    MOI.set(model, MOI.RawParameter("MSK_DPAR_OPTIMIZER_MAX_TIME"), value)
+end
+function MOI.get(model::MosekModel, ::MOI.TimeLimitSec)
+    return MOI.get(model, MOI.RawParameter("MSK_DPAR_OPTIMIZER_MAX_TIME"))
+end
+
 export Mosek
 function Mosek.Optimizer(; kws...)
     model = MosekModel(maketask(), # task
