@@ -60,12 +60,11 @@ end
 
 #### objective
 function MOI.get(m::MosekModel, attr::MOI.ObjectiveValue)
-    return getprimalobj(m.task, m.solutions[attr.resultindex].whichsol)
+    return getprimalobj(m.task, m.solutions[attr.result_index].whichsol)
 end
-# For MOI v0.9
-#function MOI.get(m::MosekModel, attr::MOI.DualObjectiveValue)
-#    return getdualobj(m.task, m.solutions[attr.result_index].whichsol)
-#end
+function MOI.get(m::MosekModel, attr::MOI.DualObjectiveValue)
+    return getdualobj(m.task, m.solutions[attr.result_index].whichsol)
+end
 
 MOI.get(m::MosekModel,attr::MOI.ObjectiveBound) = getdouinf(m.task,MSK_DINF_MIO_OBJ_BOUND)
 
