@@ -25,42 +25,37 @@ end
 @testset "Parameters" begin
     optimizer = Mosek.Optimizer(fallback = FALLBACK_URL)
     @testset "Double Parameter" begin
-        MOI.set(optimizer, MosekTools.Parameter("INTPNT_CO_TOL_DFEAS"), 1e-7)
-        @test MOI.get(optimizer, MosekTools.Parameter("MSK_DPAR_INTPNT_CO_TOL_DFEAS")) == 1e-7
-        MOI.set(optimizer, MosekTools.Parameter("MSK_DPAR_INTPNT_CO_TOL_DFEAS"), 1e-8)
-        @test MOI.get(optimizer, MosekTools.Parameter("MSK_DPAR_INTPNT_CO_TOL_DFEAS")) == 1e-8
+        MOI.set(optimizer, MOI.RawParameter("INTPNT_CO_TOL_DFEAS"), 1e-7)
+        @test MOI.get(optimizer, MOI.RawParameter("MSK_DPAR_INTPNT_CO_TOL_DFEAS")) == 1e-7
+        MOI.set(optimizer, MOI.RawParameter("MSK_DPAR_INTPNT_CO_TOL_DFEAS"), 1e-8)
+        @test MOI.get(optimizer, MOI.RawParameter("MSK_DPAR_INTPNT_CO_TOL_DFEAS")) == 1e-8
         @testset "with integer value" begin
-            MOI.set(optimizer, MosekTools.Parameter("MSK_DPAR_INTPNT_CO_TOL_DFEAS"), 1)
-            @test MOI.get(optimizer, MosekTools.Parameter("MSK_DPAR_INTPNT_CO_TOL_DFEAS")) == 1
+            MOI.set(optimizer, MOI.RawParameter("MSK_DPAR_INTPNT_CO_TOL_DFEAS"), 1)
+            @test MOI.get(optimizer, MOI.RawParameter("MSK_DPAR_INTPNT_CO_TOL_DFEAS")) == 1
         end
     end
     @testset "Integer Parameter" begin
-        MOI.set(optimizer, MosekTools.Parameter("MSK_IPAR_INTPNT_MAX_ITERATIONS"), 100)
-        @test MOI.get(optimizer, MosekTools.Parameter("MSK_IPAR_INTPNT_MAX_ITERATIONS")) == 100
-        MOI.set(optimizer, MosekTools.Parameter("INTPNT_MAX_ITERATIONS"), 200)
-        @test MOI.get(optimizer, MosekTools.Parameter("MSK_IPAR_INTPNT_MAX_ITERATIONS")) == 200
+        MOI.set(optimizer, MOI.RawParameter("MSK_IPAR_INTPNT_MAX_ITERATIONS"), 100)
+        @test MOI.get(optimizer, MOI.RawParameter("MSK_IPAR_INTPNT_MAX_ITERATIONS")) == 100
+        MOI.set(optimizer, MOI.RawParameter("INTPNT_MAX_ITERATIONS"), 200)
+        @test MOI.get(optimizer, MOI.RawParameter("MSK_IPAR_INTPNT_MAX_ITERATIONS")) == 200
         @testset "with enum value" begin
-            MOI.set(optimizer, MosekTools.Parameter("MSK_IPAR_OPTIMIZER"), MosekTools.Mosek.MSK_OPTIMIZER_DUAL_SIMPLEX)
-            @test MOI.get(optimizer, MosekTools.Parameter("MSK_IPAR_OPTIMIZER")) == convert(Int32, MosekTools.Mosek.MSK_OPTIMIZER_DUAL_SIMPLEX)
+            MOI.set(optimizer, MOI.RawParameter("MSK_IPAR_OPTIMIZER"), MosekTools.Mosek.MSK_OPTIMIZER_DUAL_SIMPLEX)
+            @test MOI.get(optimizer, MOI.RawParameter("MSK_IPAR_OPTIMIZER")) == convert(Int32, MosekTools.Mosek.MSK_OPTIMIZER_DUAL_SIMPLEX)
         end
     end
     @testset "String Parameter" begin
-        MOI.set(optimizer, MosekTools.Parameter("PARAM_WRITE_FILE_NAME"), "foo.txt")
+        MOI.set(optimizer, MOI.RawParameter("PARAM_WRITE_FILE_NAME"), "foo.txt")
         # Needs https://github.com/JuliaOpt/Mosek.jl/pull/174
-        #@test MOI.get(optimizer, MosekTools.Parameter("MSK_SPAR_PARAM_WRITE_FILE_NAME")) == "foo.txt"
-        MOI.set(optimizer, MosekTools.Parameter("MSK_SPAR_PARAM_WRITE_FILE_NAME"), "bar.txt")
-        #@test MOI.get(optimizer, MosekTools.Parameter("MSK_SPAR_PARAM_WRITE_FILE_NAME")) == "bar.txt"
+        #@test MOI.get(optimizer, MOI.RawParameter("MSK_SPAR_PARAM_WRITE_FILE_NAME")) == "foo.txt"
+        MOI.set(optimizer, MOI.RawParameter("MSK_SPAR_PARAM_WRITE_FILE_NAME"), "bar.txt")
+        #@test MOI.get(optimizer, MOI.RawParameter("MSK_SPAR_PARAM_WRITE_FILE_NAME")) == "bar.txt"
     end
 end
 
 @testset "supports_default_copy_to" begin
     @test MOIU.supports_default_copy_to(optimizer, false)
     @test MOIU.supports_default_copy_to(optimizer, true)
-end
-
-@testset "Name" begin
-    MOIT.nametest(optimizer)
-    MOI.empty!(optimizer)
 end
 
 const config = MOIT.TestConfig(atol=1e-3, rtol=1e-3)
@@ -82,21 +77,25 @@ const config = MOIT.TestConfig(atol=1e-3, rtol=1e-3)
                 (MOI.ScalarAffineFunction{Float64}, MOI.Interval{Float64})
         ])
     end
-#    @testset "Conic" begin
-#        # Doesn't work, see https://github.com/JuliaOpt/MathOptInterface.jl/pull/703
-#        MOIT.basic_constraint_tests(
-#            optimizer, config,
-#            delete = false, # TODO
-#            get_constraint_function = false, # TODO
-#            get_constraint_set = false, # TODO
-#            include=[
-#                (MOI.VectorOfVariables, MOI.SecondOrderCone),
-#                (MOI.VectorOfVariables, MOI.RotatedSecondOrderCone)
-#        ])
-#    end
+    @testset "Conic" begin
+        MOIT.basic_constraint_tests(
+            optimizer, config,
+            delete = false, # TODO
+            get_constraint_function = false, # TODO
+            get_constraint_set = false, # TODO
+            include=[
+                (MOI.VectorOfVariables, MOI.SecondOrderCone),
+                (MOI.VectorOfVariables, MOI.RotatedSecondOrderCone)
+        ])
+    end
 end
 
 const bridged = MOIB.full_bridge_optimizer(optimizer, Float64)
+
+# Mosek errors during `MOI.set` instead of `MOI.get` when there are duplicates.
+#@testset "Name" begin
+#    MOIT.nametest(bridged)
+#end
 
 @testset "Copy" begin
     model = MOIB.full_bridge_optimizer(Mosek.Optimizer(), Float64)
@@ -105,16 +104,18 @@ end
 
 @testset "Unit" begin
     # Mosek does not support names
-    MOIT.unittest(bridged,
-                  config,
-                  [# Does not support quadratic objective yet, needs
-                   # https://github.com/JuliaOpt/MathOptInterface.jl/issues/529
-                   "solve_qp_edge_cases",
-                   # Find objective bound of 0.0 which is lower than 4.0
-                   "solve_objbound_edge_cases",
-                   # Cannot put multiple bound sets of the same type on a variable
-                   "solve_integer_edge_cases"
-                  ])
+    MOIT.unittest(bridged, config, [
+        # Does not support quadratic objective yet, needs
+        # https://github.com/JuliaOpt/MathOptInterface.jl/issues/529
+        "solve_qp_edge_cases",
+        # Find objective bound of 0.0 which is lower than 4.0
+        "solve_objbound_edge_cases",
+        # Cannot put multiple bound sets of the same type on a variable
+        "solve_integer_edge_cases",
+        # Cannot mix `ZeroOne` with `GreaterThan`/`LessThan`
+        "solve_zero_one_with_bounds_1",
+        "solve_zero_one_with_bounds_2",
+        "solve_zero_one_with_bounds_3"])
 end
 
 @testset "Continuous Linear" begin
@@ -130,7 +131,7 @@ end
 end
 
 @testset "Integer Linear" begin
-    MOIT.intlineartest(optimizer, config, ["int2"])
+    MOIT.intlineartest(optimizer, config, ["int2", "indicator1", "indicator2", "indicator3"])
 end
 
 # Test that objective and constraint data are copied over correctly when

@@ -163,10 +163,7 @@ function MOI.get(m::MosekModel, p::StringParameter)
     return str
 end
 
-struct Parameter <: MOI.AbstractOptimizerAttribute
-    name::String
-end
-function MOI.set(m::MosekModel, p::Parameter, value)
+function MOI.set(m::MosekModel, p::MOI.RawParameter, value)
     if p.name == "QUIET"
         if m.be_quiet != convert(Bool, value)
             m.be_quiet = !m.be_quiet
@@ -200,7 +197,7 @@ function MOI.set(m::MosekModel, p::Parameter, value)
     end
 end
 
-function MOI.get(m::MosekModel, p::Parameter)
+function MOI.get(m::MosekModel, p::MOI.RawParameter)
     if p.name == "QUIET"
         return m.be_quiet
     elseif p.name == "fallback"
@@ -219,8 +216,20 @@ function MOI.get(m::MosekModel, p::Parameter)
     end
 end
 
+MOI.supports(::MosekModel, ::MOI.Silent) = true
 function MOI.set(model::MosekModel, ::MOI.Silent, value::Bool)
-    MOI.set(model, Parameter("QUIET"), value)
+    MOI.set(model, MOI.RawParameter("QUIET"), value)
+end
+function MOI.get(model::MosekModel, ::MOI.Silent)
+    MOI.get(model, MOI.RawParameter("QUIET"))
+end
+
+MOI.supports(::MosekModel, ::MOI.TimeLimitSec) = true
+function MOI.set(model::MosekModel, ::MOI.TimeLimitSec, value::Real)
+    MOI.set(model, MOI.RawParameter("MSK_DPAR_OPTIMIZER_MAX_TIME"), value)
+end
+function MOI.get(model::MosekModel, ::MOI.TimeLimitSec)
+    return MOI.get(model, MOI.RawParameter("MSK_DPAR_OPTIMIZER_MAX_TIME"))
 end
 
 export Mosek
@@ -246,7 +255,7 @@ function Mosek.Optimizer(; kws...)
                        nothing)
     Mosek.putstreamfunc(model.task, Mosek.MSK_STREAM_LOG, m -> print(m))
     for (option, value) in kws
-        MOI.set(model, Parameter(string(option)), value)
+        MOI.set(model, MOI.RawParameter(string(option)), value)
     end
     return model
 end
