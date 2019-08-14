@@ -228,8 +228,16 @@ MOI.supports(::MosekModel, ::MOI.TimeLimitSec) = true
 function MOI.set(model::MosekModel, ::MOI.TimeLimitSec, value::Real)
     MOI.set(model, MOI.RawParameter("MSK_DPAR_OPTIMIZER_MAX_TIME"), value)
 end
+function MOI.set(model::MosekModel, ::MOI.TimeLimitSec, ::Nothing)
+    MOI.set(model, MOI.RawParameter("MSK_DPAR_OPTIMIZER_MAX_TIME"), -1.0)
+end
 function MOI.get(model::MosekModel, ::MOI.TimeLimitSec)
-    return MOI.get(model, MOI.RawParameter("MSK_DPAR_OPTIMIZER_MAX_TIME"))
+    value = MOI.get(model, MOI.RawParameter("MSK_DPAR_OPTIMIZER_MAX_TIME"))
+    if value < 0.0
+        return nothing
+    else
+        return value
+    end
 end
 
 export Mosek

@@ -51,6 +51,16 @@ end
         MOI.set(optimizer, MOI.RawParameter("MSK_SPAR_PARAM_WRITE_FILE_NAME"), "bar.txt")
         #@test MOI.get(optimizer, MOI.RawParameter("MSK_SPAR_PARAM_WRITE_FILE_NAME")) == "bar.txt"
     end
+    @testset "TimeLimitSec" begin
+        @test MOI.get(optimizer, MOI.RawParameter("MSK_DPAR_OPTIMIZER_MAX_TIME")) == -1
+        @test MOI.get(optimizer, MOI.TimeLimitSec()) === nothing
+        MOI.set(optimizer, MOI.TimeLimitSec(), 1.0)
+        @test MOI.get(optimizer, MOI.RawParameter("MSK_DPAR_OPTIMIZER_MAX_TIME")) == 1.0
+        @test MOI.get(optimizer, MOI.TimeLimitSec()) === 1.0
+        MOI.set(optimizer, MOI.TimeLimitSec(), nothing)
+        @test MOI.get(optimizer, MOI.RawParameter("MSK_DPAR_OPTIMIZER_MAX_TIME")) == -1
+        @test MOI.get(optimizer, MOI.TimeLimitSec()) === nothing
+    end
 end
 
 @testset "supports_default_copy_to" begin
