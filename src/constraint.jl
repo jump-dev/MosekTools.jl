@@ -410,7 +410,9 @@ function MOI.add_constraint(m::MosekModel, xs::MOI.VectorOfVariables,
     N = MOI.dimension(dom)
     id = add_cone(m, cols, dom)
 
-    return MOI.ConstraintIndex{MOI.VectorOfVariables, D}(id)
+    ci = MOI.ConstraintIndex{MOI.VectorOfVariables, D}(id)
+    m.vector_of_variables_to_constraint[xs.variables] = ci
+    return ci
 end
 
 ################################################################################

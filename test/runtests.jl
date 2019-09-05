@@ -115,9 +115,6 @@ end
 @testset "Unit" begin
     # Mosek does not support names
     MOIT.unittest(bridged, config, [
-        # Does not support quadratic objective yet, needs
-        # https://github.com/JuliaOpt/MathOptInterface.jl/issues/529
-        "solve_qp_edge_cases",
         # Find objective bound of 0.0 which is lower than 4.0
         "solve_objbound_edge_cases",
         # Cannot put multiple bound sets of the same type on a variable
@@ -133,7 +130,7 @@ end
 end
 
 @testset "Continuous Quadratic" begin
-    MOIT.qcptest(bridged, config)
+    MOIT.contquadratictest(bridged, config, ["ncqcp"])
 end
 
 @testset "Continuous Conic" begin
