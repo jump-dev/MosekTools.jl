@@ -112,9 +112,10 @@ mutable struct MosekModel  <: MOI.AbstractOptimizer
     """
     c_block :: LinkedInts
 
-    # Needed when the vector of variables is deleted as the constraint need
-    # to be deleted as well.
-    vector_of_variables_to_constraint::Dict{Vector{MOI.VariableIndex}, MOI.ConstraintIndex{MOI.VectorOfVariables}}
+    # i -> 0: Not in a VectorOfVariables constraint
+    # i -> +j: In `MOI.ConstraintIndex{MOI.VectorOfVariables, ?}(j)`
+    # i -> -j: In `MOI.VectorOfVariables` constraint with `MOI.VariableIndex(j)` as first variable
+    variable_to_vector_constraint_id::Vector{Int32}
 
     ###########################
     trm :: Union{Nothing, Rescode}
@@ -261,7 +262,7 @@ function Mosek.Optimizer(; kws...)
                        MatrixIndex[], # x_sd
                        Int[], # sd_dim
                        LinkedInts(), # c_block
-                       Dict{Vector{MOI.VariableIndex}, MOI.ConstraintIndex{MOI.VectorOfVariables}}(),
+                       Int32[], # variable_to_vector_constraint_id
                        nothing,# trm
                        MosekSolution[],
                        true, # feasibility_sense
@@ -381,7 +382,7 @@ function MOI.empty!(model::MosekModel)
     empty!(model.x_sd)
     empty!(model.sd_dim)
     model.c_block            = LinkedInts()
-    empty!(mosek.vector_of_variables_to_constraint)
+    empty!(model.variable_to_vector_constraint_id)
     model.trm                = nothing
     empty!(model.solutions)
     model.feasibility        = true

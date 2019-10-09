@@ -90,10 +90,11 @@ const config = MOIT.TestConfig(atol=1e-3, rtol=1e-3)
     @testset "Conic" begin
         MOIT.basic_constraint_tests(
             optimizer, config,
-            delete = false, # TODO
-            get_constraint_function = false, # TODO
-            get_constraint_set = false, # TODO
             include=[
+                (MOI.VectorOfVariables, MOI.ExponentialCone),
+                (MOI.VectorOfVariables, MOI.DualExponentialCone),
+                (MOI.VectorOfVariables, MOI.PowerCone{Float64}),
+                (MOI.VectorOfVariables, MOI.DualPowerCone{Float64}),
                 (MOI.VectorOfVariables, MOI.SecondOrderCone),
                 (MOI.VectorOfVariables, MOI.RotatedSecondOrderCone)
         ])
@@ -115,6 +116,8 @@ end
 @testset "Unit" begin
     # Mosek does not support names
     MOIT.unittest(bridged, config, [
+        # TODO
+        "number_threads",
         # Find objective bound of 0.0 which is lower than 4.0
         "solve_objbound_edge_cases",
         # Cannot put multiple bound sets of the same type on a variable
@@ -130,7 +133,12 @@ end
 end
 
 @testset "Continuous Quadratic" begin
-    MOIT.contquadratictest(bridged, config, ["ncqcp"])
+    MOIT.contquadratictest(bridged, config, [
+        # Non-convex
+        "ncqcp",
+        # QuadtoSOC does not work as the matrix is not SDP
+        "socp"
+    ])
 end
 
 @testset "Continuous Conic" begin

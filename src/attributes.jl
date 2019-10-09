@@ -60,9 +60,11 @@ end
 
 #### objective
 function MOI.get(m::MosekModel, attr::MOI.ObjectiveValue)
+    MOI.check_result_index_bounds(m, attr)
     return getprimalobj(m.task, m.solutions[attr.result_index].whichsol)
 end
 function MOI.get(m::MosekModel, attr::MOI.DualObjectiveValue)
+    MOI.check_result_index_bounds(m, attr)
     return getdualobj(m.task, m.solutions[attr.result_index].whichsol)
 end
 
@@ -169,14 +171,14 @@ end
 function MOI.get(model::MosekModel,
                  ::MOI.NumberOfConstraints{MOI.VectorOfVariables, S}) where S<:VectorCone
     F = MOI.VectorOfVariables
-    return count(id -> MOI.is_valid(model, MOI.ConstraintIndex{F, S}(id)),
-                 1:getnumcone(model.task))
+    return count(i -> MOI.is_valid(model, MOI.ConstraintIndex{F, S}(i)),
+                 eachindex(model.variable_to_vector_constraint_id))
 end
 function MOI.get(model::MosekModel,
                  ::MOI.ListOfConstraintIndices{MOI.VectorOfVariables, S}) where S<:VectorCone
     F = MOI.VectorOfVariables
-    ids = filter(id -> MOI.is_valid(model, MOI.ConstraintIndex{F, S}(id)),
-                 1:getnumcone(model.task))
+    ids = filter(i -> MOI.is_valid(model, MOI.ConstraintIndex{F, S}(i)),
+                 eachindex(model.variable_to_vector_constraint_id))
     return [MOI.ConstraintIndex{F, S}(id) for id in ids]
 end
 function MOI.get(model::MosekModel,
@@ -255,10 +257,12 @@ end
 #### Variable solution values
 
 function MOI.get(m::MosekModel, attr::MOI.VariablePrimal, vi::MOI.VariableIndex)
+    MOI.check_result_index_bounds(m, attr)
     return variable_primal(m, attr.N, vi)
 end
 function MOI.get!(output::Vector{Float64}, m::MosekModel,
                   attr::MOI.VariablePrimal, vs::Vector{MOI.VariableIndex})
+    MOI.check_result_index_bounds(m, attr)
     @assert eachindex(output) == eachindex(vs)
     for i in eachindex(output)
         output[i] = MOI.get(m, attr, vs[i])
@@ -266,6 +270,7 @@ function MOI.get!(output::Vector{Float64}, m::MosekModel,
 end
 function MOI.get(m::MosekModel, attr::MOI.VariablePrimal,
                  vs::Vector{MOI.VariableIndex})
+    MOI.check_result_index_bounds(m, attr)
     output = Vector{Float64}(undef, length(vs))
     MOI.get!(output, m, attr, vs)
     return output
@@ -277,6 +282,7 @@ function MOI.get(
     m     ::MosekModel,
     attr  ::MOI.ConstraintPrimal,
     ci  ::MOI.ConstraintIndex{MOI.SingleVariable,D}) where D
+    MOI.check_result_index_bounds(m, attr)
     col = column(m, _variable(ci))
     return m.solutions[attr.N].xx[col.value]
 end
@@ -288,6 +294,7 @@ function MOI.get!(
     attr  ::MOI.ConstraintPrimal,
     ci  ::MOI.ConstraintIndex{MOI.VectorOfVariables,
                               MOI.PositiveSemidefiniteConeTriangle})
+    MOI.check_result_index_bounds(m, attr)
     whichsol = getsolcode(m,attr.N)
     output[1:length(output)] = reorder(getbarxj(m.task, whichsol, ci.value),
                                        MOI.PositiveSemidefiniteConeTriangle)
@@ -299,6 +306,7 @@ function MOI.get!(
     m     ::MosekModel,
     attr  ::MOI.ConstraintPrimal,
     ci  ::MOI.ConstraintIndex{MOI.VectorOfVariables,D}) where D
+    MOI.check_result_index_bounds(m, attr)
     cols = columns(m, ci)
     output[1:length(output)] = reorder(m.solutions[attr.N].xx[cols.values], D)
 end
@@ -306,6 +314,7 @@ end
 function MOI.get(m     ::MosekModel,
                  attr  ::MOI.ConstraintPrimal,
                  ci  ::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D}) where D
+    MOI.check_result_index_bounds(m, attr)
     cid = ref2id(ci)
     subi = getindex(m.c_block,cid)
     return m.solutions[attr.N].xc[subi]
@@ -323,6 +332,7 @@ function _variable_constraint_dual(sol::MosekSolution, col::ColumnIndex, ::Type{
 end
 function MOI.get(m::MosekModel, attr::MOI.ConstraintDual,
                  ci::MOI.ConstraintIndex{MOI.SingleVariable, S}) where S <: ScalarLinearDomain
+    MOI.check_result_index_bounds(m, attr)
     col = column(m, _variable(ci))
     dual = _variable_constraint_dual(m.solutions[attr.N], col, S)
     if getobjsense(m.task) == MSK_OBJECTIVE_SENSE_MINIMIZE
@@ -363,6 +373,7 @@ function MOI.get!(
     m     ::MosekModel,
     attr  ::MOI.ConstraintDual,
     ci  ::MOI.ConstraintIndex{MOI.VectorOfVariables, MOI.PositiveSemidefiniteConeTriangle})
+    MOI.check_result_index_bounds(m, attr)
     whichsol = getsolcode(m,attr.N)
     # It is in fact a real constraint and cid is the id of an ordinary constraint
     dual = reorder(getbarsj(m.task, whichsol, ci.value),
@@ -380,6 +391,7 @@ function MOI.get!(
     m     ::MosekModel,
     attr  ::MOI.ConstraintDual,
     ci  ::MOI.ConstraintIndex{MOI.VectorOfVariables,D}) where D
+    MOI.check_result_index_bounds(m, attr)
 
     xcid = ref2id(ci)
     @assert(xcid > 0)
@@ -398,6 +410,7 @@ end
 function MOI.get(m     ::MosekModel,
                  attr  ::MOI.ConstraintDual,
                  ci  ::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D}) where D
+    MOI.check_result_index_bounds(m, attr)
 
     cid = ref2id(ci)
     subi = getindex(m.c_block, cid)
@@ -411,7 +424,7 @@ end
 
 solsize(m::MosekModel, ::MOI.ConstraintIndex{<:MOI.AbstractScalarFunction}) = 1
 function solsize(m::MosekModel, ci::MOI.ConstraintIndex{MOI.VectorOfVariables})
-    return getconeinfo(m.task, ci.value)[3]
+    return getconeinfo(m.task, cone_id(m, ci))[3]
 end
 function solsize(m::MosekModel,
                  ci::MOI.ConstraintIndex{MOI.VectorOfVariables,
@@ -423,6 +436,7 @@ end
 function MOI.get(m::MosekModel,
                  attr::Union{MOI.ConstraintPrimal, MOI.ConstraintDual},
                  ci::MOI.ConstraintIndex{<:MOI.AbstractVectorFunction})
+    MOI.check_result_index_bounds(m, attr)
     cid = ref2id(ci)
     output = Vector{Float64}(undef, solsize(m, ci))
     MOI.get!(output, m, attr, ci)
@@ -482,6 +496,9 @@ function MOI.get(m::MosekModel, attr::MOI.TerminationStatus)
 end
 
 function MOI.get(m::MosekModel, attr::MOI.PrimalStatus)
+    if attr.N > MOI.get(m, MOI.ResultCount())
+        return MOI.NO_SOLUTION
+    end
     solsta = m.solutions[attr.N].solsta
     if     solsta == MSK_SOL_STA_UNKNOWN
         MOI.UNKNOWN_RESULT_STATUS
@@ -509,6 +526,9 @@ function MOI.get(m::MosekModel, attr::MOI.PrimalStatus)
 end
 
 function MOI.get(m::MosekModel,attr::MOI.DualStatus)
+    if attr.N > MOI.get(m, MOI.ResultCount())
+        return MOI.NO_SOLUTION
+    end
     solsta = m.solutions[attr.N].solsta
     if     solsta == MSK_SOL_STA_UNKNOWN
         MOI.UNKNOWN_RESULT_STATUS
