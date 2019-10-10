@@ -270,7 +270,7 @@ function row(m::MosekModel,
     return getindex(m.c_block, c.value)
 end
 function columns(m::MosekModel, ci::MOI.ConstraintIndex{MOI.VectorOfVariables})
-    return ColumnIndices(getcone(m.task, ci.value)[4])
+    return ColumnIndices(getcone(m.task, cone_id(m, ci))[4])
 end
 
 const VectorCone = Union{MOI.SecondOrderCone,
@@ -409,8 +409,17 @@ function MOI.add_constraint(m::MosekModel, xs::MOI.VectorOfVariables,
 
     N = MOI.dimension(dom)
     id = add_cone(m, cols, dom)
+    idx = first(xs.variables).value
+    for vi in xs.variables
+        m.variable_to_vector_constraint_id[vi.value] = -idx
+    end
+    m.variable_to_vector_constraint_id[idx] = id
 
-    return MOI.ConstraintIndex{MOI.VectorOfVariables, D}(id)
+    ci = MOI.ConstraintIndex{MOI.VectorOfVariables, D}(idx)
+    return ci
+end
+function cone_id(model::MosekModel, ci::MOI.ConstraintIndex{MOI.VectorOfVariables})
+    return model.variable_to_vector_constraint_id[ci.value]
 end
 
 ################################################################################
@@ -516,9 +525,43 @@ function MOI.get(m::MosekModel, ::MOI.ConstraintFunction,
     return MOI.ScalarAffineFunction(terms, 0.0)
 end
 function MOI.get(m::MosekModel, ::MOI.ConstraintSet,
-                 ci::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},
-                                         S}) where S
+                 ci::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}})
     return get_bound(m, ci)
+end
+
+function MOI.get(m::MosekModel, ::MOI.ConstraintFunction,
+                 ci::MOI.ConstraintIndex{MOI.VectorOfVariables, S}) where S <: VectorCone
+    return MOI.VectorOfVariables([
+        index_of_column(m, col) for col in reorder(columns(m, ci).values, S)
+    ])
+end
+function type_cone(ct)
+    if ct == MSK_CT_PEXP
+        return MOI.ExponentialCone
+    elseif ct == MSK_CT_DEXP
+        return MOI.DualExponentialCone
+    elseif ct == MSK_CT_PPOW
+        return MOI.PowerCone{Float64}
+    elseif ct == MSK_CT_DPOW
+        return MOI.DualPowerCone{Float64}
+    elseif ct == MSK_CT_QUAD
+        return MOI.SecondOrderCone
+    elseif ct == MSK_CT_RQUAD
+        return MOI.RotatedSecondOrderCone
+    else
+        error("Unrecognized Mosek cone type `$ct`.")
+    end
+end
+cone(::Type{MOI.ExponentialCone}, conepar, nummem) = MOI.ExponentialCone()
+cone(::Type{MOI.DualExponentialCone}, conepar, nummem) = MOI.DualExponentialCone()
+cone(::Type{MOI.PowerCone{Float64}}, conepar, nummem) = MOI.PowerCone(conepar)
+cone(::Type{MOI.DualPowerCone{Float64}}, conepar, nummem) = MOI.DualPowerCone(conepar)
+cone(::Type{MOI.SecondOrderCone}, conepar, nummem) = MOI.SecondOrderCone(nummem)
+cone(::Type{MOI.RotatedSecondOrderCone}, conepar, nummem) = MOI.RotatedSecondOrderCone(nummem)
+function MOI.get(m::MosekModel, ::MOI.ConstraintSet,
+                 ci::MOI.ConstraintIndex{MOI.VectorOfVariables, <:VectorCone})
+    ct, conepar, nummem = getconeinfo(m.task, cone_id(m, ci))
+    return cone(type_cone(ct), conepar, nummem)
 end
 
 ## Modify #####################################################################
@@ -532,9 +575,8 @@ chgbound(bl::Float64,bu::Float64,k::Float64,dom :: MOI.Interval{Float64})    = d
 
 function MOI.set(m::MosekModel,
                  ::MOI.ConstraintSet,
-                 ci::MOI.ConstraintIndex{F,D},
-                 dom::D) where {F<:MOI.SingleVariable,
-                                D<:ScalarLinearDomain}
+                 ci::MOI.ConstraintIndex{MOI.SingleVariable,D},
+                 dom::D) where D<:ScalarLinearDomain
     col = column(m, _variable(ci))
     bk, bl, bu = getvarbound(m.task, col.value)
     bl, bu = chgbound(bl, bu, 0.0, dom)
@@ -544,14 +586,13 @@ end
 
 function MOI.set(m::MosekModel,
                  ::MOI.ConstraintSet,
-                 cref::MOI.ConstraintIndex{F,D},
-                 dom::D) where { F    <: MOI.ScalarAffineFunction,
-                                 D    <: ScalarLinearDomain }
+                 cref::MOI.ConstraintIndex{<:MOI.ScalarAffineFunction,D},
+                 dom::D) where D <: ScalarLinearDomain
     cid = ref2id(cref)
-    i = getindex(m.c_block,cid) # since we are in a scalar domain
-    bk, bl, bu = getconbound(m.task,i)
-    bl, bu = chgbound(bl,bu,0.0,dom)
-    putconbound(m.task,i,bk,bl,bu)
+    i = getindex(m.c_block, cid) # since we are in a scalar domain
+    bk, bl, bu = getconbound(m.task, i)
+    bl, bu = chgbound(bl, bu, 0.0, dom)
+    putconbound(m.task, i, bk, bl, bu)
 end
 
 
@@ -641,8 +682,24 @@ end
 function MOI.is_valid(model::MosekModel,
                       ci::MOI.ConstraintIndex{MOI.VectorOfVariables,
                                               S}) where S<:VectorCone
-    return 1 ≤ ci.value ≤ getnumcone(model.task) &&
-        getconeinfo(model.task, ci.value)[1] == cone_type(S)
+    if !(ci.value in eachindex(model.variable_to_vector_constraint_id))
+        return false
+    end
+    id = cone_id(model, ci)
+    return 1 ≤ id ≤ getnumcone(model.task) &&
+        getconeinfo(model.task, id)[1] == cone_type(S)
+end
+function MOI.delete(model::MosekModel,
+                    ci::MOI.ConstraintIndex{MOI.VectorOfVariables, <:VectorCone})
+    id = cone_id(model, ci)
+    for vi in MOI.get(model, MOI.ConstraintFunction(), ci).variables
+        model.variable_to_vector_constraint_id[vi.value] = 0
+    end
+    removecones(model.task, [id])
+    # The conic constraints with id higher than `id` are renumbered.
+    map!(i -> i > id ? i - 1 : i,
+         model.variable_to_vector_constraint_id,
+         model.variable_to_vector_constraint_id)
 end
 function MOI.is_valid(model::MosekModel,
                       ci::MOI.ConstraintIndex{MOI.VectorOfVariables,
