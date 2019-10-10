@@ -227,6 +227,7 @@ function MOI.add_variable(m::MosekModel)
     push!(m.x_type, Undecided)
     push!(m.x_constraints, 0x0)
     push!(m.x_sd, MatrixIndex(0, 0, 0))
+    push!(m.variable_to_vector_constraint_id, 0)
     return MOI.VariableIndex(id)
 end
 
@@ -240,21 +241,39 @@ end
 function MOI.is_valid(model::MosekModel, vi::MOI.VariableIndex)
     return allocated(model.x_block, ref2id(vi))
 end
-
-#function MOI.delete(m::MosekModel, vis::Vector{MOI.VariableIndex})
-#    for vi in vis
-#        throw_if_cannot_delete(m, vi)
-#    end
+function delete_vector_of_variables_constraint(m::MosekModel, vis::Vector{MOI.VariableIndex})
+    i = first(vis).value
+    id = m.variable_to_vector_constraint_id[i]
+    if id > 0
+        S = type_cone(getconeinfo(m.task, id)[1])
+        ci = MOI.ConstraintIndex{MOI.VectorOfVariables, S}(i)
+        if MOI.is_valid(m, ci) && vis == MOI.get(m, MOI.ConstraintFunction(), ci).variables
+            MOI.delete(m, ci)
+        end
+    end
+end
+function MOI.delete(m::MosekModel, vis::Vector{MOI.VariableIndex})
+    for vi in vis
+        throw_if_cannot_delete(m, vi)
+    end
+    delete_vector_of_variables_constraint(m, vis)
+    for vi in vis
+        MOI.delete(m, vi)
+    end
 #    clear_columns(m, vis)
 #    for vi in vis
 #        clear_variable(m, vi)
 #    end
-#end
+end
 function MOI.delete(m::MosekModel, vi::MOI.VariableIndex)
     if variable_type(m, vi) == Undecided
         m.publicnumvar -= 1
     else
         throw_if_cannot_delete(m, vi)
+        delete_vector_of_variables_constraint(m, [vi])
+        if !iszero(m.variable_to_vector_constraint_id[vi.value])
+            MOIU.throw_delete_variable_in_vov(vi)
+        end
         clear_columns(m, [vi])
         clear_variable(m, vi)
     end

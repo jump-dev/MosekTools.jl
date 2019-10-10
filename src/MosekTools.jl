@@ -112,6 +112,11 @@ mutable struct MosekModel  <: MOI.AbstractOptimizer
     """
     c_block :: LinkedInts
 
+    # i -> 0: Not in a VectorOfVariables constraint
+    # i -> +j: In `MOI.ConstraintIndex{MOI.VectorOfVariables, ?}(j)`
+    # i -> -j: In `MOI.VectorOfVariables` constraint with `MOI.VariableIndex(j)` as first variable
+    variable_to_vector_constraint_id::Vector{Int32}
+
     ###########################
     trm :: Union{Nothing, Rescode}
     solutions :: Vector{MosekSolution}
@@ -257,6 +262,7 @@ function Mosek.Optimizer(; kws...)
                        MatrixIndex[], # x_sd
                        Int[], # sd_dim
                        LinkedInts(), # c_block
+                       Int32[], # variable_to_vector_constraint_id
                        nothing,# trm
                        MosekSolution[],
                        true, # feasibility_sense
@@ -368,16 +374,17 @@ function MOI.empty!(model::MosekModel)
     end
     model.publicnumvar       = 0
     model.has_variable_names = false
-    model.constrnames        = Dict{String, Vector{MOI.ConstraintIndex}}()
-    model.con_to_name        = Dict{MOI.ConstraintIndex, String}()
-    model.x_type             = VariableType[]
-    model.x_constraints      = UInt8[]
+    empty!(model.constrnames)
+    empty!(model.con_to_name)
+    empty!(model.x_type)
+    empty!(model.x_constraints)
     model.x_block            = LinkedInts()
-    model.x_sd               = MatrixIndex[]
-    model.sd_dim             = Int[]
+    empty!(model.x_sd)
+    empty!(model.sd_dim)
     model.c_block            = LinkedInts()
+    empty!(model.variable_to_vector_constraint_id)
     model.trm                = nothing
-    model.solutions          = MosekSolution[]
+    empty!(model.solutions)
     model.feasibility        = true
 end
 
