@@ -91,10 +91,6 @@ const config = MOIT.TestConfig(atol=1e-3, rtol=1e-3)
         MOIT.basic_constraint_tests(
             optimizer, config,
             include=[
-                (MOI.VectorOfVariables, MOI.ExponentialCone),
-                (MOI.VectorOfVariables, MOI.DualExponentialCone),
-                (MOI.VectorOfVariables, MOI.PowerCone{Float64}),
-                (MOI.VectorOfVariables, MOI.DualPowerCone{Float64}),
                 (MOI.VectorOfVariables, MOI.SecondOrderCone),
                 (MOI.VectorOfVariables, MOI.RotatedSecondOrderCone)
         ])
@@ -142,7 +138,7 @@ end
 end
 
 @testset "Continuous Conic" begin
-    MOIT.contconictest(bridged, config, ["exp", "rootdets", "logdet"])
+    MOIT.contconictest(bridged, config, ["exp", "dualexp", "pow", "dualpow", "rootdets", "logdet"])
 end
 
 @testset "Integer Linear" begin

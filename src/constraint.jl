@@ -274,11 +274,7 @@ function columns(m::MosekModel, ci::MOI.ConstraintIndex{MOI.VectorOfVariables})
 end
 
 const VectorCone = Union{MOI.SecondOrderCone,
-                         MOI.RotatedSecondOrderCone,
-                         MOI.PowerCone,
-                         MOI.DualPowerCone,
-                         MOI.ExponentialCone,
-                         MOI.DualExponentialCone}
+                         MOI.RotatedSecondOrderCone}
 
 # Two `SingleVariable`-in-`S` cannot be set to the same variable if
 # the two constraints
@@ -368,10 +364,6 @@ end
 # added later. Adding a `Interval` constraint defines both upper and
 # lower bounds.
 
-cone_type(::Type{MOI.ExponentialCone})        = MSK_CT_PEXP
-cone_type(::Type{MOI.DualExponentialCone})    = MSK_CT_DEXP
-cone_type(::Type{MOI.PowerCone{Float64}})     = MSK_CT_PPOW
-cone_type(::Type{MOI.DualPowerCone{Float64}}) = MSK_CT_DPOW
 cone_type(::Type{MOI.SecondOrderCone})        = MSK_CT_QUAD
 cone_type(::Type{MOI.RotatedSecondOrderCone}) = MSK_CT_RQUAD
 
@@ -536,15 +528,7 @@ function MOI.get(m::MosekModel, ::MOI.ConstraintFunction,
     ])
 end
 function type_cone(ct)
-    if ct == MSK_CT_PEXP
-        return MOI.ExponentialCone
-    elseif ct == MSK_CT_DEXP
-        return MOI.DualExponentialCone
-    elseif ct == MSK_CT_PPOW
-        return MOI.PowerCone{Float64}
-    elseif ct == MSK_CT_DPOW
-        return MOI.DualPowerCone{Float64}
-    elseif ct == MSK_CT_QUAD
+if ct == MSK_CT_QUAD
         return MOI.SecondOrderCone
     elseif ct == MSK_CT_RQUAD
         return MOI.RotatedSecondOrderCone
@@ -552,10 +536,6 @@ function type_cone(ct)
         error("Unrecognized Mosek cone type `$ct`.")
     end
 end
-cone(::Type{MOI.ExponentialCone}, conepar, nummem) = MOI.ExponentialCone()
-cone(::Type{MOI.DualExponentialCone}, conepar, nummem) = MOI.DualExponentialCone()
-cone(::Type{MOI.PowerCone{Float64}}, conepar, nummem) = MOI.PowerCone(conepar)
-cone(::Type{MOI.DualPowerCone{Float64}}, conepar, nummem) = MOI.DualPowerCone(conepar)
 cone(::Type{MOI.SecondOrderCone}, conepar, nummem) = MOI.SecondOrderCone(nummem)
 cone(::Type{MOI.RotatedSecondOrderCone}, conepar, nummem) = MOI.RotatedSecondOrderCone(nummem)
 function MOI.get(m::MosekModel, ::MOI.ConstraintSet,
