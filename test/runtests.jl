@@ -142,7 +142,7 @@ end
 end
 
 @testset "Continuous Conic" begin
-    MOIT.contconictest(bridged, config, ["exp", "rootdets", "logdet"])
+    MOIT.contconictest(bridged, config, ["rootdets", "logdet"])
 end
 
 @testset "Integer Linear" begin
