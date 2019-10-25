@@ -2,9 +2,9 @@
 [MathOptInterface.jl](https://github.com/JuliaOpt/MathOptInterface.jl)
 implementation for the MOSEK solver. The low-level solver API for MOSEK is
 found in the package [Mosek.jl](https://github.com/JuliaOpt/Mosek.jl).
-The latest release of this package and the `mosekv8` branch are to be used with
-the latest release of Mosek.jl (which uses MOSEK v8). To use MOSEK v9, use
-the master branch of both this package and Mosek.jl.
+The latest release of this package and the `master` branch are to be used with
+the latest release of Mosek.jl (which uses MOSEK v9). To use MOSEK v8, use
+the v0.7.x releases of this package (or the `mosekv8` branch) and v0.9.x releases Mosek.jl.
 
 The ``Mosek`` specific model object (used for example with JuMP) is created as
 ```julia
