@@ -270,7 +270,11 @@ function row(m::MosekModel,
     return getindex(m.c_block, c.value)
 end
 function columns(m::MosekModel, ci::MOI.ConstraintIndex{MOI.VectorOfVariables})
-    return ColumnIndices(getcone(m.task, cone_id(m, ci))[4])
+    coneidx = cone_id(m, ci)
+    if coneidx < 1 || coneidx > getnumcone(m.task)
+        throw(MOI.InvalidIndex(ci))
+    end 
+    return ColumnIndices(getcone(m.task, coneidx)[4])
 end
 
 const VectorCone = Union{MOI.SecondOrderCone,
@@ -532,7 +536,7 @@ end
 function MOI.get(m::MosekModel, ::MOI.ConstraintFunction,
                  ci::MOI.ConstraintIndex{MOI.VectorOfVariables, S}) where S <: VectorCone
     return MOI.VectorOfVariables([
-        index_of_column(m, col) for col in reorder(columns(m, ci).values, S)
+        index_of_column(m, col) for col in reorder(columns(m, ci).values, S) 
     ])
 end
 function type_cone(ct)
@@ -692,9 +696,11 @@ end
 function MOI.delete(model::MosekModel,
                     ci::MOI.ConstraintIndex{MOI.VectorOfVariables, <:VectorCone})
     id = cone_id(model, ci)
+
     for vi in MOI.get(model, MOI.ConstraintFunction(), ci).variables
         model.variable_to_vector_constraint_id[vi.value] = 0
     end
+    println("removecones : $(id)")
     removecones(model.task, [id])
     # The conic constraints with id higher than `id` are renumbered.
     map!(i -> i > id ? i - 1 : i,
