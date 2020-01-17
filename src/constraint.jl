@@ -102,10 +102,29 @@ bound_key(::Type{MOI.GreaterThan{Float64}}) = MSK_BK_LO
 bound_key(::Type{MOI.LessThan{Float64}})    = MSK_BK_UP
 bound_key(::Type{MOI.EqualTo{Float64}})     = MSK_BK_FX
 bound_key(::Type{MOI.Interval{Float64}})    = MSK_BK_RA
+
+
+
 add_bound(m::MosekModel, row::Int32, dom::MOI.GreaterThan{Float64}) = putconbound(m.task, row, bound_key(typeof(dom)), dom.lower, dom.lower)
 add_bound(m::MosekModel, row::Int32, dom::MOI.LessThan{Float64})    = putconbound(m.task, row, bound_key(typeof(dom)), dom.upper, dom.upper)
 add_bound(m::MosekModel, row::Int32, dom::MOI.EqualTo{Float64})     = putconbound(m.task, row, bound_key(typeof(dom)), dom.value, dom.value)
-add_bound(m::MosekModel, row::Int32, dom::MOI.Interval{Float64})    = putconbound(m.task, row, bound_key(typeof(dom)), dom.lower, dom.upper)
+function add_bound(m::MosekModel, row::Int32, dom::MOI.Interval{Float64})
+    bl = dom.lower
+    bu = dom.upper
+    bk = bound_key(typeof(dom))
+    if bl < 0 && isinf(bl)
+        if bu > 0 && isinf(bu)
+            bk = MSK_BK_FR
+        else
+            bk = MSK_BK_UP
+        end
+    elseif bu > 0 && isinf(bu)
+        bk = MSK_BK_LO
+    end
+
+    putconbound(m.task, row, bk,bl,bu)
+end
+
 function bounds_to_set(::Type{S}, bk, bl, bu) where S
     if S == MOI.GreaterThan{Float64}
         return S(bl)
