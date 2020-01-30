@@ -292,7 +292,7 @@ function columns(m::MosekModel, ci::MOI.ConstraintIndex{MOI.VectorOfVariables})
     coneidx = cone_id(m, ci)
     if coneidx < 1 || coneidx > getnumcone(m.task)
         throw(MOI.InvalidIndex(ci))
-    end 
+    end
     return ColumnIndices(getcone(m.task, coneidx)[4])
 end
 
@@ -528,6 +528,7 @@ function MOI.get(m::MosekModel, ::MOI.ConstraintFunction,
 end
 function MOI.get(m::MosekModel, ::MOI.ConstraintSet,
                  ci::MOI.ConstraintIndex{MOI.SingleVariable, S}) where S <: ScalarIntegerDomain
+    MOI.throw_if_not_valid(m, ci)
     return S()
 end
 function MOI.get(m::MosekModel, ::MOI.ConstraintSet,
@@ -540,6 +541,7 @@ end
 function MOI.get(m::MosekModel, ::MOI.ConstraintFunction,
                  ci::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},
                                          <:ScalarLinearDomain})
+    MOI.throw_if_not_valid(m, ci)
     nnz, cols, vals = getarow(m.task, row(m, ci))
     @assert nnz == length(cols) == length(vals)
     terms = MOI.ScalarAffineTerm{Float64}[
@@ -549,13 +551,14 @@ function MOI.get(m::MosekModel, ::MOI.ConstraintFunction,
 end
 function MOI.get(m::MosekModel, ::MOI.ConstraintSet,
                  ci::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}})
+    MOI.throw_if_not_valid(m, ci)
     return get_bound(m, ci)
 end
 
 function MOI.get(m::MosekModel, ::MOI.ConstraintFunction,
                  ci::MOI.ConstraintIndex{MOI.VectorOfVariables, S}) where S <: VectorCone
     return MOI.VectorOfVariables([
-        index_of_column(m, col) for col in reorder(columns(m, ci).values, S) 
+        index_of_column(m, col) for col in reorder(columns(m, ci).values, S)
     ])
 end
 function type_cone(ct)
@@ -583,6 +586,7 @@ cone(::Type{MOI.SecondOrderCone}, conepar, nummem) = MOI.SecondOrderCone(nummem)
 cone(::Type{MOI.RotatedSecondOrderCone}, conepar, nummem) = MOI.RotatedSecondOrderCone(nummem)
 function MOI.get(m::MosekModel, ::MOI.ConstraintSet,
                  ci::MOI.ConstraintIndex{MOI.VectorOfVariables, <:VectorCone})
+    MOI.throw_if_not_valid(m, ci)
     ct, conepar, nummem = getconeinfo(m.task, cone_id(m, ci))
     return cone(type_cone(ct), conepar, nummem)
 end
@@ -719,7 +723,6 @@ function MOI.delete(model::MosekModel,
     for vi in MOI.get(model, MOI.ConstraintFunction(), ci).variables
         model.variable_to_vector_constraint_id[vi.value] = 0
     end
-    println("removecones : $(id)")
     removecones(model.task, [id])
     # The conic constraints with id higher than `id` are renumbered.
     map!(i -> i > id ? i - 1 : i,
