@@ -520,6 +520,7 @@ function MOI.get(m::MosekModel, ::MOI.ConstraintFunction,
 end
 function MOI.get(m::MosekModel, ::MOI.ConstraintSet,
                  ci::MOI.ConstraintIndex{MOI.SingleVariable, S}) where S <: ScalarIntegerDomain
+    MOI.throw_if_not_valid(m, ci)
     return S()
 end
 function MOI.get(m::MosekModel, ::MOI.ConstraintSet,
@@ -532,6 +533,7 @@ end
 function MOI.get(m::MosekModel, ::MOI.ConstraintFunction,
                  ci::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},
                                          <:ScalarLinearDomain})
+    MOI.throw_if_not_valid(m, ci)
     nnz, cols, vals = getarow(m.task, row(m, ci))
     @assert nnz == length(cols) == length(vals)
     terms = MOI.ScalarAffineTerm{Float64}[
@@ -541,6 +543,7 @@ function MOI.get(m::MosekModel, ::MOI.ConstraintFunction,
 end
 function MOI.get(m::MosekModel, ::MOI.ConstraintSet,
                  ci::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}})
+    MOI.throw_if_not_valid(m, ci)
     return get_bound(m, ci)
 end
 
@@ -563,6 +566,7 @@ cone(::Type{MOI.SecondOrderCone}, conepar, nummem) = MOI.SecondOrderCone(nummem)
 cone(::Type{MOI.RotatedSecondOrderCone}, conepar, nummem) = MOI.RotatedSecondOrderCone(nummem)
 function MOI.get(m::MosekModel, ::MOI.ConstraintSet,
                  ci::MOI.ConstraintIndex{MOI.VectorOfVariables, <:VectorCone})
+    MOI.throw_if_not_valid(m, ci)
     ct, conepar, nummem = getconeinfo(m.task, cone_id(m, ci))
     return cone(type_cone(ct), conepar, nummem)
 end

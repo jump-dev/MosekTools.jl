@@ -142,7 +142,7 @@ end
 end
 
 @testset "Integer Linear" begin
-    MOIT.intlineartest(optimizer, config, ["int2", "indicator1", "indicator2", "indicator3"])
+    MOIT.intlineartest(optimizer, config, ["int2", "indicator1", "indicator2", "indicator3", "indicator4"])
 end
 
 # Test that objective and constraint data are copied over correctly when
