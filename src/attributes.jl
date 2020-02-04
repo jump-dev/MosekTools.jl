@@ -517,7 +517,7 @@ function MOI.get(m::MosekModel, attr::MOI.PrimalStatus)
     elseif solsta == MSK_SOL_STA_PRIM_ILLPOSED_CER
         MOI.NO_SOLUTION
     elseif solsta == MSK_SOL_STA_DUAL_ILLPOSED_CER
-        MOI.UNKNOWN_RESULT_STATUS
+        MOI.REDUCTION_CERTIFICATE
     elseif solsta == MSK_SOL_STA_INTEGER_OPTIMAL
         MOI.FEASIBLE_POINT
     else
@@ -545,7 +545,7 @@ function MOI.get(m::MosekModel,attr::MOI.DualStatus)
     elseif solsta == MSK_SOL_STA_DUAL_INFEAS_CER
         MOI.NO_SOLUTION
     elseif solsta == MSK_SOL_STA_PRIM_ILLPOSED_CER
-        MOI.UNKNOWN_RESULT_STATUS
+        MOI.REDUCTION_CERTIFICATE
     elseif solsta == MSK_SOL_STA_DUAL_ILLPOSED_CER
         MOI.NO_SOLUTION
     elseif solsta == MSK_SOL_STA_INTEGER_OPTIMAL
