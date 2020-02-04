@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/JuliaOpt/MosekTools.jl.svg?branch=master)](https://travis-ci.org/JuliaOpt/MosekTools.jl)
+
 ``MosekTools`` is the
 [MathOptInterface.jl](https://github.com/JuliaOpt/MathOptInterface.jl)
 implementation for the MOSEK solver. The low-level solver API for MOSEK is
