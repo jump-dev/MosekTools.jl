@@ -113,6 +113,11 @@ const bridged = MOIB.full_bridge_optimizer(optimizer, Float64)
     MOIT.copytest(bridged, model)
 end
 
+@testset "Start" begin
+    # TODO this should be checked somewhere in MOI
+    @test MOI.supports(bridged, MOI.VariablePrimalStart(), MOI.VariableIndex)
+end
+
 @testset "Unit" begin
     # Mosek does not support names
     MOIT.unittest(bridged, config, [
