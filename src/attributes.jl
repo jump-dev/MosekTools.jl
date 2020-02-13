@@ -51,7 +51,7 @@ function variable_primal(m::MosekModel, N, mat::MatrixIndex)
     return m.solutions[N].barxj[mat.matrix][k]
 end
 function variable_primal(m::MosekModel, N, vi::MOI.VariableIndex)
-    variable_primal(m, N, mosek_index(m, vi))
+    return variable_primal(m, N, mosek_index(m, vi))
 end
 
 ###############################################################################
@@ -228,7 +228,13 @@ end
 
 #### Warm start values
 
-function MOI.set(m::MosekModel, attr::MOI.VariablePrimalStart,
+MOI.supports(::MosekModel, ::MOI.VariablePrimalStart, ::Type{MOI.VariableIndex}) = true
+
+function MOI.set(m::MosekModel, ::MOI.VariablePrimalStart,
+                 v::MOI.VariableIndex, ::Nothing)
+    set_primal_start(m, v, 0.0)
+end
+function MOI.set(m::MosekModel, ::MOI.VariablePrimalStart,
                  v::MOI.VariableIndex, val::Float64)
     set_primal_start(m, v, val)
 end
