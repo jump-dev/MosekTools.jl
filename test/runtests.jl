@@ -18,6 +18,8 @@ using MosekTools
 const optimizer = Mosek.Optimizer(fallback = FALLBACK_URL)
 MOI.set(optimizer, MOI.Silent(), true)
 
+MOIT.psdt0vtest(MOIB.full_bridge_optimizer(optimizer, Float64), MOIT.TestConfig(atol=1e-4, rtol=1e-4))
+
 @testset "SolverName" begin
     @test MOI.get(optimizer, MOI.SolverName()) == "Mosek"
 end

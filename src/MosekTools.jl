@@ -28,8 +28,6 @@ struct MosekSolution
     y        :: Vector{Float64}
 end
 
-@enum VariableType Undecided Deleted ScalarVariable MatrixVariable
-
 struct ColumnIndex
     value::Int32
 end
@@ -72,18 +70,12 @@ mutable struct MosekModel  <: MOI.AbstractOptimizer
     # String parameters, i.e. parameters starting with `MSK_SPAR_`
     spars :: Dict{String, AbstractString}
 
-    """
-    Number of variables explicitly created by user
-    """
-    publicnumvar :: Int
-
     has_variable_names::Bool
     constrnames :: Dict{String, Vector{MOI.ConstraintIndex}}
     # Mosek only support names for `MOI.ScalarAffineFunction` so we need a
     # fallback for `SingleVariable` and `VectorOfVariables`.
     con_to_name :: Dict{MOI.ConstraintIndex, String}
 
-    x_type::Vector{VariableType}
     # For each MOI index of variables, gives the flags of constraints present
     # The SingleVariable constraints added cannot just be inferred from getvartype
     # and getvarbound so we need to keep them here so implement `MOI.is_valid`
@@ -252,11 +244,9 @@ function Mosek.Optimizer(; kws...)
                        Dict{String, Int32}(), # ipars
                        Dict{String, Float64}(), # dpars
                        Dict{String, AbstractString}(), # spars
-                       0, # public numvar
                        false, # has_variable_names
                        Dict{String, Vector{MOI.ConstraintIndex}}(), # constrnames
                        Dict{MOI.ConstraintIndex, String}(), # con_to_name
-                       VariableType[], # x_type
                        UInt8[], # x_constraints
                        LinkedInts(),# x_block
                        MatrixIndex[], # x_sd
@@ -372,11 +362,9 @@ function MOI.empty!(model::MosekModel)
     if !model.be_quiet
         Mosek.putstreamfunc(model.task, Mosek.MSK_STREAM_LOG, m -> print(m))
     end
-    model.publicnumvar       = 0
     model.has_variable_names = false
     empty!(model.constrnames)
     empty!(model.con_to_name)
-    empty!(model.x_type)
     empty!(model.x_constraints)
     model.x_block            = LinkedInts()
     empty!(model.x_sd)
