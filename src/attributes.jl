@@ -16,13 +16,11 @@ function set_primal_start(task::Mosek.MSKtask, cols::ColumnIndices,
     for sol in [MSK_SOL_BAS, MSK_SOL_ITG]
         if solutiondef(task, sol)
             xx = getxx(task, sol)
-            xx[cols] = vals
-            putxx(task, sol, xx)
         else
             xx = zeros(Float64, getnumvar(task))
-            xx[cols] = vals
-            putxx(task, sol, xx)
         end
+        xx[cols] = values
+        putxx(task, sol, xx)
     end
 end
 function set_primal_start(m::MosekModel, vis::Vector{MOI.VariableIndex},

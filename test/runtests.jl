@@ -18,8 +18,6 @@ using MosekTools
 const optimizer = Mosek.Optimizer(fallback = FALLBACK_URL)
 MOI.set(optimizer, MOI.Silent(), true)
 
-MOIT.psdt0vtest(MOIB.full_bridge_optimizer(optimizer, Float64), MOIT.TestConfig(atol=1e-4, rtol=1e-4))
-
 @testset "SolverName" begin
     @test MOI.get(optimizer, MOI.SolverName()) == "Mosek"
 end
@@ -153,7 +151,11 @@ end
 end
 
 @testset "Integer Linear" begin
-    MOIT.intlineartest(optimizer, config, ["int2", "indicator1", "indicator2", "indicator3", "indicator4"])
+    MOIT.intlineartest(bridged, config, [
+        # SOS constraints not supported:
+        # int2 uses SOS and indicator can be bridged to SOS
+        "int2", "indicator1", "indicator2", "indicator3", "indicator4"
+    ])
 end
 
 # Test that objective and constraint data are copied over correctly when
