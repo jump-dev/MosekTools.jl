@@ -19,7 +19,7 @@ function set_primal_start(task::Mosek.MSKtask, cols::ColumnIndices,
         else
             xx = zeros(Float64, getnumvar(task))
         end
-        xx[cols] = values
+        xx[cols.values] = values
         putxx(task, sol, xx)
     end
 end
@@ -462,10 +462,12 @@ function MOI.get(m::MosekModel, attr::MOI.TerminationStatus)
     if     m.trm === nothing
         MOI.OPTIMIZE_NOT_CALLED
     elseif m.trm == MSK_RES_OK
-        if any(sol -> sol.solsta == MSK_SOL_STA_PRIM_INFEAS_CER, m.solutions)
+        # checking `any(sol -> sol.solsta == MSK_SOL_STA_PRIM_INFEAS_CER, m.solutions)`
+        # doesn't work for MIP as there is not certificate, i.e. the solutions status is
+        # `UNKNOWN`, only the problem status is `INFEAS`.
+        if any(sol -> sol.prosta == MSK_PRO_STA_PRIM_INFEAS, m.solutions)
             MOI.INFEASIBLE
-        elseif any(sol -> sol.solsta == MSK_SOL_STA_DUAL_INFEAS_CER,
-                   m.solutions)
+        elseif any(sol -> sol.prosta == MSK_PRO_STA_DUAL_FEAS, m.solutions)
             MOI.DUAL_INFEASIBLE
         else
             MOI.OPTIMAL
