@@ -343,9 +343,10 @@ const ScalarIntegerDomain = Union{MOI.ZeroOne, MOI.Integer}
 ## Add ########################################################################
 ###############################################################################
 
-MOI.supports_constraint(m::MosekModel, ::Type{<:Union{MOI.SingleVariable, MOI.ScalarAffineFunction}}, ::Type{<:ScalarLinearDomain}) = true
-MOI.supports_constraint(m::MosekModel, ::Type{MOI.VectorOfVariables}, ::Type{<:Union{VectorCone, MOI.PositiveSemidefiniteConeTriangle}}) = true
-MOI.supports_constraint(m::MosekModel, ::Type{MOI.SingleVariable}, ::Type{<:ScalarIntegerDomain}) = true
+MOI.supports_constraint(::MosekModel, ::Type{<:Union{MOI.SingleVariable, MOI.ScalarAffineFunction}}, ::Type{<:ScalarLinearDomain}) = true
+MOI.supports_constraint(::MosekModel, ::Type{MOI.VectorOfVariables}, ::Type{<:VectorCone}) = true
+MOI.supports_constraint(::MosekModel, ::Type{MOI.SingleVariable}, ::Type{<:ScalarIntegerDomain}) = true
+MOI.supports_add_constrained_variables(::MosekModel, ::Type{MOI.PositiveSemidefiniteConeTriangle}) = true
 
 ## Affine Constraints #########################################################
 ##################### lc ≤ Ax ≤ uc ############################################
@@ -440,9 +441,10 @@ end
 ################################################################################
 ################################################################################
 
-function MOI.add_constraint(m  ::MosekModel,
-                            xs ::MOI.VectorOfVariables,
-                            dom::MOI.PositiveSemidefiniteConeTriangle)
+function MOI.add_constrained_variables(
+    m  ::MosekModel,
+    dom::MOI.PositiveSemidefiniteConeTriangle
+)
     N = dom.side_dimension
     if N < 2
         error("Invalid dimension for semidefinite constraint, got $N which is ",
@@ -451,62 +453,9 @@ function MOI.add_constraint(m  ::MosekModel,
     appendbarvars(m.task, [Int32(N)])
     push!(m.sd_dim, N)
     id = length(m.sd_dim)
-    sd_row  = Dict{Int, Vector{Int32}}()
-    sd_col  = Dict{Int, Vector{Int32}}()
-    sd_coef = Dict{Int, Vector{Float64}}()
-    obj_row = Int32[]
-    obj_col = Int32[]
-    obj_coef = Float64[]
-    k = 0
-    for i in 1:N
-        for j in 1:i
-            k += 1
-            vi = xs.variables[k]
-            m.x_sd[vi.value] = MatrixIndex(id, i, j)
-
-            if variable_type(m, vi) == MatrixVariable
-                error("Variable $vi cannot be part of two matrix variables.")
-            elseif variable_type(m, vi) == ScalarVariable
-                # The variable has already been used, we need replace the
-                # coefficients in the `A` matrix by matrix coefficients
-                nnz, rows, vals = getacol(m.task, column(m, vi).value)
-                @assert nnz == length(rows) == length(vals)
-                for ii in 1:nnz
-                    if !haskey(sd_row, rows[ii])
-                        sd_row[rows[ii]] = Int32[]
-                        sd_col[rows[ii]] = Int32[]
-                        sd_coef[rows[ii]] = Float64[]
-                    end
-                    push!(sd_row[rows[ii]], i)
-                    push!(sd_col[rows[ii]], j)
-                    push!(sd_coef[rows[ii]], i == j ? vals[ii] : vals[ii] / 2)
-                end
-                cj = getcj(m.task, column(m, vi).value)
-                if !iszero(cj)
-                    push!(obj_row, i)
-                    push!(obj_col, j)
-                    push!(obj_coef, i == j ? cj : cj / 2)
-                end
-                MOI.delete(m, vi)
-            end
-            m.x_type[vi.value] = MatrixVariable
-        end
-    end
-    for row in eachindex(sd_row)
-        sid = appendsparsesymmat(m.task, N, sd_row[row], sd_col[row],
-                                sd_coef[row])
-        putbaraij(m.task, row, id, [sid], [1.0])
-    end
-    if !isempty(obj_row)
-        sid = appendsparsesymmat(m.task, N, obj_row, obj_col, obj_coef)
-        putbarcj(m.task, id, [sid], [1.0])
-    end
-    @assert k == length(xs.variables)
-
-
-    conref = MOI.ConstraintIndex{MOI.VectorOfVariables, MOI.PositiveSemidefiniteConeTriangle}(id)
-
-    return conref
+    vis = [new_variable_index(m, MatrixIndex(id, i, j)) for i in 1:N for j in 1:i]
+    con_idx = MOI.ConstraintIndex{MOI.VectorOfVariables, MOI.PositiveSemidefiniteConeTriangle}(id)
+    return vis, con_idx
 end
 
 ## Get ########################################################################
