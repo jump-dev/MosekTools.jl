@@ -467,7 +467,7 @@ function MOI.get(m::MosekModel, attr::MOI.TerminationStatus)
         # `UNKNOWN`, only the problem status is `INFEAS`.
         if any(sol -> sol.prosta == MSK_PRO_STA_PRIM_INFEAS, m.solutions)
             MOI.INFEASIBLE
-        elseif any(sol -> sol.prosta == MSK_PRO_STA_DUAL_FEAS, m.solutions)
+        elseif any(sol -> sol.prosta == MSK_PRO_STA_DUAL_INFEAS, m.solutions)
             MOI.DUAL_INFEASIBLE
         else
             MOI.OPTIMAL
