@@ -106,37 +106,26 @@ end
 ###############################################################################
 
 function column(m::MosekModel, vi::MOI.VariableIndex)
-    @assert variable_type(m, vi) == ScalarVariable
+    @assert iszero(m.x_sd[vi.value].matrix)
     return ColumnIndex(getindex(m.x_block, ref2id(vi)))
 end
 function columns(m::MosekModel, vis::Vector{MOI.VariableIndex})
     return ColumnIndices(Int32[
         (mosek_index(m, vi)::ColumnIndex).value for vi in vis])
 end
-function variable_type(m::MosekModel, vi::MOI.VariableIndex)
-    if 1 ≤ vi.value ≤ length(m.x_type)
-        t = m.x_type[vi.value]
-        if t != Deleted
-            return t
+function is_scalar(m::MosekModel, vi::MOI.VariableIndex)
+    if 1 ≤ vi.value ≤ length(m.x_sd)
+        matrix_index = m.x_sd[vi.value]
+        if matrix_index.matrix >= 0
+            return iszero(matrix_index.matrix)
         end
     end
     throw(MOI.InvalidIndex(vi))
 end
-function is_scalar(m::MosekModel, vi::MOI.VariableIndex)
-    return variable_type(m, vi) == ScalarVariable
-end
 function is_matrix(m::MosekModel, vi::MOI.VariableIndex)
-    return variable_type(m, vi) == MatrixVariable
-end
-function decide_variable(m::MosekModel, vi::MOI.VariableIndex)
-    if variable_type(m, vi) == Undecided
-        allocate_variable(m, vi)
-        m.x_type[vi.value] = ScalarVariable
-        init_columns(m, [vi])
-    end
+    return !is_scalar(m, vi)
 end
 function mosek_index(m::MosekModel, vi::MOI.VariableIndex)
-    decide_variable(m, vi)
     if is_scalar(m, vi)
         return column(m, vi)
     else
@@ -181,7 +170,7 @@ end
 
 function throw_if_cannot_delete(m::MosekModel, vi::MOI.VariableIndex)
     if !allocated(m.x_block, ref2id(vi))
-        @assert m.x_type[ref2id(vi)] == Deleted
+        @assert m.x_sd[ref2id(vi)].matrix == -1
         throw(MOI.InvalidIndex(vi))
     end
     if is_scalar(m, vi)
@@ -210,7 +199,6 @@ Mosek solver) to free the corresponding column for reuse by another variable.
 See [`allocate_variable`](@ref) which is kind of the reverse operation.
 """
 function clear_variable(m::MosekModel, vi::MOI.VariableIndex)
-    m.publicnumvar -= 1
     deleteblock(m.x_block, ref2id(vi))
 end
 
@@ -221,14 +209,20 @@ end
 ## Add ########################################################################
 ###############################################################################
 
-function MOI.add_variable(m::MosekModel)
-    m.publicnumvar += 1
+
+function new_variable_index(m::MosekModel, matrix_index::MatrixIndex)
     id = create_block(m.x_block, 1)
-    push!(m.x_type, Undecided)
     push!(m.x_constraints, 0x0)
-    push!(m.x_sd, MatrixIndex(0, 0, 0))
+    push!(m.x_sd, matrix_index)
     push!(m.variable_to_vector_constraint_id, 0)
     return MOI.VariableIndex(id)
+end
+
+function MOI.add_variable(m::MosekModel)
+    vi = new_variable_index(m, MatrixIndex(0, 0, 0))
+    allocate_variable(m, vi)
+    init_columns(m, [vi])
+    return vi
 end
 
 function MOI.add_variables(m::MosekModel, n::Int)
@@ -266,24 +260,20 @@ function MOI.delete(m::MosekModel, vis::Vector{MOI.VariableIndex})
 #    end
 end
 function MOI.delete(m::MosekModel, vi::MOI.VariableIndex)
-    if variable_type(m, vi) == Undecided
-        m.publicnumvar -= 1
-    else
-        throw_if_cannot_delete(m, vi)
-        delete_vector_of_variables_constraint(m, [vi])
-        if !iszero(m.variable_to_vector_constraint_id[vi.value])
-            MOIU.throw_delete_variable_in_vov(vi)
-        end
-        clear_columns(m, [vi])
-        clear_variable(m, vi)
+    throw_if_cannot_delete(m, vi)
+    delete_vector_of_variables_constraint(m, [vi])
+    if !iszero(m.variable_to_vector_constraint_id[vi.value])
+        MOIU.throw_delete_variable_in_vov(vi)
     end
-    m.x_type[vi.value] = Deleted
+    clear_columns(m, [vi])
+    clear_variable(m, vi)
+    m.x_sd[vi.value] = MatrixIndex(-1, 0, 0)
     return
 end
 
 ## List #######################################################################
 ###############################################################################
-MOI.get(m::MosekModel, ::MOI.NumberOfVariables) = m.publicnumvar
+MOI.get(m::MosekModel, ::MOI.NumberOfVariables) = num_allocated(m.x_block)
 function MOI.get(m::MosekModel, ::MOI.ListOfVariableIndices)
     ids = allocatedlist(m.x_block)
     return MOI.VariableIndex[MOI.VariableIndex(vid) for vid in ids]
