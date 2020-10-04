@@ -171,11 +171,6 @@ function delete_variable_constraint(m::MosekModel, col::ColumnIndex,
     putvartype(m.task, col.value, MSK_VAR_TYPE_CONT)
 end
 function delete_variable_constraint(m::MosekModel, col::ColumnIndex,
-                                    ::Type{MOI.ZeroOne})
-    putvartype(m.task, col.value, MSK_VAR_TYPE_CONT)
-    putvarbound(m.task, col.value, MSK_BK_FR, 0.0, 0.0)
-end
-function delete_variable_constraint(m::MosekModel, col::ColumnIndex,
                                     ::Type{MOI.LessThan{Float64}})
     bk, lo, up = getvarbound(m.task, col.value)
     if bk == MSK_BK_UP
@@ -205,10 +200,6 @@ function add_variable_constraint(m::MosekModel, col::ColumnIndex, dom::MOI.Equal
 end
 function add_variable_constraint(m::MosekModel, col::ColumnIndex, ::MOI.Integer)
     putvartype(m.task, col.value, MSK_VAR_TYPE_INT)
-end
-function add_variable_constraint(m::MosekModel, col::ColumnIndex, ::MOI.ZeroOne)
-    putvartype(m.task, col.value, MSK_VAR_TYPE_INT)
-    putvarbound(m.task, col.value, MSK_BK_RA, 0.0, 1.0)
 end
 function add_variable_constraint(m::MosekModel, col::ColumnIndex, dom::MOI.LessThan)
     bk, lo, up = getvarbound(m.task, col.value)
@@ -315,8 +306,6 @@ flag(::Type{MOI.Interval{Float64}}) = 0x8
 incompatible_mask(::Type{MOI.Interval{Float64}}) = 0x2f
 flag(::Type{MOI.Integer}) = 0x10
 incompatible_mask(::Type{MOI.Integer}) = 0x30
-flag(::Type{MOI.ZeroOne}) = 0x20
-incompatible_mask(::Type{MOI.ZeroOne}) = 0x3f
 flag(::Type{<:VectorCone}) = 0x40
 incompatible_mask(::Type{<:VectorCone}) = 0x40
 
@@ -338,14 +327,13 @@ const ScalarLinearDomain = Union{MOI.LessThan{Float64},
                                  MOI.GreaterThan{Float64},
                                  MOI.EqualTo{Float64},
                                  MOI.Interval{Float64}}
-const ScalarIntegerDomain = Union{MOI.ZeroOne, MOI.Integer}
 
 ## Add ########################################################################
 ###############################################################################
 
 MOI.supports_constraint(::MosekModel, ::Type{<:Union{MOI.SingleVariable, MOI.ScalarAffineFunction}}, ::Type{<:ScalarLinearDomain}) = true
 MOI.supports_constraint(::MosekModel, ::Type{MOI.VectorOfVariables}, ::Type{<:VectorCone}) = true
-MOI.supports_constraint(::MosekModel, ::Type{MOI.SingleVariable}, ::Type{<:ScalarIntegerDomain}) = true
+MOI.supports_constraint(::MosekModel, ::Type{MOI.SingleVariable}, ::Type{<:MOI.Integer}) = true
 MOI.supports_add_constrained_variables(::MosekModel, ::Type{MOI.PositiveSemidefiniteConeTriangle}) = true
 
 ## Affine Constraints #########################################################
@@ -468,7 +456,7 @@ function MOI.get(m::MosekModel, ::MOI.ConstraintFunction,
     return MOI.SingleVariable(_variable(ci))
 end
 function MOI.get(m::MosekModel, ::MOI.ConstraintSet,
-                 ci::MOI.ConstraintIndex{MOI.SingleVariable, S}) where S <: ScalarIntegerDomain
+                 ci::MOI.ConstraintIndex{MOI.SingleVariable, S}) where S <: MOI.Integer
     MOI.throw_if_not_valid(m, ci)
     return S()
 end
@@ -622,13 +610,13 @@ end
 function MOI.is_valid(model::MosekModel,
                       ci::MOI.ConstraintIndex{MOI.SingleVariable,
                                               S}) where S<:Union{ScalarLinearDomain,
-                                                                 ScalarIntegerDomain}
+                                                                 MOI.Integer}
     return allocated(model.x_block, ci.value) && has_flag(model, _variable(ci), S)
 end
 function MOI.delete(
     m::MosekModel,
     ci::MOI.ConstraintIndex{MOI.SingleVariable, S}) where S<:Union{ScalarLinearDomain,
-                                                                   ScalarIntegerDomain}
+                                                                   MOI.Integer}
     MOI.throw_if_not_valid(m, ci)
     delete_name(m, ci)
     vi = _variable(ci)

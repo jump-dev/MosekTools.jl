@@ -407,10 +407,7 @@ end
 #                    MOI.PositiveSemidefiniteConeTriangle,
 #                    MOI.PositiveSemidefiniteConeScaled ]
 #            # ok
-#        elseif dom in [MOI.ZeroOne,
-#                       MOI.Integer] &&
-#                           fun in [MOI.SingleVariable,
-#                                   MOI.VectorOfVariables]
+#        elseif dom == MOI.Integer && fun in [MOI.SingleVariable, MOI.VectorOfVariables]
 #            # ok
 #        else
 #            return false
