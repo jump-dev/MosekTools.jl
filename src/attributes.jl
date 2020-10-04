@@ -153,14 +153,14 @@ function MOI.get(model::MosekModel,
 end
 function MOI.get(model::MosekModel,
                  ::MOI.NumberOfConstraints{MOI.SingleVariable, S}) where S<:Union{ScalarLinearDomain,
-                                                                                    ScalarIntegerDomain}
+                                                                                  MOI.Integer}
     F = MOI.SingleVariable
     return count(id -> MOI.is_valid(model, MOI.ConstraintIndex{F, S}(id)),
                  allocatedlist(model.x_block))
 end
 function MOI.get(model::MosekModel,
                  ::MOI.ListOfConstraintIndices{MOI.SingleVariable, S}) where S<:Union{ScalarLinearDomain,
-                                                                                        ScalarIntegerDomain}
+                                                                                      MOI.Integer}
     F = MOI.SingleVariable
     ids = filter(id -> MOI.is_valid(model, MOI.ConstraintIndex{F, S}(id)),
                  allocatedlist(model.x_block))
@@ -199,7 +199,7 @@ function MOI.get(model::MosekModel,
     F = MOI.SingleVariable
     for D in [MOI.LessThan{Float64}, MOI.GreaterThan{Float64},
               MOI.EqualTo{Float64}, MOI.Interval{Float64},
-              MOI.Integer, MOI.ZeroOne]
+              MOI.Integer]
         if !iszero(MOI.get(model, MOI.NumberOfConstraints{F, D}()))
             push!(list, (F, D))
         end

@@ -177,7 +177,7 @@ function throw_if_cannot_delete(m::MosekModel, vi::MOI.VariableIndex)
         col = column(m, vi)
         for S in [MOI.LessThan{Float64}, MOI.GreaterThan{Float64},
                   MOI.EqualTo{Float64}, MOI.Interval{Float64},
-                  MOI.Integer, MOI.ZeroOne]
+                  MOI.Integer]
             if has_flag(m, vi, S)
                 MOI.delete(m, MOI.ConstraintIndex{MOI.SingleVariable, S}(vi.value))
             end
