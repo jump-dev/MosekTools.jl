@@ -329,7 +329,7 @@ function matrix_solution(m::MosekModel, sol)
 end
 
 
-if Mosek.getversion() >= 10
+if Mosek.getversion() >= (10,0,0)
 function getaccxc(m::MosekModel,whichsol::Soltype)
     accval  = Vector{Float64}(last(m.acc_ptr))
     for i in 1:length(m.acc_ptr)-1

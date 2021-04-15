@@ -148,7 +148,7 @@ function bounds_to_set(::Type{S}, bk, bl, bu) where S
     end
 end
 function get_bound(m::MosekModel,
-                   ci::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}, S}) where {S}
+                   ci::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}, S}) where{S}
     bounds_to_set(S, getconbound(m.task, row(m, ci))...)
 end
 
@@ -354,7 +354,7 @@ MOI.supports_add_constrained_variables(::MosekModel, ::Type{MOI.PositiveSemidefi
 
 function MOI.add_constraint(m  ::MosekModel,
                             axb::MOI.ScalarAffineFunction{Float64},
-                            dom::D) where {D <: MOI.AbstractScalarSet}
+                            dom::D) where{D <: MOI.AbstractScalarSet}
     if !iszero(axb.constant)
         throw(MOI.ScalarFunctionConstantNotZero{Float64, typeof(axb), D}(axb.constant))
     end
@@ -402,7 +402,7 @@ cone_type(::Type{MOI.RotatedSecondOrderCone}) = MSK_CT_RQUAD
 function MOI.add_constraint(
     m   :: MosekModel,
     xs  :: MOI.SingleVariable,
-    dom :: D) where {D <: MOI.AbstractScalarSet}
+    dom :: D) where{D <: MOI.AbstractScalarSet}
 
     msk_idx = mosek_index(m, xs.variable)
     if !(msk_idx isa ColumnIndex)
@@ -473,7 +473,7 @@ end
 
 function set_afe_rows(m::MosekModel,
                       afeidxs::Vector{Int64},
-                      axb::MOI.VectorAffineFuncton{Float64})
+                      axb::MOI.VectorAffineFunction{Float64})
     terms  = axb.terms
     consts = axb.constants
 
@@ -558,21 +558,18 @@ function clear_afe_rows(m::MosekModel,
     putafeglist(m.task,afeidxs,zeros(Float64,N))
 end
 
-if Mosek.getversion() >= 10
+if Mosek.getversion() >= (10,0,0)
 
 function MOI.supports_constraint(
     mosek::MosekModel,
-    ::Type{MOI.VectorAffineFunction{Float64}}, ::Type{D})
-    where {D<:ACCVectorDomain}
-    return Mosek.getversion(mosek.task)[1] >= 1
+    ::Type{MOI.VectorAffineFunction{Float64}},
+    ::Type{D}) where {D<:ACCVectorDomain}
+    return true
 end
 
 function MOI.add_constraint(m::MosekModel,
                             axb::MOI.VectorAffineFunction{Float64},
-                            dom::D) where {D<:ACCVectorDomain}
-    if Mosek.getversion(mosek.task)[1] >= 10
-        throws(MOI.UnsupportedConstraint{typeof(func),typeof(set)}())
-    end
+                            dom::D) where{D<:ACCVectorDomain}
     N = MOI.dimension(dom)
     afeidxs = allocate_afe(m,N)
     domidx = append_domain(m.task,dom)
@@ -768,10 +765,10 @@ function MOI.is_valid(model::MosekModel,
     return allocated(model.c_block, ci.value) && getconbound(model.task, row(model, ci))[1] == bound_key(S)
 end
 
-if Mosek.getversion() >= 10
+if Mosek.getversion() >= (10,0,0)
 function MOI.delete(m::MosekModel,
                     cref::MOI.ConstraintIndex{F,D})
-    where {F <: MOI.VectorAffineFunction{Float64},D <: ACCVectorDomain}
+    where{F <: MOI.VectorAffineFunction{Float64},D <: ACCVectorDomain}
 
     MOI.throw_if_not_valid(m, cref)
 
@@ -874,15 +871,15 @@ end
 
 
 
-if Mosek.getversion() >= 10
+if Mosek.getversion() >= (10,0,0)
 
 function MOI.set(m::MosekModel, ::MOI.ConstraintName, ci::MOI.ConstraintIndex{F,D},name ::AbstractString)
-    where {F <: MOI.VectorAffineFunction{Float64},D <: ACCVectorDomain}
+    where{F <: MOI.VectorAffineFunction{Float64},D <: ACCVectorDomain}
 
     putaccname(m.task,ci.value,name)
 end
 function MOI.get(m::MosekModel, ::MOI.ConstraintName, ci::MOI.ConstraintIndex{F,D})
-    where {F <: MOI.VectorAffineFunction{Float64},D <: ACCVectorDomain}
+    where{F <: MOI.VectorAffineFunction{Float64},D <: ACCVectorDomain}
     # All rows should have same name so we take the first one
     return getaccname(m.task, ci.value)
 end

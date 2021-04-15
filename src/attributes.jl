@@ -426,13 +426,11 @@ function MOI.get(m     ::MosekModel,
 end
 
 
-function permute_sol_mosek_to_julia(::Type{D},vals :: Vector{Float64})
-    where {D<:ACCUntransformedVectorDomain}
+function permute_sol_mosek_to_julia(::Type{D},vals :: Vector{Float64}) where{D<:ACCUntransformedVectorDomain}
     return vals
 end
-function permute_sol_mosek_to_julia(::Type{D},vals :: Vector{Float64})
-    where {D<:Union{MOI.ExponentialCone,
-                    MOI.DualExponentialCone}}
+function permute_sol_mosek_to_julia(::Type{D},vals :: Vector{Float64}) where{D<:Union{MOI.ExponentialCone,
+                                                                                      MOI.DualExponentialCone}}
     return Float64[vals[3],vals[2],vals[1]]
 end
 function permute_sol_mosek_to_julia(::Type{MOI.PositiveSemidefiniteConeTriangle},vals :: Vector{Float64})
@@ -451,16 +449,14 @@ end
 
 function MOI.get(m :: MosekModel,
                  attr :: MOI.ConstraintDual,
-                 ci ::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},D})
-    where {D<:ACCVectorDomain}
+                 ci ::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},D}) where{D<:ACCVectorDomain}
     accid = Int64(ci.value)
     permute_sol_mosek_to_julia(D,m.solutions[attr.N].dacc[m.acc_ptr[accid]:m.acc_ptr[accid+1]-1])
 end
 
 function MOI.get(m :: MosekModel,
                  attr :: MOI.ConstraintPrimal,
-                 ci ::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},D})
-    where {D<:ACCVectorDomain}
+                 ci ::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},D}) where{D<:ACCVectorDomain}
     accid = Int64(ci.value)
     permute_sol_mosek_to_julia(D,m.solutions[attr.N].pacc[m.acc_ptr[accid]:m.acc_ptr[accid+1]-1])
 end
