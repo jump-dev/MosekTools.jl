@@ -565,6 +565,8 @@ function clear_afe_rows(m::MosekModel,
     putafeglist(m.task,afeidxs,zeros(Float64,N))
 end
 
+if Mosek.getversion() >= 10
+
 function MOI.supports_constraint(
     mosek::MosekModel,
     ::Type{MOI.VectorAffineFunction{Float64}}, ::Type{D})
@@ -594,6 +596,7 @@ function MOI.add_constraint(m::MosekModel,
     ci = MOI.ConstraintIndex{MOI.VectorAffineFunction,D}(accid)
     return ci
 end
+end  # if Mosek.getversion() >= 10
 
 function cone_id(model::MosekModel, ci::MOI.ConstraintIndex{MOI.VectorOfVariables})
     return model.variable_to_vector_constraint_id[ci.value]
@@ -772,6 +775,7 @@ function MOI.is_valid(model::MosekModel,
     return allocated(model.c_block, ci.value) && getconbound(model.task, row(model, ci))[1] == bound_key(S)
 end
 
+if Mosek.getversion() >= 10
 function MOI.delete(m::MosekModel,
                     cref::MOI.ConstraintIndex{F,D})
     where {F <: MOI.VectorAffineFunction{Float64},D <: ACCVectorDomain}
@@ -788,6 +792,7 @@ function MOI.delete(m::MosekModel,
 
     deallocate(m.afes,afeidxs)
 end
+end # if Mosek.getversion() >= 10
 
 function MOI.delete(
     m::MosekModel,
@@ -874,6 +879,10 @@ function MOI.supports(::MosekModel, ::MOI.ConstraintName,
     return true
 end
 
+
+
+if Mosek.getversion() >= 10
+
 function MOI.set(m::MosekModel, ::MOI.ConstraintName, ci::MOI.ConstraintIndex{F,D},name ::AbstractString)
     where {F <: MOI.VectorAffineFunction{Float64},D <: ACCVectorDomain}
 
@@ -885,6 +894,7 @@ function MOI.get(m::MosekModel, ::MOI.ConstraintName, ci::MOI.ConstraintIndex{F,
     return getaccname(m.task, ci.value)
 end
 
+end # Mosek.getversion() >= 10
 
 
 function MOI.set(m::MosekModel, ::MOI.ConstraintName, ci::MOI.ConstraintIndex,

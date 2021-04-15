@@ -328,6 +328,8 @@ function matrix_solution(m::MosekModel, sol)
     return Vector{Float64}[getbarxj(m.task, sol, j) for j in 1:length(m.sd_dim)]
 end
 
+
+if Mosek.getversion() >= 10
 function getaccxc(m::MosekModel,whichsol::Soltype)
     accval  = Vector{Float64}(last(m.acc_ptr))
     for i in 1:length(m.acc_ptr)-1
@@ -342,6 +344,10 @@ function getaccdoty(m::MosekModel,whichsol::Soltype)
         accdoty[m.acc_ptr[i]:m.acc_ptr[i+1]-1] = accdoty(m.task,whichsol,i)
     end
     accdoty
+end
+else # Mosek.getversion() >= 10
+getaccxc(m::MosekModel,whichsol::Soltype) = Float64[]
+getaccdoty(m::MosekModel,whichsol::Soltype) = Float64[]
 end
 
 function MOI.optimize!(m::MosekModel)
