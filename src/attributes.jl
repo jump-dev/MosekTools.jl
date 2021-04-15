@@ -448,7 +448,7 @@ end
 function permute_sol_mosek_to_julia(::Type{MOI.PositiveSemidefiniteConeTriangle},vals :: Vector{Float64})
     N = length(vals)
     res = Vector{Float64}(N)
-    d = Int(floor((-1.0+sqrt(1.0+8.0*N))/2.0))
+    d = MOI.Utilities.side_dimension_for_vectorized_dimension(N)
     p = 1
     for j in 1:d
         for i in j:d
