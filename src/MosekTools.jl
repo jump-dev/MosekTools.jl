@@ -49,7 +49,7 @@ struct MatrixIndex
     end
 end
 
-type ACCVectorDomain = Union{MOI.Reals,
+const ACCVectorDomain = Union{MOI.Reals,
                              MOI.Zeros,
                              MOI.Nonnegatives,
                              MOI.Nonpositives,
@@ -63,7 +63,7 @@ type ACCVectorDomain = Union{MOI.Reals,
                              MOI.ExponentialCone,
                              MOI.DualExponentialCone,
                              MOI.PositiveSemidefiniteConeTriangle}
-type ACCUntransformedVectorDomain = Union{MOI.Reals,
+const ACCUntransformedVectorDomain = Union{MOI.Reals,
                                           MOI.Zeros,
                                           MOI.Nonnegatives,
                                           MOI.Nonpositives,
