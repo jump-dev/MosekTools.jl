@@ -120,7 +120,7 @@ mutable struct MosekModel  <: MOI.AbstractOptimizer
     #   which bounds are set for x[i]
     # x_constraints[i] > 0 => x_constraints[i] is the index of the ACC
     #   with the conic constraint
-    x_constraints:Vector{Int64}
+    x_constraints::Vector{Int64}
 
     """
         The total length of `x_block` matches the number of variables in

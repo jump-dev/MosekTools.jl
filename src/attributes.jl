@@ -427,17 +427,7 @@ end
 
 
 function permute_sol_mosek_to_julia(::Type{D},vals :: Vector{Float64})
-    where {D<:Union{MOI.Reals,
-                    MOI.Zeros,
-                    MOI.Nonnegatives,
-                    MOI.Nonpositives,
-                    MOI.NormInfinityCone,
-                    MOI.NormOneCone,
-                    MOI.SecondOrderCone,
-                    MOI.RotatedSecondOrderCone,
-                    MOI.GeometricMeanCone,
-                    MOI.PowerCone,
-                    MOI.DualPowerCone}}
+    where {D<:ACCUntransformedVectorDomain}
     return vals
 end
 function permute_sol_mosek_to_julia(::Type{D},vals :: Vector{Float64})
