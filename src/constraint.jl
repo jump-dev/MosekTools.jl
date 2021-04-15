@@ -2,8 +2,24 @@
 # TASK ########################################################################
 ###### The `task` field should not be accessed outside this section. ##########
 
+n*(n+1)/2 = m
+0 = n^2 + n - 2m
+
+n = (-1+/-sqrt(1-4*1*(-2m)))/2
+  = (-1+sqrt(1+8m))/2
+
+
 ## Affine Constraints #########################################################
 ##################### lc ≤ Ax ≤ uc ############################################
+
+function allocate_afe(m::MosekModel, N::Int)
+    numafe = getnumcon(m.task)
+    allocd,afeidxs = allocate(m.afes,N)
+    if allocd > 0
+        Mosek.appendafes(m.task,allocd)
+    end
+    afeidxs
+end
 
 function allocateconstraints(m::MosekModel, N::Int)
     numcon = getnumcon(m.task)
@@ -11,7 +27,7 @@ function allocateconstraints(m::MosekModel, N::Int)
     id = newblock(m.c_block, N)
 
     if alloced > 0
-        appendcons(m.task, alloced)
+          appendcons(m.task, alloced)
     end
     return id
 end
@@ -33,22 +49,22 @@ end
 # `putbaraij` and `putbarcj` need the whole matrix as a sum of sparse mat at once
 function split_scalar_matrix(m::MosekModel, terms::Vector{MOI.ScalarAffineTerm{Float64}},
                              set_sd::Function)
-    cols = Int32[]
-    values = Float64[]
+    cols    = Int32[]
+    values  = Float64[]
     sd_row  = Vector{Int32}[Int32[] for i in 1:length(m.sd_dim)]
     sd_col  = Vector{Int32}[Int32[] for i in 1:length(m.sd_dim)]
     sd_coef = Vector{Float64}[Float64[] for i in 1:length(m.sd_dim)]
-	function add(col::ColumnIndex, coefficient::Float64)
-		push!(cols, col.value)
-		push!(values, coefficient)
-	end
-	function add(mat::MatrixIndex, coefficient::Float64)
+    function add(col::ColumnIndex, coefficient::Float64)
+	push!(cols, col.value)
+	push!(values, coefficient)
+    end
+    function add(mat::MatrixIndex, coefficient::Float64)
         coef = mat.row == mat.column ? coefficient : coefficient / 2
         push!(sd_row[mat.matrix], mat.row)
         push!(sd_col[mat.matrix], mat.column)
         push!(sd_coef[mat.matrix], coef)
     end
-	for term in terms
+    for term in terms
         add(mosek_index(m, term.variable_index), term.coefficient)
     end
     for j in 1:length(m.sd_dim)
@@ -346,15 +362,14 @@ MOI.supports_add_constrained_variables(::MosekModel, ::Type{MOI.PositiveSemidefi
 function MOI.add_constraint(m  ::MosekModel,
                             axb::MOI.ScalarAffineFunction{Float64},
                             dom::D) where {D <: MOI.AbstractScalarSet}
-
     if !iszero(axb.constant)
         throw(MOI.ScalarFunctionConstantNotZero{Float64, typeof(axb), D}(axb.constant))
     end
 
     # Duplicate indices not supported
-    axb = MOIU.canonical(axb)
-
     N = 1
+    axb     = MOIU.canonical(axb)
+
     conid = allocateconstraints(m, N)
     ci = MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}, D}(conid)
     r = row(m, ci)
@@ -365,6 +380,10 @@ function MOI.add_constraint(m  ::MosekModel,
     return ci
 end
 
+# function MOI.add_constraint(m ::MosekModel,
+#                             axb::MOI.VectorAffineFunction{Float64},
+#                             dom::D) where {D <: MOI.AbstractVectorSet}
+# end
 ## Variable Constraints #######################################################
 ####################### lx ≤ x ≤ u ############################################
 #######################      x ∈ K ############################################
@@ -408,7 +427,8 @@ function MOI.add_constraint(
     return MOI.ConstraintIndex{MOI.SingleVariable, D}(xs.variable.value)
 end
 
-function MOI.add_constraint(m::MosekModel, xs::MOI.VectorOfVariables,
+function MOI.add_constraint(m::MosekModel,
+                            xs::MOI.VectorOfVariables,
                             dom::D) where {D<:VectorCone}
     if any(vi -> is_matrix(m, vi), xs.variables)
         error("Cannot add $D constraint on a matrix variable")
@@ -419,8 +439,8 @@ function MOI.add_constraint(m::MosekModel, xs::MOI.VectorOfVariables,
         error("Cannot multiple bound sets of the same type to a variable")
     end
 
-    N = MOI.dimension(dom)
-    id = add_cone(m, cols, dom)
+    N   = MOI.dimension(dom)
+    id  = add_cone(m, cols, dom)
     idx = first(xs.variables).value
     for vi in xs.variables
         m.variable_to_vector_constraint_id[vi.value] = -idx
@@ -430,6 +450,151 @@ function MOI.add_constraint(m::MosekModel, xs::MOI.VectorOfVariables,
     ci = MOI.ConstraintIndex{MOI.VectorOfVariables, D}(idx)
     return ci
 end
+
+append_domain(m::MosekModel, dom::MOI.Reals)                  = Mosek.appendrdomain(m.task,Int64(dom.dimension))
+append_domain(m::MosekModel, dom::MOI.Zeros)                  = Mosek.appendrzerodomain(m.task,Int64(dom.dimension))
+append_domain(m::MosekModel, dom::MOI.Nonnegatives)           = Mosek.appendrplusdomain(m.task,Int64(dom.dimension))
+append_domain(m::MosekModel, dom::MOI.Nonpositives)           = Mosek.appendrminusdomain(m.task,Int64(dom.dimension))
+append_domain(m::MosekModel, dom::MOI.NormInfinityCone)       = Mosek.appendinfnormconedomain(m.task,Int64(dom.dimension))
+append_domain(m::MosekModel, dom::MOI.NormOneCone)            = Mosek.appendonenormconedomain(m.task,Int64(dom.dimension))
+append_domain(m::MosekModel, dom::MOI.SecondOrderCone)        = Mosek.appendquadconedomain(m.task,Int64(dom.dimension))
+append_domain(m::MosekModel, dom::MOI.RotatedSecondOrderCone) = Mosek.appendrquadconedomain(m.task,Int64(dom.dimension))
+append_domain(m::MosekModel, dom::MOI.GeometricMeanCone)      = Mosek.appendprimalgeomeanconedomain(m.task,Int64(dom.dimension))
+append_domain(m::MosekModel, dom::MOI.ExponentialCone)        = Mosek.appendprimalexpconedomain(m.task,Int64(dom.dimension))
+append_domain(m::MosekModel, dom::MOI.DualExponentialCone)    = Mosek.appenddualexpconedomain(m.task,Int64(dom.dimension))
+append_domain(m::MosekModel, dom::MOI.PowerCone)              = Mosek.appendprimalpowerconedomain(m.task,3,2,Float64[dom.exponent,1.0-dom.exponent])
+append_domain(m::MosekModel, dom::MOI.DualPowerCone)          = Mosek.appendprimalpowerconedomain(m.task,3,2,Float64[dom.exponent,1.0-dom.exponent])
+append_domain(m::MosekModel, dom::MOI.PositiveSemidefiniteConeTriangle) = Mosek.appendpsdconedomain(m.task,Int64(dom.dimension))
+
+#MOI.ExponentialCone
+#MOI.DualExponentialCone
+#MOI.PositiveSemidefiniteConeTriangle
+index_julia_to_mosek(afeidxs::Vector{Int64},dom::D) where {D<:ACCUntransformedVectorDomain} = afeidxs
+index_julia_to_mosek(afeidxs::Vector{Int64},dom::MOI.ExponentialCone)     = Int64[afeidxs[3],afeidxs[2],afeidxs[1]]
+index_julia_to_mosek(afeidxs::Vector{Int64},dom::MOI.DualExponentialCone) = Int64[afeidxs[3],afeidxs[2],afeidxs[1]]
+function index_julia_to_mosek(afeidxs::Vector{Int64},dom::MOI.PositiveSemidefiniteConeTriangle)
+    d = dom.side_dimension
+    Int64[ afeidxs[i*(d+1)/2+j] for j in 1:d for i in j:d]
+end
+
+
+function set_afe_rows(m::MosekModel,
+                      afeidxs::Vector{Int64},
+                      axb::MOI.VectorAffineFuncton{Float64})
+    terms  = axb.terms
+    consts = axb.constants
+
+    nrows = length(afeidxs)
+    N = length(terms)
+
+    subi  = Vector{Int32}(N)
+    subj  = Vector{Int32}(N)
+    subii = Vector{Int32}(N)
+    subjj = Vector{Int32}(N)
+    cof   = Vector{Float64}(N)
+
+    i    = 0
+    nlin = 0
+
+    for term in axb.terms
+        vi = term.scalar_term.variable_index
+        if 1 <= vi.value <= length(m.x_sd)
+            matrix_index = m.x_sd[vi.value]
+            i += 1
+            subi[i] = term.output_index
+            if matrix_index.matrix == 0
+                nlin += 1
+                subj[i] = 0
+                subii[i] = 0
+                subjj[i] = getindex(m.x_block, ref2id(vi))
+                cof[i]  = term.scalar_term.coefficient
+            else
+                subj[i] = matrix_index.matrix
+                subii[i] = matrix_index.row
+                subjj[i] = matrix_index.column
+                cof[i]  = term.scalar_term.coefficient
+            end
+        end
+    end
+
+    perm = Int[1..N]
+    sort(perm,by=i->(subi[i],subj[i].subii[i],subjj[i]))
+
+    psubi  = view(subi,perm)
+    psubj  = view(subj,perm)
+    psubii = view(subii,perm)
+    psubjj = view(subjj,perm)
+    pcof   = view(cof,perm)
+
+    ptrrow = Vector{Int64}(nrows)
+    nzrow = Vector{Int32}(nrows)
+    let p = 1
+        for i in 1:nrows
+            ptrb = p
+            ptrrow[i] = p
+            while p <= nlin && psubi[p] == i  p += 1 end
+            nzrow[i] = p-ptrb
+        end
+    end
+
+    Mosek.putafefrowlist(m.task,afeidxs,nzrow,psubjj[1:nlin],pcof[1:nlin])
+    Mosek.putafeglist(m.task,afeidxs,consts)
+
+    if N > nlin # psd terms
+        let p = nlin+1
+            while p <= N
+                i = psubi[p]
+                j = psubj[p]
+                ptrb = p
+                p += 1
+                while i == psubi[p] && j == psubj[p]  p += 1 end
+                midx = Mosek.appendsparsesymmat(m.task,m.sd_dim[i],psubii[ptrb:p-1],psubjj[ptrb:p-1],pcof[ptrb:p-1])
+                Mosek.putafebarfentry(m.task,i,j,[midx],[1.0])
+            end
+        end
+    end
+end
+
+function clear_afe_rows(m::MosekModel,
+                        afeidxs::Vector{Int64})
+    emptyafebarfrowlist(m.task,afeidxs)
+    N = length(afeidxs)
+    rownz = zeros(Int32,N)
+    rowptr = zeros(Int64,N)
+    putafefrowlist(m.task,afeidxs,zeros(Int32,N),zeros(Int64,N),Int32[],Float64[])
+    putafeglist(m.task,afeidxs,zeros(Float64,N))
+end
+
+function MOI.supports_constraint(
+    mosek::MosekModel,
+    ::Type{MOI.VectorAffineFunction{Float64}}, ::Type{D})
+    where {D<:ACCVectorDomain}
+    return Mosek.getversion(mosek.task)[1] >= 1
+end
+
+function MOI.add_constraint(m::MosekModel,
+                            axb::MOI.VectorAffineFunction{Float64},
+                            dom::D) where {D<:ACCVectorDomain}
+    if Mosek.getversion(mosek.task)[1] >= 10
+        throws(MOI.UnsupportedConstraint{typeof(func),typeof(set)}())
+    end
+    N = MOI.dimension(dom)
+    afeidxs = allocate_afe(m,N)
+    domidx = append_domain(m.task,dom)
+
+    axb = MOIU.canonical(axb)
+    set_afe_rows(m,afeidxs,axb)
+
+    Mosek.appendacc(m.task,
+                    domidx,
+                    index_julia_to_mosek(afeidxs,dom),
+                    zeros(Float64,accid))
+    accid = Mosek.getnumacc(m.task)
+
+    ci = MOI.ConstraintIndex{MOI.VectorAffineFunction,D}(accid)
+    return ci
+end
+
 function cone_id(model::MosekModel, ci::MOI.ConstraintIndex{MOI.VectorOfVariables})
     return model.variable_to_vector_constraint_id[ci.value]
 end
@@ -439,8 +604,7 @@ end
 
 function MOI.add_constrained_variables(
     m  ::MosekModel,
-    dom::MOI.PositiveSemidefiniteConeTriangle
-)
+    dom::MOI.PositiveSemidefiniteConeTriangle )
     N = dom.side_dimension
     if N < 2
         error("Invalid dimension for semidefinite constraint, got $N which is ",
@@ -607,6 +771,19 @@ function MOI.is_valid(model::MosekModel,
                                               S}) where S<:ScalarLinearDomain
     return allocated(model.c_block, ci.value) && getconbound(model.task, row(model, ci))[1] == bound_key(S)
 end
+
+function MOI.delete(m::MosekModel,
+                    cref::MOI.ConstraintIndex{F,D})
+    where {F <: MOI.VectorAffineFunction{Float64},D <: ACCVectorDomain}
+
+    MOI.throw_if_not_valid(m, cref)
+
+    accid = cref.value
+    afeidxs = Mosek.getaccafeidxlist(accid)
+
+    deallocate(m.afes,afeidxs)
+end
+
 function MOI.delete(
     m::MosekModel,
     cref::MOI.ConstraintIndex{F,D}) where {F <: MOI.ScalarAffineFunction{Float64},

@@ -370,7 +370,6 @@ function reorder(x, ::Type{<:Union{MOI.ExponentialCone,
 end
 reorder(x, ::Type{<:VectorCone}) = x
 
-
 # Semidefinite domain for a variable
 function MOI.get!(
     output::Vector{Float64},
@@ -425,6 +424,57 @@ function MOI.get(m     ::MosekModel,
         - m.solutions[attr.N].y[subi]
     end
 end
+
+
+function permute_sol_mosek_to_julia(::Type{D},vals :: Vector{Float64})
+    where {D<:Union{MOI.Reals,
+                    MOI.Zeros,
+                    MOI.Nonnegatives,
+                    MOI.Nonpositives,
+                    MOI.NormInfinityCone,
+                    MOI.NormOneCone,
+                    MOI.SecondOrderCone,
+                    MOI.RotatedSecondOrderCone,
+                    MOI.GeometricMeanCone,
+                    MOI.PowerCone,
+                    MOI.DualPowerCone}}
+    return vals
+end
+function permute_sol_mosek_to_julia(::Type{D},vals :: Vector{Float64})
+    where {D<:Union{MOI.ExponentialCone,
+                    MOI.DualExponentialCone}}
+    return Float64[vals[3],vals[2],vals[1]]
+end
+function permute_sol_mosek_to_julia(::Type{MOI.PositiveSemidefiniteConeTriangle},vals :: Vector{Float64})
+    N = length(vals)
+    res = Vector{Float64}(N)
+    d = Int(floor((-1.0+sqrt(1.0+8.0*N))/2.0))
+    p = 1
+    for j in 1:d
+        for i in j:d
+            res[i*(i+1)÷2] = vals[p]
+            p += 1
+        end
+    end
+    res
+end
+
+function MOI.get(m :: MosekModel,
+                 attr :: MOI.ConstraintDual,
+                 ci ::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},D})
+    where {D<:ACCVectorDomain}
+    accid = Int64(ci.value)
+    permute_sol_mosek_to_julia(D,m.solutions[attr.N].dacc[m.acc_ptr[accid]:m.acc_ptr[accid+1]-1])
+end
+
+function MOI.get(m :: MosekModel,
+                 attr :: MOI.ConstraintPrimal,
+                 ci ::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},D})
+    where {D<:ACCVectorDomain}
+    accid = Int64(ci.value)
+    permute_sol_mosek_to_julia(D,m.solutions[attr.N].pacc[m.acc_ptr[accid]:m.acc_ptr[accid+1]-1])
+end
+
 
 solsize(m::MosekModel, ::MOI.ConstraintIndex{<:MOI.AbstractScalarFunction}) = 1
 function solsize(m::MosekModel, ci::MOI.ConstraintIndex{MOI.VectorOfVariables})

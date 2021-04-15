@@ -26,6 +26,9 @@ struct MosekSolution
     slc      :: Vector{Float64}
     suc      :: Vector{Float64}
     y        :: Vector{Float64}
+
+    pacc     :: Vector{Float64}
+    dacc     :: Vector{Float64}
 end
 
 struct ColumnIndex
@@ -45,6 +48,32 @@ struct MatrixIndex
         new(matrix, row, column)
     end
 end
+
+type ACCVectorDomain = Union{MOI.Reals,
+                             MOI.Zeros,
+                             MOI.Nonnegatives,
+                             MOI.Nonpositives,
+                             MOI.NormInfinityCone,
+                             MOI.NormOneCone,
+                             MOI.SecondOrderCone,
+                             MOI.RotatedSecondOrderCone,
+                             MOI.GeometricMeanCone,
+                             MOI.PowerCone,
+                             MOI.DualPowerCone,
+                             MOI.ExponentialCone,
+                             MOI.DualExponentialCone,
+                             MOI.PositiveSemidefiniteConeTriangle}
+type ACCUntransformedVectorDomain = Union{MOI.Reals,
+                                          MOI.Zeros,
+                                          MOI.Nonnegatives,
+                                          MOI.Nonpositives,
+                                          MOI.NormInfinityCone,
+                                          MOI.NormOneCone,
+                                          MOI.SecondOrderCone,
+                                          MOI.RotatedSecondOrderCone,
+                                          MOI.GeometricMeanCone,
+                                          MOI.PowerCone,
+                                          MOI.DualPowerCone}
 
 """
     MosekModel <: MathOptInterface.AbstractModel
@@ -72,14 +101,26 @@ mutable struct MosekModel  <: MOI.AbstractOptimizer
 
     has_variable_names::Bool
     constrnames :: Dict{String, Vector{MOI.ConstraintIndex}}
-    # Mosek only support names for `MOI.ScalarAffineFunction` so we need a
-    # fallback for `SingleVariable` and `VectorOfVariables`.
+    # Mosek only support names for `MOI.ScalarAffineFunction` so we
+    # need a fallback for `SingleVariable` and `VectorOfVariables`.
     con_to_name :: Dict{MOI.ConstraintIndex, String}
 
-    # For each MOI index of variables, gives the flags of constraints present
-    # The SingleVariable constraints added cannot just be inferred from getvartype
-    # and getvarbound so we need to keep them here so implement `MOI.is_valid`
-    x_constraints::Vector{UInt8}
+    # Since conic variables are deprecated, cone domains on variables
+    # and constraints are now done with an Affine Conic Constraint
+    # (ACC). Linear scalar bounds are still handled with old style
+    # constraints.
+
+    # For each MOI index of variables, gives the flags of constraints
+    # present The SingleVariable constraints added cannot just be
+    # inferred from getvartype and getvarbound so we need to keep them
+    # here so implement `MOI.is_valid`
+    #    x_constraints::Vector{UInt8}
+
+    # x_constraints[i] <= 0 => (-x_constraints[i]) is the flags for
+    #   which bounds are set for x[i]
+    # x_constraints[i] > 0 => x_constraints[i] is the index of the ACC
+    #   with the conic constraint
+    x_constraints:Vector{Int64}
 
     """
         The total length of `x_block` matches the number of variables in
@@ -98,11 +139,27 @@ mutable struct MosekModel  <: MOI.AbstractOptimizer
     sd_dim::Vector{Int}
 
     ###########################
+    # Constraints
+    #
+    #   Linear scalar constraints and variable bounds are set using
+    #   old style bounds.
+    #
+    #   Conic constraints are done with ACCs
+    #
+    afes::IndexManager
+    acc_ptr::Vector{Int}
+    #acc_elm_map::Vector{ConstrElementIndex}
+
+    # c_block maps the old style constraints
     """
     One scalar entry per constraint in the underlying task. One block
     per constraint allocated in the Model.
+
+
     """
     c_block :: LinkedInts
+
+
 
     # i -> 0: Not in a VectorOfVariables constraint
     # i -> +j: In `MOI.ConstraintIndex{MOI.VectorOfVariables, ?}(j)`
@@ -251,6 +308,8 @@ function Mosek.Optimizer(; kws...)
                        LinkedInts(),# x_block
                        MatrixIndex[], # x_sd
                        Int[], # sd_dim
+                       IndexManager(), # afe_block
+                       Int[1], # acc_ptr
                        LinkedInts(), # c_block
                        Int32[], # variable_to_vector_constraint_id
                        nothing,# trm
@@ -266,6 +325,22 @@ end
 
 function matrix_solution(m::MosekModel, sol)
     return Vector{Float64}[getbarxj(m.task, sol, j) for j in 1:length(m.sd_dim)]
+end
+
+function getaccxc(m::MosekModel,whichsol::Soltype)
+    accval  = Vector{Float64}(last(m.acc_ptr))
+    for i in 1:length(m.acc_ptr)-1
+        accval[m.acc_ptr[i]:m.acc_ptr[i+1]-1] = evaluateacc(m.task,whichsol,i)
+    end
+    accval
+end
+
+function getaccdoty(m::MosekModel,whichsol::Soltype)
+    accdoty = Vector{Float64}(last(m.acc_ptr))
+    for i in 1:length(m.acc_ptr)-1
+        accdoty[m.acc_ptr[i]:m.acc_ptr[i+1]-1] = accdoty(m.task,whichsol,i)
+    end
+    accdoty
 end
 
 function MOI.optimize!(m::MosekModel)
@@ -286,6 +361,8 @@ function MOI.optimize!(m::MosekModel)
                             getxc(m.task, MSK_SOL_ITG),
                             Float64[],
                             Float64[],
+                            Float64[],
+                            getaccxc(m,MSK_SOL_ITG),
                             Float64[]))
     end
     if solutiondef(m.task,MSK_SOL_BAS)
@@ -303,7 +380,9 @@ function MOI.optimize!(m::MosekModel)
                             getxc(m.task,MSK_SOL_BAS),
                             getslc(m.task,MSK_SOL_BAS),
                             getsuc(m.task,MSK_SOL_BAS),
-                            gety(m.task,MSK_SOL_BAS)))
+                            gety(m.task,MSK_SOL_BAS),
+                            getaccxc(m,MSK_SOL_BAS),
+                            getaccdoty(m,MSK_SOL_BAS)))
     end
     if solutiondef(m.task,MSK_SOL_ITR)
         push!(m.solutions,
@@ -320,7 +399,9 @@ function MOI.optimize!(m::MosekModel)
                             getxc(m.task,MSK_SOL_ITR),
                             getslc(m.task,MSK_SOL_ITR),
                             getsuc(m.task,MSK_SOL_ITR),
-                            gety(m.task,MSK_SOL_ITR)))
+                            gety(m.task,MSK_SOL_ITR),
+                            getaccxc(m,MSK_SOL_ITR),
+                            getaccdoty(m,MSK_SOL_ITR)))
     end
 end
 
