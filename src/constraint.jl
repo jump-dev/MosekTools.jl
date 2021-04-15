@@ -780,6 +780,11 @@ function MOI.delete(m::MosekModel,
 
     accid = cref.value
     afeidxs = Mosek.getaccafeidxlist(accid)
+    Mosek.putacc(m.task,
+                 accid,
+                 0,
+                 Int64[],
+                 Float64[])
 
     deallocate(m.afes,afeidxs)
 end
@@ -868,6 +873,20 @@ function MOI.supports(::MosekModel, ::MOI.ConstraintName,
                       ::Type{<:MOI.ConstraintIndex})
     return true
 end
+
+function MOI.set(m::MosekModel, ::MOI.ConstraintName, ci::MOI.ConstraintIndex{F,D},name ::AbstractString)
+    where {F <: MOI.VectorAffineFunction{Float64},D <: ACCVectorDomain}
+
+    putaccname(m.task,ci.value,name)
+end
+function MOI.get(m::MosekModel, ::MOI.ConstraintName, ci::MOI.ConstraintIndex{F,D})
+    where {F <: MOI.VectorAffineFunction{Float64},D <: ACCVectorDomain}
+    # All rows should have same name so we take the first one
+    return getaccname(m.task, ci.value)
+end
+
+
+
 function MOI.set(m::MosekModel, ::MOI.ConstraintName, ci::MOI.ConstraintIndex,
                  name ::AbstractString)
     delete_name(m, ci)
@@ -882,6 +901,8 @@ function MOI.get(m::MosekModel, ::MOI.ConstraintName,
     # All rows should have same name so we take the first one
     return getconname(m.task, getindexes(m.c_block, ref2id(ci))[1])
 end
+
+
 function MOI.get(m::MosekModel, ::MOI.ConstraintName, ci::MOI.ConstraintIndex)
     return get(m.con_to_name, ci, "")
 end

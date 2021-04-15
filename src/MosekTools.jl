@@ -316,6 +316,7 @@ function Mosek.Optimizer(; kws...)
                        MosekSolution[],
                        true, # feasibility_sense
                        nothing)
+    Mosek.appendrzerodomain(model.task,0)
     Mosek.putstreamfunc(model.task, Mosek.MSK_STREAM_LOG, m -> print(m))
     for (option, value) in kws
         MOI.set(model, MOI.RawParameter(string(option)), value)
