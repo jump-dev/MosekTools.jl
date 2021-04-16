@@ -442,8 +442,6 @@ function allocate(ii :: IndexManager, N :: Int)
     res = Vector{Int}(undef,N)
     nadd = ensurefree(ii,N)
 
-    display(ii)
-
     ptrb = ii.first_free
     ptre  = ptrb
     res[1] = ptre
@@ -468,8 +466,6 @@ function allocate(ii :: IndexManager, N :: Int)
     ii.last_used = ptre
 
     ii.nfree -= N
-
-    display(ii)
 
     nadd,res
 end

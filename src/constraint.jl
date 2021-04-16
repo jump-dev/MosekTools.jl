@@ -480,11 +480,11 @@ function set_afe_rows(m::MosekModel,
     nrows = length(afeidxs)
     N = length(terms)
 
-    subi  = Vector{Int32}(N)
-    subj  = Vector{Int32}(N)
-    subii = Vector{Int32}(N)
-    subjj = Vector{Int32}(N)
-    cof   = Vector{Float64}(N)
+    subi  = Vector{Int32}(undef,N)
+    subj  = Vector{Int32}(undef,N)
+    subii = Vector{Int32}(undef,N)
+    subjj = Vector{Int32}(undef,N)
+    cof   = Vector{Float64}(undef,N)
 
     i    = 0
     nlin = 0
@@ -510,8 +510,8 @@ function set_afe_rows(m::MosekModel,
         end
     end
 
-    perm = Int[1..N]
-    sort(perm,by=i->(subi[i],subj[i].subii[i],subjj[i]))
+    perm = Int[1:N...]
+    sort(perm,by=i->(subi[i],subj[i],subii[i],subjj[i]))
 
     psubi  = view(subi,perm)
     psubj  = view(subj,perm)
@@ -519,10 +519,12 @@ function set_afe_rows(m::MosekModel,
     psubjj = view(subjj,perm)
     pcof   = view(cof,perm)
 
-    ptrrow = Vector{Int64}(nrows)
-    nzrow = Vector{Int32}(nrows)
+    ptrrow = Vector{Int64}(undef,nrows)
+    nzrow  = Vector{Int32}(undef,nrows)
+    ptrrow = Vector{Int64}(undef,nrows)
     let p = 1
         for i in 1:nrows
+            ptrrow[i] = p
             ptrb = p
             ptrrow[i] = p
             while p <= nlin && psubi[p] == i  p += 1 end
@@ -530,7 +532,7 @@ function set_afe_rows(m::MosekModel,
         end
     end
 
-    Mosek.putafefrowlist(m.task,afeidxs,nzrow,psubjj[1:nlin],pcof[1:nlin])
+    Mosek.putafefrowlist(m.task,afeidxs,nzrow,ptrrow,psubjj[1:nlin],pcof[1:nlin])
     Mosek.putafeglist(m.task,afeidxs,consts)
 
     if N > nlin # psd terms
@@ -572,7 +574,7 @@ function MOI.add_constraint(m::MosekModel,
                             dom::D) where{D<:ACCVectorDomain}
     N = MOI.dimension(dom)
     afeidxs = allocate_afe(m,N)
-    domidx = append_domain(m.task,dom)
+    domidx = append_domain(m,dom)
 
     axb = MOIU.canonical(axb)
     set_afe_rows(m,afeidxs,axb)
@@ -767,9 +769,7 @@ end
 
 if Mosek.getversion() >= (10,0,0)
 function MOI.delete(m::MosekModel,
-                    cref::MOI.ConstraintIndex{F,D})
-    where{F <: MOI.VectorAffineFunction{Float64},D <: ACCVectorDomain}
-
+                    cref::MOI.ConstraintIndex{F,D}) where{F <: MOI.VectorAffineFunction{Float64},D <: ACCVectorDomain}
     MOI.throw_if_not_valid(m, cref)
 
     accid = cref.value
@@ -873,13 +873,11 @@ end
 
 if Mosek.getversion() >= (10,0,0)
 
-function MOI.set(m::MosekModel, ::MOI.ConstraintName, ci::MOI.ConstraintIndex{F,D},name ::AbstractString)
-    where{F <: MOI.VectorAffineFunction{Float64},D <: ACCVectorDomain}
+function MOI.set(m::MosekModel, ::MOI.ConstraintName, ci::MOI.ConstraintIndex{F,D},name ::AbstractString) where{F <: MOI.VectorAffineFunction{Float64},D <: ACCVectorDomain}
 
     putaccname(m.task,ci.value,name)
 end
-function MOI.get(m::MosekModel, ::MOI.ConstraintName, ci::MOI.ConstraintIndex{F,D})
-    where{F <: MOI.VectorAffineFunction{Float64},D <: ACCVectorDomain}
+function MOI.get(m::MosekModel, ::MOI.ConstraintName, ci::MOI.ConstraintIndex{F,D}) where{F <: MOI.VectorAffineFunction{Float64},D <: ACCVectorDomain}
     # All rows should have same name so we take the first one
     return getaccname(m.task, ci.value)
 end
