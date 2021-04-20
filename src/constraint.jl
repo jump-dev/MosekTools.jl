@@ -7,6 +7,7 @@
 
 function allocate_afe(m::MosekModel, N::Int)
     numafe = getnumcon(m.task)
+
     allocd,afeidxs = allocate(m.afes,N)
     if allocd > 0
         Mosek.appendafes(m.task,allocd)
@@ -561,13 +562,7 @@ function clear_afe_rows(m::MosekModel,
 end
 
 if Mosek.getversion() >= (10,0,0)
-
-function MOI.supports_constraint(
-    mosek::MosekModel,
-    ::Type{MOI.VectorAffineFunction{Float64}},
-    ::Type{D}) where {D<:ACCVectorDomain}
-    return true
-end
+MOI.supports_constraint(mosek::MosekModel,::Type{MOI.VectorAffineFunction{Float64}},::Type{<:ACCVectorDomain}) = true
 
 function MOI.add_constraint(m::MosekModel,
                             axb::MOI.VectorAffineFunction{Float64},
@@ -579,11 +574,11 @@ function MOI.add_constraint(m::MosekModel,
     axb = MOIU.canonical(axb)
     set_afe_rows(m,afeidxs,axb)
 
+    accid = Mosek.getnumacc(m.task)+1
     Mosek.appendacc(m.task,
                     domidx,
                     index_julia_to_mosek(afeidxs,dom),
-                    zeros(Float64,accid))
-    accid = Mosek.getnumacc(m.task)
+                    zeros(Float64,N))
 
     ci = MOI.ConstraintIndex{MOI.VectorAffineFunction,D}(accid)
     return ci

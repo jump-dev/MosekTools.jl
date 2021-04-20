@@ -50,30 +50,30 @@ struct MatrixIndex
 end
 
 const ACCVectorDomain = Union{MOI.Reals,
-                             MOI.Zeros,
-                             MOI.Nonnegatives,
-                             MOI.Nonpositives,
-                             MOI.NormInfinityCone,
-                             MOI.NormOneCone,
-                             MOI.SecondOrderCone,
-                             MOI.RotatedSecondOrderCone,
-                             MOI.GeometricMeanCone,
-                             MOI.PowerCone,
-                             MOI.DualPowerCone,
-                             MOI.ExponentialCone,
-                             MOI.DualExponentialCone,
-                             MOI.PositiveSemidefiniteConeTriangle}
+                              MOI.Zeros,
+                              MOI.Nonnegatives,
+                              MOI.Nonpositives,
+                              MOI.NormInfinityCone,
+                              MOI.NormOneCone,
+                              MOI.SecondOrderCone,
+                              MOI.RotatedSecondOrderCone,
+                              MOI.GeometricMeanCone,
+                              MOI.PowerCone,
+                              MOI.DualPowerCone,
+                              MOI.ExponentialCone,
+                              MOI.DualExponentialCone,
+                              MOI.PositiveSemidefiniteConeTriangle}
 const ACCUntransformedVectorDomain = Union{MOI.Reals,
-                                          MOI.Zeros,
-                                          MOI.Nonnegatives,
-                                          MOI.Nonpositives,
-                                          MOI.NormInfinityCone,
-                                          MOI.NormOneCone,
-                                          MOI.SecondOrderCone,
-                                          MOI.RotatedSecondOrderCone,
-                                          MOI.GeometricMeanCone,
-                                          MOI.PowerCone,
-                                          MOI.DualPowerCone}
+                                           MOI.Zeros,
+                                           MOI.Nonnegatives,
+                                           MOI.Nonpositives,
+                                           MOI.NormInfinityCone,
+                                           MOI.NormOneCone,
+                                           MOI.SecondOrderCone,
+                                           MOI.RotatedSecondOrderCone,
+                                           MOI.GeometricMeanCone,
+                                           MOI.PowerCone,
+                                           MOI.DualPowerCone}
 
 """
     MosekModel <: MathOptInterface.AbstractModel
