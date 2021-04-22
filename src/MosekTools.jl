@@ -149,6 +149,7 @@ mutable struct MosekModel  <: MOI.AbstractOptimizer
     afes::IndexManager
     acc_ptr::Vector{Int}
     #acc_elm_map::Vector{ConstrElementIndex}
+    numacc :: Dict{::Type{<:ACCVectorDomain},Int}
 
     # c_block maps the old style constraints
     """
@@ -158,8 +159,6 @@ mutable struct MosekModel  <: MOI.AbstractOptimizer
 
     """
     c_block :: LinkedInts
-
-
 
     # i -> 0: Not in a VectorOfVariables constraint
     # i -> +j: In `MOI.ConstraintIndex{MOI.VectorOfVariables, ?}(j)`
@@ -310,6 +309,7 @@ function Mosek.Optimizer(; kws...)
                        Int[], # sd_dim
                        IndexManager(), # afe_block
                        Int[1], # acc_ptr
+                       Dict{::Type{<:ACCVectorDomain},Int}(), # numacc
                        LinkedInts(), # c_block
                        Int32[], # variable_to_vector_constraint_id
                        nothing,# trm

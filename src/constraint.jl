@@ -580,7 +580,8 @@ function MOI.add_constraint(m::MosekModel,
                     index_julia_to_mosek(afeidxs,dom),
                     zeros(Float64,N))
 
-    ci = MOI.ConstraintIndex{MOI.VectorAffineFunction,D}(accid)
+    m.numacc += 1
+    ci = MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},D}(accid)
     return ci
 end
 end  # if Mosek.getversion() >= 10
@@ -645,6 +646,31 @@ function MOI.get(m::MosekModel, ::MOI.ConstraintSet,
     MOI.throw_if_not_valid(m, ci)
     return get_bound(m, ci)
 end
+function MOI.get(m::MosekModel, ::MOI.ConstraintSet,
+                 ci::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64}})
+    accidx = ci.value
+    domidx = getaccdomain(m.task,accidx)
+    domsize = getdomainn(m.task,domidx)
+    domtp   = getdomaintype(m.task,domidx)
+    set = ( if     domtp == Mosek.MSK_DOMAIN_R                     MOI.Reals(domsize)
+            elseif domtp == Mosek.MSK_DOMAIN_RZERO                 MOI.Zeros(domsize)
+            elseif domtp == Mosek.MSK_DOMAIN_RPLUS                 MOI.Nonnegatives(domsize)
+            elseif domtp == Mosek.MSK_DOMAIN_RMINUS                MOI.Nonpositives(domsize)
+            elseif domtp == Mosek.MSK_DOMAIN_QUADRATIC_CONE        MOI.SecondOrderCone(domsize)
+            elseif domtp == Mosek.MSK_DOMAIN_RQUADRATIC_CONE       MOI.RotatedSecondOrderCone(domsize)
+            elseif domtp == Mosek.MSK_DOMAIN_PRIMAL_EXP_CONE       MOI.ExponentialCone()
+            elseif domtp == Mosek.MSK_DOMAIN_DUAL_EXP_CONE         MOI.DualExponentialCone()
+            elseif domtp == Mosek.MSK_DOMAIN_PRIMAL_POWER_CONE     MOI.PowerCone()
+            elseif domtp == Mosek.MSK_DOMAIN_DUAL_POWER_CONE       MOI.DualPowerCone()
+            elseif domtp == Mosek.MSK_DOMAIN_PRIMAL_GEO_MEAN_CONE  MOI.GeometricMeanCone(domsize)
+            #elseif domtp == Mosek.MSK_DOMAIN_DUAL_GEO_MEAN_CONE    MOI.GeometricMeanCone(domsize)
+            elseif domtp == Mosek.MSK_DOMAIN_INF_NORM_CONE         MOI.NormInfinityCone(domsize)
+            elseif domtp == Mosek.MSK_DOMAIN_ONE_NORM_CONE         MOI.NormOneCone(domsize)
+            elseif domtp == Mosek.MSK_DOMAIN_PSD_CONE              MOI.PositiveSemidefiniteConeTriangle(domsize)
+            else error("Unsupported cone type")
+            end )
+    return set
+end
 
 function MOI.get(m::MosekModel, ::MOI.ConstraintFunction,
                  ci::MOI.ConstraintIndex{MOI.VectorOfVariables, S}) where S <: VectorCone
@@ -652,6 +678,29 @@ function MOI.get(m::MosekModel, ::MOI.ConstraintFunction,
         index_of_column(m, col) for col in reorder(columns(m, ci).values, S)
     ])
 end
+
+function MOI.get(m::MosekModel, ::MOI.ConstraintFunction, ci::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64}, <:ACCVectorDomain})
+    #MOI.throw_if_not_valid(m, ci)
+
+    accid = ci.value
+    afeidxs = getaccafeidxlist(m.task,accid)
+    N = length(afeidxs)
+
+    terms = MOI.VectorAffineTerm[]
+    b = Float64[ getafeg(m.task,i) for i in 1:N ]
+
+    for i in 1:N
+        (_,subj,cof) = getafefrow(m.task,i)
+        M = length(subj)
+        for j in 1:M
+            push!(terms,MOI.VectorAffineTerm(i,MOI.ScalarAffineTerm(cof[j],index_of_column(m,subj[j]))))
+        end
+        println("--------------- $i : $subj")
+    end
+    # TODO add matrix terms
+    return MOI.VectorAffineFunction{Float64}(terms, b)
+end
+
 function type_cone(ct)
     if ct == MSK_CT_PEXP
         return MOI.ExponentialCone
@@ -774,7 +823,7 @@ function MOI.delete(m::MosekModel,
                  0,
                  Int64[],
                  Float64[])
-
+    model.numacc -= 1
     deallocate(m.afes,afeidxs)
 end
 end # if Mosek.getversion() >= 10
