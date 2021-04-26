@@ -679,8 +679,6 @@ function MOI.get(m::MosekModel, ::MOI.ConstraintFunction,
 end
 
 function MOI.get(m::MosekModel, ::MOI.ConstraintFunction, ci::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64}, <:ACCVectorDomain})
-    #MOI.throw_if_not_valid(m, ci)
-
     accid = ci.value
     afeidxs = getaccafeidxlist(m.task,accid)
     N = length(afeidxs)
@@ -694,7 +692,6 @@ function MOI.get(m::MosekModel, ::MOI.ConstraintFunction, ci::MOI.ConstraintInde
         for j in 1:M
             push!(terms,MOI.VectorAffineTerm(i,MOI.ScalarAffineTerm(cof[j],index_of_column(m,subj[j]))))
         end
-        println("--------------- $i : $subj")
     end
     # TODO add matrix terms
     return MOI.VectorAffineFunction{Float64}(terms, b)

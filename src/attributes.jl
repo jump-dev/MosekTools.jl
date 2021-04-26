@@ -208,14 +208,13 @@ function MOI.get(model::MosekModel,
     t = jump_set_to_mosek(S)
     for i in 1:getnumacc(model.task)
         domidx = getaccdomain(model.task,i)
-        sz = getdomainn(m.task,i)
-        if sz > 0 && t == getdomaintype(m.task,domidx)
+        sz = getdomainn(model.task,i)
+        if sz > 0 && t == getdomaintype(model.task,domidx)
             n += 1
         end
     end
     return n
 end
-
 
 function MOI.get(model::MosekModel,
                  ::MOI.ListOfConstraintIndices{MOI.VectorOfVariables,
