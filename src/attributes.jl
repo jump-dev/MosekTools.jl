@@ -186,20 +186,20 @@ function MOI.get(model::MosekModel,
     return length(model.sd_dim)
 end
 
-jump_set_to_mosek(MOI.Reals) =                            Mosek.MSK_DOMAIN_R
-jump_set_to_mosek(MOI.Zeros) =                            Mosek.MSK_DOMAIN_RZERO
-jump_set_to_mosek(MOI.Nonnegatives) =                     Mosek.MSK_DOMAIN_RPLUS
-jump_set_to_mosek(MOI.Nonpositives) =                     Mosek.MSK_DOMAIN_RMINUS
-jump_set_to_mosek(MOI.NormInfinityCone) =                 Mosek.MSK_DOMAIN_INF_NORM_CONE
-jump_set_to_mosek(MOI.NormOneCone) =                      Mosek.MSK_DOMAIN_ONE_NORM_CONE
-jump_set_to_mosek(MOI.SecondOrderCone) =                  Mosek.MSK_DOMAIN_QUADRATIC_CONE
-jump_set_to_mosek(MOI.RotatedSecondOrderCone) =           Mosek.MSK_DOMAIN_RQUADRATIC_CONE
-jump_set_to_mosek(MOI.GeometricMeanCone) =                Mosek.MSK_DOMAIN_PRIMAL_GEO_MEAN_CONE
-jump_set_to_mosek(MOI.PowerCone) =                        Mosek.MSK_DOMAIN_PRIMAL_POWER_CONE
-jump_set_to_mosek(MOI.DualPowerCone) =                    Mosek.MSK_DOMAIN_DUAL_POWER_CONE
-jump_set_to_mosek(MOI.ExponentialCone) =                  Mosek.MSK_DOMAIN_PRIMAL_EXP_CONE
-jump_set_to_mosek(MOI.DualExponentialCone) =              Mosek.MSK_DOMAIN_DUAL_EXP_CONE
-jump_set_to_mosek(MOI.PositiveSemidefiniteConeTriangle) = Mosek.MSK_DOMAIN_PSD_CONE
+jump_set_to_mosek(::Type{MOI.Reals}) =                            Mosek.MSK_DOMAIN_R
+jump_set_to_mosek(::Type{MOI.Zeros}) =                            Mosek.MSK_DOMAIN_RZERO
+jump_set_to_mosek(::Type{MOI.Nonnegatives}) =                     Mosek.MSK_DOMAIN_RPLUS
+jump_set_to_mosek(::Type{MOI.Nonpositives}) =                     Mosek.MSK_DOMAIN_RMINUS
+jump_set_to_mosek(::Type{MOI.NormInfinityCone}) =                 Mosek.MSK_DOMAIN_INF_NORM_CONE
+jump_set_to_mosek(::Type{MOI.NormOneCone}) =                      Mosek.MSK_DOMAIN_ONE_NORM_CONE
+jump_set_to_mosek(::Type{MOI.SecondOrderCone}) =                  Mosek.MSK_DOMAIN_QUADRATIC_CONE
+jump_set_to_mosek(::Type{MOI.RotatedSecondOrderCone}) =           Mosek.MSK_DOMAIN_RQUADRATIC_CONE
+jump_set_to_mosek(::Type{MOI.GeometricMeanCone}) =                Mosek.MSK_DOMAIN_PRIMAL_GEO_MEAN_CONE
+jump_set_to_mosek(::Type{MOI.PowerCone}) =                        Mosek.MSK_DOMAIN_PRIMAL_POWER_CONE
+jump_set_to_mosek(::Type{MOI.DualPowerCone}) =                    Mosek.MSK_DOMAIN_DUAL_POWER_CONE
+jump_set_to_mosek(::Type{MOI.ExponentialCone}) =                  Mosek.MSK_DOMAIN_PRIMAL_EXP_CONE
+jump_set_to_mosek(::Type{MOI.DualExponentialCone}) =              Mosek.MSK_DOMAIN_DUAL_EXP_CONE
+jump_set_to_mosek(::Type{MOI.PositiveSemidefiniteConeTriangle}) = Mosek.MSK_DOMAIN_PSD_CONE
 
 function MOI.get(model::MosekModel,
                  ::MOI.NumberOfConstraints{MOI.VectorAffineFunction{Float64},

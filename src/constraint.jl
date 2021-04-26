@@ -580,7 +580,6 @@ function MOI.add_constraint(m::MosekModel,
                     index_julia_to_mosek(afeidxs,dom),
                     zeros(Float64,N))
 
-    m.numacc += 1
     ci = MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},D}(accid)
     return ci
 end
@@ -823,7 +822,6 @@ function MOI.delete(m::MosekModel,
                  0,
                  Int64[],
                  Float64[])
-    model.numacc -= 1
     deallocate(m.afes,afeidxs)
 end
 end # if Mosek.getversion() >= 10
