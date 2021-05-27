@@ -271,6 +271,29 @@ end
 function MOI.optimize!(m::MosekModel)
     m.trm = if m.fallback == nothing; optimize(m.task) else optimize(m.task,m.fallback) end
     m.solutions = MosekSolution[]
+    # If the problem is conic but a starting value is set,
+    # `MSK_SOL_ITG` simply contains the starting value and
+    # `MSK_SOL_ITR` contains the actual solution found.
+    # We want `VariablePrimal(1)`, ... to be `MSK_SOL_ITR` in that case
+    # so puting it first should solve the issue in that case, see
+    # https://github.com/jump-dev/MosekTools.jl/issues/66
+    if solutiondef(m.task,MSK_SOL_ITR)
+        push!(m.solutions,
+              MosekSolution(MSK_SOL_ITR,
+                            getsolsta(m.task,MSK_SOL_ITR),
+                            getprosta(m.task,MSK_SOL_ITR),
+                            getskx(m.task,MSK_SOL_ITR),
+                            getxx(m.task,MSK_SOL_ITR),
+                            matrix_solution(m, MSK_SOL_ITR),
+                            getslx(m.task,MSK_SOL_ITR),
+                            getsux(m.task,MSK_SOL_ITR),
+                            getsnx(m.task,MSK_SOL_ITR),
+                            getskc(m.task,MSK_SOL_ITR),
+                            getxc(m.task,MSK_SOL_ITR),
+                            getslc(m.task,MSK_SOL_ITR),
+                            getsuc(m.task,MSK_SOL_ITR),
+                            gety(m.task,MSK_SOL_ITR)))
+    end
     if solutiondef(m.task,MSK_SOL_ITG)
         push!(m.solutions,
               MosekSolution(MSK_SOL_ITG,
@@ -304,23 +327,6 @@ function MOI.optimize!(m::MosekModel)
                             getslc(m.task,MSK_SOL_BAS),
                             getsuc(m.task,MSK_SOL_BAS),
                             gety(m.task,MSK_SOL_BAS)))
-    end
-    if solutiondef(m.task,MSK_SOL_ITR)
-        push!(m.solutions,
-              MosekSolution(MSK_SOL_ITR,
-                            getsolsta(m.task,MSK_SOL_ITR),
-                            getprosta(m.task,MSK_SOL_ITR),
-                            getskx(m.task,MSK_SOL_ITR),
-                            getxx(m.task,MSK_SOL_ITR),
-                            matrix_solution(m, MSK_SOL_ITR),
-                            getslx(m.task,MSK_SOL_ITR),
-                            getsux(m.task,MSK_SOL_ITR),
-                            getsnx(m.task,MSK_SOL_ITR),
-                            getskc(m.task,MSK_SOL_ITR),
-                            getxc(m.task,MSK_SOL_ITR),
-                            getslc(m.task,MSK_SOL_ITR),
-                            getsuc(m.task,MSK_SOL_ITR),
-                            gety(m.task,MSK_SOL_ITR)))
     end
 end
 
