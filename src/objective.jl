@@ -1,11 +1,11 @@
-function MOI.get(::MosekModel, ::MOI.ObjectiveFunctionType)
+function MOI.get(::Optimizer, ::MOI.ObjectiveFunctionType)
     return MOI.ScalarAffineFunction{Float64}
 end
-function MOI.get(m::MosekModel, ::MOI.ObjectiveFunction{F}) where F
+function MOI.get(m::Optimizer, ::MOI.ObjectiveFunction{F}) where F
     obj = MOI.get(m, MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}())
     return convert(F, obj)
 end
-function MOI.get(m::MosekModel,
+function MOI.get(m::Optimizer,
                  ::MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}})
     cis = MOI.get(m, MOI.ListOfVariableIndices())
     cols = columns(m, cis).values
@@ -19,17 +19,17 @@ function MOI.get(m::MosekModel,
 end
 
 const ObjF = Union{MOI.SingleVariable, MOI.ScalarAffineFunction{Float64}}
-MOI.supports(::MosekModel,::MOI.ObjectiveFunction{<:ObjF})  = true
-MOI.supports(::MosekModel,::MOI.ObjectiveSense) = true
+MOI.supports(::Optimizer,::MOI.ObjectiveFunction{<:ObjF})  = true
+MOI.supports(::Optimizer,::MOI.ObjectiveSense) = true
 
 
-function MOI.set(m::MosekModel, ::MOI.ObjectiveFunction,
+function MOI.set(m::Optimizer, ::MOI.ObjectiveFunction,
                  func::MOI.SingleVariable)
     MOI.set(m, MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
             convert(MOI.ScalarAffineFunction{Float64}, func))
 end
 
-function MOI.set(m::MosekModel, ::MOI.ObjectiveFunction,
+function MOI.set(m::Optimizer, ::MOI.ObjectiveFunction,
                  func::MOI.ScalarAffineFunction{Float64})
     cols, values = split_scalar_matrix(m, MOIU.canonical(func).terms,
                                        (j, ids, coefs) -> putbarcj(m.task, j, ids, coefs))
@@ -41,13 +41,13 @@ function MOI.set(m::MosekModel, ::MOI.ObjectiveFunction,
     putcfix(m.task,func.constant)
 end
 
-function MOI.modify(m::MosekModel,
+function MOI.modify(m::Optimizer,
                     ::MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}},
                     change :: MOI.ScalarConstantChange)
     putcfix(m.task,change.new_constant)
 end
 
-function MOI.modify(m::MosekModel,
+function MOI.modify(m::Optimizer,
                     ::MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}},
                     change :: MOI.ScalarCoefficientChange)
     putcj(m.task, column(m, change.variable).value, change.new_coefficient)
