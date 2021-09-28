@@ -7,7 +7,11 @@ include("jump_lp.jl")
 include("jump_soc.jl")
 
 @testset "JuMP tests" begin
-    test_jump_lp(Mosek.Optimizer(LOG=0))
-    test_jump_soc(Mosek.Optimizer(LOG=0))
-    test_jump_sdp(Mosek.Optimizer(LOG=0))
+    o = Mosek.Optimizer()
+    MOI.set(o, MOI.RawParameter("LOG"), 0)
+    test_jump_lp()
+    MOI.empty!(o)
+    test_jump_soc(o)
+    MOI.empty!(o)
+    test_jump_sdp(o)
 end

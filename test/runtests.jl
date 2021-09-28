@@ -15,7 +15,8 @@ const MOIB = MOI.Bridges
 const FALLBACK_URL = "mosek://solve.mosek.com:30080"
 
 using MosekTools
-const optimizer = Mosek.Optimizer(fallback = FALLBACK_URL)
+const optimizer = Mosek.Optimizer()
+MOI.set(optimizer, MOI.RawParameter("fallback"), FALLBACK_URL)
 MOI.set(optimizer, MOI.Silent(), true)
 
 @testset "SolverName" begin
@@ -23,7 +24,8 @@ MOI.set(optimizer, MOI.Silent(), true)
 end
 
 @testset "Parameters" begin
-    optimizer = Mosek.Optimizer(fallback = FALLBACK_URL)
+    optimizer = Mosek.Optimizer()
+    MOI.set(optimizer, MOI.RawParameter("fallback"), FALLBACK_URL)
     @testset "Double Parameter" begin
         MOI.set(optimizer, MOI.RawParameter("INTPNT_CO_TOL_DFEAS"), 1e-7)
         @test MOI.get(optimizer, MOI.RawParameter("MSK_DPAR_INTPNT_CO_TOL_DFEAS")) == 1e-7
