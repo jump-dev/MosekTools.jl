@@ -179,7 +179,7 @@ function throw_if_cannot_delete(m::Optimizer, vi::MOI.VariableIndex)
                   MOI.EqualTo{Float64}, MOI.Interval{Float64},
                   MOI.Integer]
             if has_flag(m, vi, S)
-                MOI.delete(m, MOI.ConstraintIndex{MOI.SingleVariable, S}(vi.value))
+                MOI.delete(m, MOI.ConstraintIndex{MOI.VariableIndex, S}(vi.value))
             end
         end
         # All bounds have been removed so there can only be not constraint left

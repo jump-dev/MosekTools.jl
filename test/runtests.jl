@@ -16,7 +16,7 @@ const FALLBACK_URL = "mosek://solve.mosek.com:30080"
 
 using MosekTools
 const optimizer = Mosek.Optimizer()
-MOI.set(optimizer, MOI.RawParameter("fallback"), FALLBACK_URL)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("fallback"), FALLBACK_URL)
 MOI.set(optimizer, MOI.Silent(), true)
 
 @testset "SolverName" begin
@@ -25,42 +25,42 @@ end
 
 @testset "Parameters" begin
     optimizer = Mosek.Optimizer()
-    MOI.set(optimizer, MOI.RawParameter("fallback"), FALLBACK_URL)
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("fallback"), FALLBACK_URL)
     @testset "Double Parameter" begin
-        MOI.set(optimizer, MOI.RawParameter("INTPNT_CO_TOL_DFEAS"), 1e-7)
-        @test MOI.get(optimizer, MOI.RawParameter("MSK_DPAR_INTPNT_CO_TOL_DFEAS")) == 1e-7
-        MOI.set(optimizer, MOI.RawParameter("MSK_DPAR_INTPNT_CO_TOL_DFEAS"), 1e-8)
-        @test MOI.get(optimizer, MOI.RawParameter("MSK_DPAR_INTPNT_CO_TOL_DFEAS")) == 1e-8
+        MOI.set(optimizer, MOI.RawOptimizerAttribute("INTPNT_CO_TOL_DFEAS"), 1e-7)
+        @test MOI.get(optimizer, MOI.RawOptimizerAttribute("MSK_DPAR_INTPNT_CO_TOL_DFEAS")) == 1e-7
+        MOI.set(optimizer, MOI.RawOptimizerAttribute("MSK_DPAR_INTPNT_CO_TOL_DFEAS"), 1e-8)
+        @test MOI.get(optimizer, MOI.RawOptimizerAttribute("MSK_DPAR_INTPNT_CO_TOL_DFEAS")) == 1e-8
         @testset "with integer value" begin
-            MOI.set(optimizer, MOI.RawParameter("MSK_DPAR_INTPNT_CO_TOL_DFEAS"), 1)
-            @test MOI.get(optimizer, MOI.RawParameter("MSK_DPAR_INTPNT_CO_TOL_DFEAS")) == 1
+            MOI.set(optimizer, MOI.RawOptimizerAttribute("MSK_DPAR_INTPNT_CO_TOL_DFEAS"), 1)
+            @test MOI.get(optimizer, MOI.RawOptimizerAttribute("MSK_DPAR_INTPNT_CO_TOL_DFEAS")) == 1
         end
     end
     @testset "Integer Parameter" begin
-        MOI.set(optimizer, MOI.RawParameter("MSK_IPAR_INTPNT_MAX_ITERATIONS"), 100)
-        @test MOI.get(optimizer, MOI.RawParameter("MSK_IPAR_INTPNT_MAX_ITERATIONS")) == 100
-        MOI.set(optimizer, MOI.RawParameter("INTPNT_MAX_ITERATIONS"), 200)
-        @test MOI.get(optimizer, MOI.RawParameter("MSK_IPAR_INTPNT_MAX_ITERATIONS")) == 200
+        MOI.set(optimizer, MOI.RawOptimizerAttribute("MSK_IPAR_INTPNT_MAX_ITERATIONS"), 100)
+        @test MOI.get(optimizer, MOI.RawOptimizerAttribute("MSK_IPAR_INTPNT_MAX_ITERATIONS")) == 100
+        MOI.set(optimizer, MOI.RawOptimizerAttribute("INTPNT_MAX_ITERATIONS"), 200)
+        @test MOI.get(optimizer, MOI.RawOptimizerAttribute("MSK_IPAR_INTPNT_MAX_ITERATIONS")) == 200
         @testset "with enum value" begin
-            MOI.set(optimizer, MOI.RawParameter("MSK_IPAR_OPTIMIZER"), MosekTools.Mosek.MSK_OPTIMIZER_DUAL_SIMPLEX)
-            @test MOI.get(optimizer, MOI.RawParameter("MSK_IPAR_OPTIMIZER")) == convert(Int32, MosekTools.Mosek.MSK_OPTIMIZER_DUAL_SIMPLEX)
+            MOI.set(optimizer, MOI.RawOptimizerAttribute("MSK_IPAR_OPTIMIZER"), MosekTools.Mosek.MSK_OPTIMIZER_DUAL_SIMPLEX)
+            @test MOI.get(optimizer, MOI.RawOptimizerAttribute("MSK_IPAR_OPTIMIZER")) == convert(Int32, MosekTools.Mosek.MSK_OPTIMIZER_DUAL_SIMPLEX)
         end
     end
     @testset "String Parameter" begin
-        MOI.set(optimizer, MOI.RawParameter("PARAM_WRITE_FILE_NAME"), "foo.txt")
+        MOI.set(optimizer, MOI.RawOptimizerAttribute("PARAM_WRITE_FILE_NAME"), "foo.txt")
         # Needs https://github.com/JuliaOpt/Mosek.jl/pull/174
-        #@test MOI.get(optimizer, MOI.RawParameter("MSK_SPAR_PARAM_WRITE_FILE_NAME")) == "foo.txt"
-        MOI.set(optimizer, MOI.RawParameter("MSK_SPAR_PARAM_WRITE_FILE_NAME"), "bar.txt")
-        #@test MOI.get(optimizer, MOI.RawParameter("MSK_SPAR_PARAM_WRITE_FILE_NAME")) == "bar.txt"
+        #@test MOI.get(optimizer, MOI.RawOptimizerAttribute("MSK_SPAR_PARAM_WRITE_FILE_NAME")) == "foo.txt"
+        MOI.set(optimizer, MOI.RawOptimizerAttribute("MSK_SPAR_PARAM_WRITE_FILE_NAME"), "bar.txt")
+        #@test MOI.get(optimizer, MOI.RawOptimizerAttribute("MSK_SPAR_PARAM_WRITE_FILE_NAME")) == "bar.txt"
     end
     @testset "TimeLimitSec" begin
-        @test MOI.get(optimizer, MOI.RawParameter("MSK_DPAR_OPTIMIZER_MAX_TIME")) == -1
+        @test MOI.get(optimizer, MOI.RawOptimizerAttribute("MSK_DPAR_OPTIMIZER_MAX_TIME")) == -1
         @test MOI.get(optimizer, MOI.TimeLimitSec()) === nothing
         MOI.set(optimizer, MOI.TimeLimitSec(), 1.0)
-        @test MOI.get(optimizer, MOI.RawParameter("MSK_DPAR_OPTIMIZER_MAX_TIME")) == 1.0
+        @test MOI.get(optimizer, MOI.RawOptimizerAttribute("MSK_DPAR_OPTIMIZER_MAX_TIME")) == 1.0
         @test MOI.get(optimizer, MOI.TimeLimitSec()) === 1.0
         MOI.set(optimizer, MOI.TimeLimitSec(), nothing)
-        @test MOI.get(optimizer, MOI.RawParameter("MSK_DPAR_OPTIMIZER_MAX_TIME")) == -1
+        @test MOI.get(optimizer, MOI.RawOptimizerAttribute("MSK_DPAR_OPTIMIZER_MAX_TIME")) == -1
         @test MOI.get(optimizer, MOI.TimeLimitSec()) === nothing
     end
 end
@@ -70,19 +70,45 @@ end
     @test MOIU.supports_default_copy_to(optimizer, true)
 end
 
-const config = MOIT.TestConfig(atol=1e-3, rtol=1e-3)
+const config = MOIT.Config(
+    Float64, atol=1e-3, rtol=1e-3,
+    exclude=Any[MOI.ConstraintName], # result in errors for now
+)
+
+@testset "Basic tests" begin
+    MOIT.runtests(optimizer, config, include=["basic", "linear"],
+        exclude=["Indicator"],
+    )
+end
+
+@testset "Conic problems" begin
+    MOIT.runtests(optimizer, config,
+        include=["conic", "SecondOrderCone", "Semidefinite", "Exponential"],
+        exclude=["Indicator", "basic", "linear"],
+    )
+end
+
+@testset "Integer problems" begin
+    MOIT.runtests(optimizer, config,
+        include=["Integer", "ZeroOne"],
+        exclude=[
+            "Indicator", "basic", "linear", "conic", "SecondOrderCone", "Semidefinite",
+            "test_variable_solve_ZeroOne_with_0_upper_bound", "test_variable_solve_ZeroOne_with_upper_bound", # issues/74
+        ],
+    )
+end
 
 @testset "Basic" begin
     @testset "Linear" begin
         MOIT.basic_constraint_tests(
             optimizer, config,
             include=[
-                (MOI.SingleVariable, MOI.EqualTo{Float64}),
-                (MOI.SingleVariable, MOI.LessThan{Float64}),
-                (MOI.SingleVariable, MOI.GreaterThan{Float64}),
-                (MOI.SingleVariable, MOI.Interval{Float64}),
-                (MOI.SingleVariable, MOI.ZeroOne),
-                (MOI.SingleVariable, MOI.Integer),
+                (MOI.VariableIndex, MOI.EqualTo{Float64}),
+                (MOI.VariableIndex, MOI.LessThan{Float64}),
+                (MOI.VariableIndex, MOI.GreaterThan{Float64}),
+                (MOI.VariableIndex, MOI.Interval{Float64}),
+                (MOI.VariableIndex, MOI.ZeroOne),
+                (MOI.VariableIndex, MOI.Integer),
                 (MOI.ScalarAffineFunction{Float64}, MOI.EqualTo{Float64}),
                 (MOI.ScalarAffineFunction{Float64}, MOI.LessThan{Float64}),
                 (MOI.ScalarAffineFunction{Float64}, MOI.GreaterThan{Float64}),

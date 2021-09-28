@@ -156,14 +156,14 @@ mutable struct Optimizer  <: MOI.AbstractOptimizer
         if length(kws) > 0
             @warn("""Passing optimizer attributes as keyword arguments to
             Mosek.Optimizer is deprecated. Use
-                MOI.set(model, MOI.RawParameter("key"), value)
+                MOI.set(model, MOI.RawOptimizerAttribute("key"), value)
             or
                 JuMP.set_optimizer_attribute(model, "key", value)
             instead.
             """)
         end
         for (option, value) in kws
-            MOI.set(optimizer, MOI.RawParameter(string(option)), value)
+            MOI.set(optimizer, MOI.RawOptimizerAttribute(string(option)), value)
         end
         return optimizer
     end
@@ -205,7 +205,7 @@ function MOI.get(m::Optimizer, p::StringParameter)
     return str
 end
 
-function MOI.set(m::Optimizer, p::MOI.RawParameter, value)
+function MOI.set(m::Optimizer, p::MOI.RawOptimizerAttribute, value)
     if p.name == "QUIET"
         if m.be_quiet != convert(Bool, value)
             m.be_quiet = !m.be_quiet
@@ -239,7 +239,7 @@ function MOI.set(m::Optimizer, p::MOI.RawParameter, value)
     end
 end
 
-function MOI.get(m::Optimizer, p::MOI.RawParameter)
+function MOI.get(m::Optimizer, p::MOI.RawOptimizerAttribute)
     if p.name == "QUIET"
         return m.be_quiet
     elseif p.name == "fallback"
@@ -260,21 +260,21 @@ end
 
 MOI.supports(::Optimizer, ::MOI.Silent) = true
 function MOI.set(model::Optimizer, ::MOI.Silent, value::Bool)
-    MOI.set(model, MOI.RawParameter("QUIET"), value)
+    MOI.set(model, MOI.RawOptimizerAttribute("QUIET"), value)
 end
 function MOI.get(model::Optimizer, ::MOI.Silent)
-    MOI.get(model, MOI.RawParameter("QUIET"))
+    MOI.get(model, MOI.RawOptimizerAttribute("QUIET"))
 end
 
 MOI.supports(::Optimizer, ::MOI.TimeLimitSec) = true
 function MOI.set(model::Optimizer, ::MOI.TimeLimitSec, value::Real)
-    MOI.set(model, MOI.RawParameter("MSK_DPAR_OPTIMIZER_MAX_TIME"), value)
+    MOI.set(model, MOI.RawOptimizerAttribute("MSK_DPAR_OPTIMIZER_MAX_TIME"), value)
 end
 function MOI.set(model::Optimizer, ::MOI.TimeLimitSec, ::Nothing)
-    MOI.set(model, MOI.RawParameter("MSK_DPAR_OPTIMIZER_MAX_TIME"), -1.0)
+    MOI.set(model, MOI.RawOptimizerAttribute("MSK_DPAR_OPTIMIZER_MAX_TIME"), -1.0)
 end
 function MOI.get(model::Optimizer, ::MOI.TimeLimitSec)
-    value = MOI.get(model, MOI.RawParameter("MSK_DPAR_OPTIMIZER_MAX_TIME"))
+    value = MOI.get(model, MOI.RawOptimizerAttribute("MSK_DPAR_OPTIMIZER_MAX_TIME"))
     if value < 0.0
         return nothing
     else
@@ -420,7 +420,7 @@ end
 #function supportsconstraints(m::MosekSolver, constraint_types) :: Bool
 #    for (fun,dom) in constraint_types
 #        if  fun in [MOI.ScalarAffineFunction{Float64},
-#                    MOI.SingleVariable,
+#                    MOI.VariableIndex,
 #                    MOI.VectorOfVariables] &&
 #            dom in [MOI.GreaterThan{Float64},
 #                    MOI.LessThan{Float64},
@@ -431,7 +431,7 @@ end
 #                    MOI.PositiveSemidefiniteConeTriangle,
 #                    MOI.PositiveSemidefiniteConeScaled ]
 #            # ok
-#        elseif dom == MOI.Integer && fun in [MOI.SingleVariable, MOI.VectorOfVariables]
+#        elseif dom == MOI.Integer && fun in [MOI.VariableIndex, MOI.VectorOfVariables]
 #            # ok
 #        else
 #            return false

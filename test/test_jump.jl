@@ -8,7 +8,7 @@ include("jump_soc.jl")
 
 @testset "JuMP tests" begin
     o = Mosek.Optimizer()
-    MOI.set(o, MOI.RawParameter("LOG"), 0)
+    MOI.set(o, MOI.RawOptimizerAttribute("LOG"), 0)
     test_jump_lp()
     MOI.empty!(o)
     test_jump_soc(o)
