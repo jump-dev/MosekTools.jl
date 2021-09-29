@@ -75,7 +75,7 @@ const config = MOIT.Config(
     exclude=Any[MOI.ConstraintName], # result in errors for now
 )
 
-@testset "Basic tests" begin
+@testset "Basic and linear tests" begin
     MOIT.runtests(optimizer, config, include=["basic", "linear"],
         exclude=["Indicator"],
     )
@@ -83,7 +83,7 @@ end
 
 @testset "Conic problems" begin
     MOIT.runtests(optimizer, config,
-        include=["conic", "SecondOrderCone", "Semidefinite", "Exponential"],
+        include=["conic", "SecondOrderCone", "Semidefinite", "Exponential", "PowerCone"],
         exclude=["Indicator", "basic", "linear"],
     )
 end
@@ -98,37 +98,6 @@ end
     )
 end
 
-@testset "Basic" begin
-    @testset "Linear" begin
-        MOIT.basic_constraint_tests(
-            optimizer, config,
-            include=[
-                (MOI.VariableIndex, MOI.EqualTo{Float64}),
-                (MOI.VariableIndex, MOI.LessThan{Float64}),
-                (MOI.VariableIndex, MOI.GreaterThan{Float64}),
-                (MOI.VariableIndex, MOI.Interval{Float64}),
-                (MOI.VariableIndex, MOI.ZeroOne),
-                (MOI.VariableIndex, MOI.Integer),
-                (MOI.ScalarAffineFunction{Float64}, MOI.EqualTo{Float64}),
-                (MOI.ScalarAffineFunction{Float64}, MOI.LessThan{Float64}),
-                (MOI.ScalarAffineFunction{Float64}, MOI.GreaterThan{Float64}),
-                (MOI.ScalarAffineFunction{Float64}, MOI.Interval{Float64})
-        ])
-    end
-    @testset "Conic" begin
-        MOIT.basic_constraint_tests(
-            optimizer, config,
-            include=[
-                (MOI.VectorOfVariables, MOI.ExponentialCone),
-                (MOI.VectorOfVariables, MOI.DualExponentialCone),
-                (MOI.VectorOfVariables, MOI.PowerCone{Float64}),
-                (MOI.VectorOfVariables, MOI.DualPowerCone{Float64}),
-                (MOI.VectorOfVariables, MOI.SecondOrderCone),
-                (MOI.VectorOfVariables, MOI.RotatedSecondOrderCone)
-        ])
-    end
-end
-
 const bridged = MOIB.full_bridge_optimizer(optimizer, Float64)
 
 # Mosek errors during `MOI.set` instead of `MOI.get` when there are duplicates.
@@ -138,50 +107,73 @@ const bridged = MOIB.full_bridge_optimizer(optimizer, Float64)
 
 @testset "Copy" begin
     model = MOIB.full_bridge_optimizer(Mosek.Optimizer(), Float64)
-    MOIT.copytest(bridged, model)
-end
 
-@testset "Start" begin
-    # TODO this should be checked somewhere in MOI
-    @test MOI.supports(bridged, MOI.VariablePrimalStart(), MOI.VariableIndex)
-end
+    # linear and basic tests
+    MOIT.runtests(model, config,
+        include=["basic", "linear"],
+        exclude=[
+            "Cone", "conic",
+            "test_basic_ScalarQuadraticFunction_EqualTo", # non-PSD quadratic
+            "test_basic_ScalarQuadraticFunction_GreaterThan",
+            "test_basic_ScalarQuadraticFunction_Interval",
+            "test_basic_ScalarQuadraticFunction_Semi",
+            "test_basic_ScalarQuadraticFunction_ZeroOne",
+            "test_basic_ScalarQuadraticFunction_Integer",
+            "test_basic_VectorQuadraticFunction_Nonnegatives",
+            "test_basic_VectorQuadraticFunction_Zeros",
+        ],
+    )
 
-@testset "Unit" begin
-    # Mosek does not support names
-    MOIT.unittest(bridged, config, [
-        # TODO
-        "number_threads",
-        # Find objective bound of 0.0 which is lower than 4.0
-        "solve_objbound_edge_cases",
-        # Cannot put multiple bound sets of the same type on a variable
-        "solve_integer_edge_cases",
-        # Cannot mix `ZeroOne` with `GreaterThan`/`LessThan`
-        "solve_zero_one_with_bounds_1",
-        "solve_zero_one_with_bounds_2",
-        "solve_zero_one_with_bounds_3"])
-end
+    # conic
+    MOIT.runtests(
+        model, config,
+        include=["conic", "SecondOrderCone", "Semidefinite", "Exponential", "PowerCone", "Cone"],
+        exclude=[
+            "test_basic_VectorAffineFunction_PositiveSemidefiniteConeSquare", # AssertionError: (m.x_sd[ref2id(vi)]).matrix == -1 src/variable.jl:173
+            "test_basic_VectorOfVariables_PositiveSemidefiniteConeSquare",
+            "test_basic_VectorAffineFunction_LogDetConeTriangle",
+            "test_basic_VectorAffineFunction_NormNuclearCone",
+            "test_basic_VectorOfVariables_NormNuclearCone",
+            "test_basic_VectorAffineFunction_NormSpectralCone",
+            "test_basic_VectorOfVariables_NormSpectralCone",
+            "test_basic_VectorAffineFunction_RootDetConeTriangle",
+            "test_basic_VectorOfVariables_RootDetConeTriangle",
+            "test_basic_VectorAffineFunction_PositiveSemidefiniteConeTriangle", # TODO: implement get ConstraintSet for SAF
+            "test_basic_VectorOfVariables_PositiveSemidefiniteConeTriangle",
+            "test_basic_VectorQuadraticFunction_", # not PSD because of equality
+            "test_basic_VectorOfVariables_LogDetConeTriangle", # Mosek.MosekError(1307, "Variable '' (1) is a member of cone '' (0).") src/msk_functions.jl:477
+        ],
+    )
 
-@testset "Continuous Linear" begin
-    MOIT.contlineartest(bridged, config)
-end
+    # integer
+    MOIT.runtests(model, config,
+        include=["Integer", "ZeroOne"],
+        exclude=[
+            "Cone", "conic",
+            "test_constraint_ZeroOne_bounds", # Cannot put multiple bound sets of the same type on a variable
+            "test_variable_solve_ZeroOne_with_0_upper_bound",
+            "test_variable_solve_ZeroOne_with_upper_bound",
+            "test_basic_ScalarQuadraticFunction_ZeroOne", # non-PSD quadratic
+        ],
+    )
 
-@testset "Continuous Quadratic" begin
-    MOIT.contquadratictest(bridged, config, [
-        # Non-convex
-        "ncqcp",
-        # QuadtoSOC does not work as the matrix is not SDP
-        "socp"
-    ])
-end
+    # other attribute tests
+    MOIT.runtests(model, config,
+        exclude=[
+            "Cone", "conic", "Integer", "ZeroOne", "basic", "linear",
+            "test_model_ListOfConstraintAttributesSet", # list not properly set
+            "BoundAlreadySet", # TODO throw error if bound already set
+            "test_model_ModelFilter_AbstractVariableAttribute",
+            "test_model_VariableName", # Mosek currently throws when setting twice, not when getting names
+            "test_model_Name_VariableName_ConstraintName",
+            "test_model_duplicate_VariableName",
+            "test_model_VariablePrimalStart", # able to set but not to get VariablePrimalStart
+            "test_objective_qp_ObjectiveFunction_zero_ofdiag", # MOI.ListOfModelAttributesSet
+            "test_objective_set_via_modify",
+            "test_quadratic_nonconvex_constraint_integration",
+            "test_solve_ObjectiveBound_MAX_SENSE_LP", # ObjectiveBound invalid
 
-@testset "Continuous Conic" begin
-    MOIT.contconictest(bridged, config, ["rootdets", "logdet"])
-end
-
-@testset "Integer Linear" begin
-    MOIT.intlineartest(bridged, config, [
-        # SOS constraints not supported:
-        # int2 uses SOS and indicator can be bridged to SOS
-        "int2", "indicator1", "indicator2", "indicator3", "indicator4"
-    ])
+        ],
+    )
+    @test MOI.supports(model, MOI.VariablePrimalStart(), MOI.VariableIndex)
 end

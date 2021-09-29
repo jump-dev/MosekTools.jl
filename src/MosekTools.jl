@@ -282,6 +282,8 @@ function MOI.get(model::Optimizer, ::MOI.TimeLimitSec)
     end
 end
 
+MOI.supports_incremental_interface(::Optimizer) = true
+
 function matrix_solution(m::Optimizer, sol)
     return Vector{Float64}[getbarxj(m.task, sol, j) for j in 1:length(m.sd_dim)]
 end

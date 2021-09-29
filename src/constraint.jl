@@ -420,7 +420,6 @@ function MOI.add_constraint(m::Optimizer, xs::MOI.VectorOfVariables,
         error("Cannot multiple bound sets of the same type to a variable")
     end
 
-    N = MOI.dimension(dom)
     id = add_cone(m, cols, dom)
     idx = first(xs.variables).value
     for vi in xs.variables

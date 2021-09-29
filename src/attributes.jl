@@ -66,11 +66,11 @@ function MOI.get(m::Optimizer, attr::MOI.DualObjectiveValue)
     return getdualobj(m.task, m.solutions[attr.result_index].whichsol)
 end
 
-MOI.get(m::Optimizer,attr::MOI.ObjectiveBound) = getdouinf(m.task,MSK_DINF_MIO_OBJ_BOUND)
+MOI.get(m::Optimizer, ::MOI.ObjectiveBound) = getdouinf(m.task,MSK_DINF_MIO_OBJ_BOUND)
 
-MOI.get(m::Optimizer,attr::MOI.RelativeGap) = getdouinf(m.task,MSK_DINF_MIO_OBJ_REL_GAP)
+MOI.get(m::Optimizer, ::MOI.RelativeGap) = getdouinf(m.task,MSK_DINF_MIO_OBJ_REL_GAP)
 
-MOI.get(m::Optimizer,attr::MOI.SolveTimeSec) = getdouinf(m.task,MSK_DINF_OPTIMIZER_TIME)
+MOI.get(m::Optimizer, ::MOI.SolveTimeSec) = getdouinf(m.task,MSK_DINF_OPTIMIZER_TIME)
 
 
 # NOTE: The MOSEK interface currently only supports Min and Max
