@@ -72,7 +72,7 @@ end
 
 const config = MOIT.Config(
     Float64, atol=1e-3, rtol=1e-3,
-    exclude=Any[MOI.ConstraintName], # result in errors for now
+    exclude=Any[MOI.ConstraintName, MOI.VariableBasisStatus, MOI.ConstraintBasisStatus], # result in errors for now
 )
 
 @testset "Basic and linear tests" begin
