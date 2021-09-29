@@ -76,14 +76,14 @@ const config = MOIT.Config(
 )
 
 @testset "Basic and linear tests" begin
-    MOIT.runtests(optimizer, config, include=["basic", "linear"],
-        exclude=["Indicator"],
+    MOIT.runtests(optimizer, config, include=["basic", "linear", "quadratic"],
+        exclude=["Indicator", "Cone", "conic"],
     )
 end
 
 @testset "Conic problems" begin
     MOIT.runtests(optimizer, config,
-        include=["conic", "SecondOrderCone", "Semidefinite", "Exponential", "PowerCone"],
+        include=["conic", "SecondOrderCone", "Semidefinite", "Exponential", "PowerCone", "Cone"],
         exclude=["Indicator", "basic", "linear"],
     )
 end
@@ -98,19 +98,13 @@ end
     )
 end
 
-const bridged = MOIB.full_bridge_optimizer(optimizer, Float64)
-
-# Mosek errors during `MOI.set` instead of `MOI.get` when there are duplicates.
-#@testset "Name" begin
-#    MOIT.nametest(bridged)
-#end
-
-@testset "Copy" begin
+@testset "Bridged" begin
     model = MOIB.full_bridge_optimizer(Mosek.Optimizer(), Float64)
+    MOI.set(model, MOI.Silent(), true)
 
     # linear and basic tests
     MOIT.runtests(model, config,
-        include=["basic", "linear"],
+        include=["basic", "linear", "quadratic"],
         exclude=[
             "Cone", "conic",
             "test_basic_ScalarQuadraticFunction_EqualTo", # non-PSD quadratic
@@ -121,6 +115,7 @@ const bridged = MOIB.full_bridge_optimizer(optimizer, Float64)
             "test_basic_ScalarQuadraticFunction_Integer",
             "test_basic_VectorQuadraticFunction_Nonnegatives",
             "test_basic_VectorQuadraticFunction_Zeros",
+            "nonconvex",
         ],
     )
 
@@ -141,7 +136,9 @@ const bridged = MOIB.full_bridge_optimizer(optimizer, Float64)
             "test_basic_VectorAffineFunction_PositiveSemidefiniteConeTriangle", # TODO: implement get ConstraintSet for SAF
             "test_basic_VectorOfVariables_PositiveSemidefiniteConeTriangle",
             "test_basic_VectorQuadraticFunction_", # not PSD because of equality
+            "test_quadratic_SecondOrderCone_basic",
             "test_basic_VectorOfVariables_LogDetConeTriangle", # Mosek.MosekError(1307, "Variable '' (1) is a member of cone '' (0).") src/msk_functions.jl:477
+            "test_conic_LogDetConeTriangle_VectorOfVariables",
         ],
     )
 
