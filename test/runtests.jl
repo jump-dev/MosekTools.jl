@@ -76,24 +76,24 @@ const config = MOIT.Config(
 )
 
 @testset "Basic and linear tests" begin
-    MOIT.runtests(optimizer, config, include=["basic", "linear", "quadratic"],
-        exclude=["Indicator", "Cone", "conic"],
-    )
-end
-
-@testset "Conic problems" begin
     MOIT.runtests(optimizer, config,
-        include=["conic", "SecondOrderCone", "Semidefinite", "Exponential", "PowerCone", "Cone"],
-        exclude=["Indicator", "basic", "linear"],
-    )
-end
-
-@testset "Integer problems" begin
-    MOIT.runtests(optimizer, config,
-        include=["Integer", "ZeroOne"],
         exclude=[
-            "Indicator", "basic", "linear", "conic", "SecondOrderCone", "Semidefinite",
-            "test_variable_solve_ZeroOne_with_0_upper_bound", "test_variable_solve_ZeroOne_with_upper_bound", # issues/74
+            # issues/74,
+            "test_variable_solve_ZeroOne_with_0_upper_bound",
+            "test_variable_solve_ZeroOne_with_upper_bound",
+            "test_linear_Indicator_ON_ONE",
+            "test_model_ListOfConstraintAttributesSet", # TODO implement
+            "test_model_LowerBoundAlreadySet",
+            "test_model_UpperBoundAlreadySet",
+            "test_model_ModelFilter_AbstractVariableAttribute",
+            "test_model_VariableName",
+            "test_model_VariablePrimalStart",
+            "test_model_copy_to_UnsupportedConstraint",
+            "test_model_duplicate_VariableName",
+            "test_modification_incorrect_VariableIndex",
+            "test_solve_ObjectiveBound_MAX_SENSE_LP",
+            "test_objective_set_via_modify",
+            "test_model_VariableIndex_ConstraintName",
         ],
     )
 end
@@ -104,9 +104,7 @@ end
 
     # linear and basic tests
     MOIT.runtests(model, config,
-        include=["basic", "linear", "quadratic"],
         exclude=[
-            "Cone", "conic",
             "test_basic_ScalarQuadraticFunction_EqualTo", # non-PSD quadratic
             "test_basic_ScalarQuadraticFunction_GreaterThan",
             "test_basic_ScalarQuadraticFunction_Interval",
@@ -115,15 +113,8 @@ end
             "test_basic_ScalarQuadraticFunction_Integer",
             "test_basic_VectorQuadraticFunction_Nonnegatives",
             "test_basic_VectorQuadraticFunction_Zeros",
-            "nonconvex",
-        ],
-    )
-
-    # conic
-    MOIT.runtests(
-        model, config,
-        include=["conic", "SecondOrderCone", "Semidefinite", "Exponential", "PowerCone", "Cone"],
-        exclude=[
+            "test_quadratic_nonconvex_constraint_basic",
+            "test_quadratic_nonconvex_constraint_integration",
             "test_basic_VectorAffineFunction_PositiveSemidefiniteConeSquare", # AssertionError: (m.x_sd[ref2id(vi)]).matrix == -1 src/variable.jl:173
             "test_basic_VectorOfVariables_PositiveSemidefiniteConeSquare",
             "test_basic_VectorAffineFunction_LogDetConeTriangle",
@@ -139,25 +130,10 @@ end
             "test_quadratic_SecondOrderCone_basic",
             "test_basic_VectorOfVariables_LogDetConeTriangle", # Mosek.MosekError(1307, "Variable '' (1) is a member of cone '' (0).") src/msk_functions.jl:477
             "test_conic_LogDetConeTriangle_VectorOfVariables",
-        ],
-    )
-
-    # integer
-    MOIT.runtests(model, config,
-        include=["Integer", "ZeroOne"],
-        exclude=[
-            "Cone", "conic",
             "test_constraint_ZeroOne_bounds", # Cannot put multiple bound sets of the same type on a variable
             "test_variable_solve_ZeroOne_with_0_upper_bound",
             "test_variable_solve_ZeroOne_with_upper_bound",
             "test_basic_ScalarQuadraticFunction_ZeroOne", # non-PSD quadratic
-        ],
-    )
-
-    # other attribute tests
-    MOIT.runtests(model, config,
-        exclude=[
-            "Cone", "conic", "Integer", "ZeroOne", "basic", "linear",
             "test_model_ListOfConstraintAttributesSet", # list not properly set
             "BoundAlreadySet", # TODO throw error if bound already set
             "test_model_ModelFilter_AbstractVariableAttribute",
@@ -169,8 +145,8 @@ end
             "test_objective_set_via_modify",
             "test_quadratic_nonconvex_constraint_integration",
             "test_solve_ObjectiveBound_MAX_SENSE_LP", # ObjectiveBound invalid
-
         ],
     )
+
     @test MOI.supports(model, MOI.VariablePrimalStart(), MOI.VariableIndex)
 end

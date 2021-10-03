@@ -475,6 +475,10 @@ function MOI.get(m::Optimizer, ::MOI.ConstraintSet,
     return get_variable_constraint(m, vi, ci)
 end
 
+function MOI.set(::Optimizer, ::MOI.ConstraintFunction, ci::MOI.ConstraintIndex{MOI.VariableIndex}, ::MOI.VariableIndex)
+    throw(MOI.SettingVariableIndexNotAllowed())
+end
+
 function MOI.get(m::Optimizer, ::MOI.ConstraintFunction,
                  ci::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},
                                          <:ScalarLinearDomain})
