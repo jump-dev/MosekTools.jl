@@ -75,7 +75,7 @@ const config = MOIT.Config(
     exclude=Any[MOI.ConstraintName, MOI.VariableBasisStatus, MOI.ConstraintBasisStatus], # result in errors for now
 )
 
-@testset "Basic and linear tests" begin
+@testset "Direct optimizer tests" begin
     MOIT.runtests(optimizer, config,
         exclude=[
             # issues/74,
@@ -98,7 +98,7 @@ const config = MOIT.Config(
     )
 end
 
-@testset "Bridged" begin
+@testset "Bridged and cached" begin
     model = MOIB.full_bridge_optimizer(Mosek.Optimizer(), Float64)
     MOI.set(model, MOI.Silent(), true)
 
@@ -113,6 +113,22 @@ end
             "test_basic_ScalarQuadraticFunction_Integer",
             "test_basic_VectorQuadraticFunction_Nonnegatives",
             "test_basic_VectorQuadraticFunction_Zeros",
+            "test_basic_VectorQuadraticFunction_DualExponentialCone",
+            "test_basic_VectorQuadraticFunction_DualPowerCone",
+            "test_basic_VectorQuadraticFunction_ExponentialCone",
+            "test_basic_VectorQuadraticFunction_GeometricMeanCone",
+            "test_basic_VectorQuadraticFunction_LogDetConeTriangle",
+            "test_basic_VectorQuadraticFunction_NormInfinityCone",
+            "test_basic_VectorQuadraticFunction_NormNuclearCone",
+            "test_basic_VectorQuadraticFunction_NormOneCone",
+            "test_basic_VectorQuadraticFunction_NormSpectralCone",
+            "test_basic_VectorQuadraticFunction_PositiveSemidefiniteConeSquare",
+            "test_basic_VectorQuadraticFunction_PositiveSemidefiniteConeTriangle",
+            "test_basic_VectorQuadraticFunction_PowerCone",
+            "test_basic_VectorQuadraticFunction_RelativeEntropyCone",
+            "test_basic_VectorQuadraticFunction_RootDetConeTriangle",
+            "test_basic_VectorQuadraticFunction_RotatedSecondOrderCone",
+            "test_basic_VectorQuadraticFunction_SecondOrderCone",
             "test_quadratic_nonconvex_constraint_basic",
             "test_quadratic_nonconvex_constraint_integration",
             "test_basic_VectorAffineFunction_PositiveSemidefiniteConeSquare", # AssertionError: (m.x_sd[ref2id(vi)]).matrix == -1 src/variable.jl:173
@@ -126,7 +142,6 @@ end
             "test_basic_VectorOfVariables_RootDetConeTriangle",
             "test_basic_VectorAffineFunction_PositiveSemidefiniteConeTriangle", # TODO: implement get ConstraintSet for SAF
             "test_basic_VectorOfVariables_PositiveSemidefiniteConeTriangle",
-            "test_basic_VectorQuadraticFunction_", # not PSD because of equality
             "test_quadratic_SecondOrderCone_basic",
             "test_basic_VectorOfVariables_LogDetConeTriangle", # Mosek.MosekError(1307, "Variable '' (1) is a member of cone '' (0).") src/msk_functions.jl:477
             "test_conic_LogDetConeTriangle_VectorOfVariables",
@@ -149,4 +164,37 @@ end
     )
 
     @test MOI.supports(model, MOI.VariablePrimalStart(), MOI.VariableIndex)
+
+    model = MOI.Bridges.full_bridge_optimizer(
+        MOI.Utilities.CachingOptimizer(
+                MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}()),
+                Mosek.Optimizer(),
+        ),
+        Float64,
+    )
+    MOI.set(model, MOI.Silent(), true)
+
+    MOI.Test.runtests(model, config,
+        exclude=[
+            "test_basic_ScalarQuadraticFunction_EqualTo", # non-PSD quadratic
+            "test_basic_ScalarQuadraticFunction_GreaterThan",
+            "test_basic_ScalarQuadraticFunction_Interval",
+            "test_basic_ScalarQuadraticFunction_Semi",
+            "test_basic_ScalarQuadraticFunction_ZeroOne",
+            "test_basic_ScalarQuadraticFunction_Integer",
+            "test_basic_VectorQuadraticFunction_Nonnegatives",
+            "test_basic_VectorQuadraticFunction_Zeros",
+            "test_quadratic_nonconvex_constraint_basic",
+            "test_quadratic_nonconvex_constraint_integration",
+            "test_quadratic_SecondOrderCone_basic",
+            "test_basic_VectorQuadraticFunction_", # not PSD because of equality
+            "test_basic_VectorOfVariables_LogDetConeTriangle", # Mosek.MosekError(1307, "Variable '' (1) is a member of cone '' (0).") src/msk_functions.jl:477
+            "test_conic_LogDetConeTriangle_VectorOfVariables",
+            "test_constraint_ZeroOne_bounds",
+            "BoundAlreadySet", # TODO throw error if bound already set
+            "test_solve_ObjectiveBound_MAX_SENSE_LP",
+            "test_variable_solve_ZeroOne_with_0_upper_bound",
+            "test_variable_solve_ZeroOne_with_upper_bound",
+        ],
+    )
 end
