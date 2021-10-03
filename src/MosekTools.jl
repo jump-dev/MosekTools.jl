@@ -406,7 +406,7 @@ MOI.get(::Optimizer, ::MOI.SolverName) = "Mosek"
 
 MOIU.supports_default_copy_to(::Optimizer, copy_names::Bool) = true
 function MOI.copy_to(dest::Optimizer, src::MOI.ModelLike; kws...)
-    return MOIU.automatic_copy_to(dest, src; kws...)
+    return MOIU.default_copy_to(dest, src; kws...)
 end
 
 function MOI.write_to_file(m::Optimizer, filename :: String)
