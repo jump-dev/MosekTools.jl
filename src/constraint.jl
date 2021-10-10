@@ -49,7 +49,7 @@ function split_scalar_matrix(m::Optimizer, terms::Vector{MOI.ScalarAffineTerm{Fl
         push!(sd_coef[mat.matrix], coef)
     end
 	for term in terms
-        add(mosek_index(m, term.variable_index), term.coefficient)
+        add(mosek_index(m, term.variable), term.coefficient)
     end
     for j in 1:length(m.sd_dim)
         if !isempty(sd_row[j])
@@ -224,7 +224,7 @@ function add_variable_constraint(m::Optimizer, col::ColumnIndex,
 end
 function get_variable_constraint(m::Optimizer,
                                  col::ColumnIndex,
-                                 ci::MOI.ConstraintIndex{MOI.SingleVariable, S}) where S
+                                 ci::MOI.ConstraintIndex{MOI.VariableIndex, S}) where S
     return bounds_to_set(S, getvarbound(m.task, col.value)...)
 end
 function get_variable_constraint(m::Optimizer, vi::MOI.VariableIndex,
@@ -331,9 +331,9 @@ const ScalarLinearDomain = Union{MOI.LessThan{Float64},
 ## Add ########################################################################
 ###############################################################################
 
-MOI.supports_constraint(::Optimizer, ::Type{<:Union{MOI.SingleVariable, MOI.ScalarAffineFunction}}, ::Type{<:ScalarLinearDomain}) = true
+MOI.supports_constraint(::Optimizer, ::Type{<:Union{MOI.VariableIndex, MOI.ScalarAffineFunction}}, ::Type{<:ScalarLinearDomain}) = true
 MOI.supports_constraint(::Optimizer, ::Type{MOI.VectorOfVariables}, ::Type{<:VectorCone}) = true
-MOI.supports_constraint(::Optimizer, ::Type{MOI.SingleVariable}, ::Type{<:MOI.Integer}) = true
+MOI.supports_constraint(::Optimizer, ::Type{MOI.VariableIndex}, ::Type{<:MOI.Integer}) = true
 MOI.supports_add_constrained_variables(::Optimizer, ::Type{MOI.PositiveSemidefiniteConeTriangle}) = true
 
 ## Affine Constraints #########################################################
@@ -381,23 +381,24 @@ cone_type(::Type{MOI.RotatedSecondOrderCone}) = MSK_CT_RQUAD
 
 function MOI.add_constraint(
     m   :: Optimizer,
-    xs  :: MOI.SingleVariable,
+    xs  :: MOI.VariableIndex,
     dom :: D) where {D <: MOI.AbstractScalarSet}
 
-    msk_idx = mosek_index(m, xs.variable)
+    msk_idx = mosek_index(m, xs)
     if !(msk_idx isa ColumnIndex)
         error("Cannot add $D constraint on a matrix variable")
     end
 
-    if !iszero(incompatible_mask(D) & m.x_constraints[xs.variable.value])
+    if !iszero(incompatible_mask(D) & m.x_constraints[xs.value])
         error("Cannot put multiple bound sets of the same type on a variable")
+        # throw(MOI.LowerBoundAlreadySet{?, D}(xs)) # TODO find which set was the initial constraint
     end
 
-    set_flag(m, xs.variable, D)
+    set_flag(m, xs, D)
 
     add_variable_constraint(m, msk_idx, dom)
 
-    return MOI.ConstraintIndex{MOI.SingleVariable, D}(xs.variable.value)
+    return MOI.ConstraintIndex{MOI.VariableIndex, D}(xs.value)
 end
 
 function MOI.add_constraint(m::Optimizer, xs::MOI.VectorOfVariables,
@@ -411,7 +412,6 @@ function MOI.add_constraint(m::Optimizer, xs::MOI.VectorOfVariables,
         error("Cannot multiple bound sets of the same type to a variable")
     end
 
-    N = MOI.dimension(dom)
     id = add_cone(m, cols, dom)
     idx = first(xs.variables).value
     for vi in xs.variables
@@ -449,22 +449,26 @@ end
 ## Get ########################################################################
 ###############################################################################
 
-_variable(ci::MOI.ConstraintIndex{MOI.SingleVariable}) = MOI.VariableIndex(ci.value)
+_variable(ci::MOI.ConstraintIndex{MOI.VariableIndex}) = MOI.VariableIndex(ci.value)
 function MOI.get(m::Optimizer, ::MOI.ConstraintFunction,
-                 ci::MOI.ConstraintIndex{MOI.SingleVariable}) where S <: ScalarLinearDomain
+                 ci::MOI.ConstraintIndex{MOI.VariableIndex}) where S <: ScalarLinearDomain
     MOI.throw_if_not_valid(m, ci)
-    return MOI.SingleVariable(_variable(ci))
+    return _variable(ci)
 end
 function MOI.get(m::Optimizer, ::MOI.ConstraintSet,
-                 ci::MOI.ConstraintIndex{MOI.SingleVariable, S}) where S <: MOI.Integer
+                 ci::MOI.ConstraintIndex{MOI.VariableIndex, S}) where S <: MOI.Integer
     MOI.throw_if_not_valid(m, ci)
     return S()
 end
 function MOI.get(m::Optimizer, ::MOI.ConstraintSet,
-                 ci::MOI.ConstraintIndex{MOI.SingleVariable, S}) where S <: ScalarLinearDomain
+                 ci::MOI.ConstraintIndex{MOI.VariableIndex, S}) where S <: ScalarLinearDomain
     MOI.throw_if_not_valid(m, ci)
-    sv = MOI.get(m, MOI.ConstraintFunction(), ci)
-    return get_variable_constraint(m, sv.variable, ci)
+    vi = MOI.get(m, MOI.ConstraintFunction(), ci)
+    return get_variable_constraint(m, vi, ci)
+end
+
+function MOI.set(::Optimizer, ::MOI.ConstraintFunction, ci::MOI.ConstraintIndex{MOI.VariableIndex}, ::MOI.VariableIndex)
+    throw(MOI.SettingVariableIndexNotAllowed())
 end
 
 function MOI.get(m::Optimizer, ::MOI.ConstraintFunction,
@@ -519,7 +523,7 @@ chgbound(bl::Float64,bu::Float64,k::Float64,dom :: MOI.Interval{Float64})    = d
 
 function MOI.set(m::Optimizer,
                  ::MOI.ConstraintSet,
-                 ci::MOI.ConstraintIndex{MOI.SingleVariable,D},
+                 ci::MOI.ConstraintIndex{MOI.VariableIndex,D},
                  dom::D) where D<:ScalarLinearDomain
     col = column(m, _variable(ci))
     bk, bl, bu = getvarbound(m.task, col.value)
@@ -608,14 +612,14 @@ function MOI.delete(
 end
 
 function MOI.is_valid(model::Optimizer,
-                      ci::MOI.ConstraintIndex{MOI.SingleVariable,
+                      ci::MOI.ConstraintIndex{MOI.VariableIndex,
                                               S}) where S<:Union{ScalarLinearDomain,
                                                                  MOI.Integer}
     return allocated(model.x_block, ci.value) && has_flag(model, _variable(ci), S)
 end
 function MOI.delete(
     m::Optimizer,
-    ci::MOI.ConstraintIndex{MOI.SingleVariable, S}) where S<:Union{ScalarLinearDomain,
+    ci::MOI.ConstraintIndex{MOI.VariableIndex, S}) where S<:Union{ScalarLinearDomain,
                                                                    MOI.Integer}
     MOI.throw_if_not_valid(m, ci)
     delete_name(m, ci)
