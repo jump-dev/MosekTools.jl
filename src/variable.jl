@@ -47,7 +47,9 @@ end
 function set_column_name(m::Optimizer, vi::MOI.VariableIndex, name::String)
     set_column_name(m.task, mosek_index(m, vi), name)
 end
-MosekTools.set_column_name(::Mosek.MSKtask, ::MosekTools.MatrixIndex, name::String) = name    
+function set_column_name(task::Mosek.MSKtask, mat::MosekTools.MatrixIndex, name::String)
+    putvarname(task, mat.matrix, name)
+end 
 column_name(task::Mosek.MSKtask, col::ColumnIndex) = getvarname(task, col.value)
 function column_name(m::Optimizer, vi::MOI.VariableIndex)
     column_name(m.task, mosek_index(m, vi))
