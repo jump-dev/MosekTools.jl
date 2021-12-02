@@ -44,6 +44,10 @@ end
 function set_column_name(task::Mosek.MSKtask, col::ColumnIndex, name::String)
     putvarname(task, col.value, name)
 end
+function set_column_name(task::Mosek.MSKtask, mat::MatrixIndex, name::String)
+    # Names of matrix index is not supported by Mosek at the moment
+    throw(MOI.UnsupportedAttribute(MOI.VariableName(), "Mosek does not support names for positive semidefinite variables."))
+end
 function set_column_name(m::Optimizer, vi::MOI.VariableIndex, name::String)
     set_column_name(m.task, mosek_index(m, vi), name)
 end
@@ -289,7 +293,9 @@ end
 
 ## Name #######################################################################
 ###############################################################################
-MOI.supports(::Optimizer, ::MOI.VariableName, ::Type{MOI.VariableIndex}) = true
+# We leave `supports` to `false` because it's not supported by matrix indices
+# See https://github.com/jump-dev/MosekTools.jl/issues/80
+# MOI.supports(::Optimizer, ::MOI.VariableName, ::Type{MOI.VariableIndex}) = true
 function MOI.set(m::Optimizer, ::MOI.VariableName, vi::MOI.VariableIndex,
                  name::String)
     m.has_variable_names = true
