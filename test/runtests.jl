@@ -198,3 +198,16 @@ end
         ],
     )
 end
+
+@testset "Matrix name" begin
+    MOI.empty!(optimizer)
+    x, cx = MOI.add_constrained_variables(optimizer, MOI.PositiveSemidefiniteConeTriangle(3))
+    err = MOI.UnsupportedAttribute{MOI.VariableName}
+    @test_throws err MOI.set(optimizer, MOI.VariableName(), x[1], "a")
+    MOI.empty!(optimizer)
+    model = MOI.Utilities.CachingOptimizer(MOI.Utilities.Model{Float64}(), optimizer)
+    x, cx = MOI.add_constrained_variables(model, MOI.PositiveSemidefiniteConeTriangle(3))
+    MOI.set(model, MOI.VariableName(), x[1], "a")
+    MOI.Utilities.attach_optimizer(model) # Should drop errors silently in the copy
+    @test "a" == MOI.get(model, MOI.VariableName(), x[1])
+end
