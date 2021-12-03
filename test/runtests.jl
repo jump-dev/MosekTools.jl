@@ -15,7 +15,8 @@ const MOIB = MOI.Bridges
 const FALLBACK_URL = "mosek://solve.mosek.com:30080"
 
 using MosekTools
-const optimizer = Mosek.Optimizer(fallback = FALLBACK_URL)
+const optimizer = Mosek.Optimizer()
+MOI.set(optimizer, MOI.RawOptimizerAttribute("fallback"), FALLBACK_URL)
 MOI.set(optimizer, MOI.Silent(), true)
 
 @testset "SolverName" begin
@@ -23,42 +24,43 @@ MOI.set(optimizer, MOI.Silent(), true)
 end
 
 @testset "Parameters" begin
-    optimizer = Mosek.Optimizer(fallback = FALLBACK_URL)
+    optimizer = Mosek.Optimizer()
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("fallback"), FALLBACK_URL)
     @testset "Double Parameter" begin
-        MOI.set(optimizer, MOI.RawParameter("INTPNT_CO_TOL_DFEAS"), 1e-7)
-        @test MOI.get(optimizer, MOI.RawParameter("MSK_DPAR_INTPNT_CO_TOL_DFEAS")) == 1e-7
-        MOI.set(optimizer, MOI.RawParameter("MSK_DPAR_INTPNT_CO_TOL_DFEAS"), 1e-8)
-        @test MOI.get(optimizer, MOI.RawParameter("MSK_DPAR_INTPNT_CO_TOL_DFEAS")) == 1e-8
+        MOI.set(optimizer, MOI.RawOptimizerAttribute("INTPNT_CO_TOL_DFEAS"), 1e-7)
+        @test MOI.get(optimizer, MOI.RawOptimizerAttribute("MSK_DPAR_INTPNT_CO_TOL_DFEAS")) == 1e-7
+        MOI.set(optimizer, MOI.RawOptimizerAttribute("MSK_DPAR_INTPNT_CO_TOL_DFEAS"), 1e-8)
+        @test MOI.get(optimizer, MOI.RawOptimizerAttribute("MSK_DPAR_INTPNT_CO_TOL_DFEAS")) == 1e-8
         @testset "with integer value" begin
-            MOI.set(optimizer, MOI.RawParameter("MSK_DPAR_INTPNT_CO_TOL_DFEAS"), 1)
-            @test MOI.get(optimizer, MOI.RawParameter("MSK_DPAR_INTPNT_CO_TOL_DFEAS")) == 1
+            MOI.set(optimizer, MOI.RawOptimizerAttribute("MSK_DPAR_INTPNT_CO_TOL_DFEAS"), 1)
+            @test MOI.get(optimizer, MOI.RawOptimizerAttribute("MSK_DPAR_INTPNT_CO_TOL_DFEAS")) == 1
         end
     end
     @testset "Integer Parameter" begin
-        MOI.set(optimizer, MOI.RawParameter("MSK_IPAR_INTPNT_MAX_ITERATIONS"), 100)
-        @test MOI.get(optimizer, MOI.RawParameter("MSK_IPAR_INTPNT_MAX_ITERATIONS")) == 100
-        MOI.set(optimizer, MOI.RawParameter("INTPNT_MAX_ITERATIONS"), 200)
-        @test MOI.get(optimizer, MOI.RawParameter("MSK_IPAR_INTPNT_MAX_ITERATIONS")) == 200
+        MOI.set(optimizer, MOI.RawOptimizerAttribute("MSK_IPAR_INTPNT_MAX_ITERATIONS"), 100)
+        @test MOI.get(optimizer, MOI.RawOptimizerAttribute("MSK_IPAR_INTPNT_MAX_ITERATIONS")) == 100
+        MOI.set(optimizer, MOI.RawOptimizerAttribute("INTPNT_MAX_ITERATIONS"), 200)
+        @test MOI.get(optimizer, MOI.RawOptimizerAttribute("MSK_IPAR_INTPNT_MAX_ITERATIONS")) == 200
         @testset "with enum value" begin
-            MOI.set(optimizer, MOI.RawParameter("MSK_IPAR_OPTIMIZER"), MosekTools.Mosek.MSK_OPTIMIZER_DUAL_SIMPLEX)
-            @test MOI.get(optimizer, MOI.RawParameter("MSK_IPAR_OPTIMIZER")) == convert(Int32, MosekTools.Mosek.MSK_OPTIMIZER_DUAL_SIMPLEX)
+            MOI.set(optimizer, MOI.RawOptimizerAttribute("MSK_IPAR_OPTIMIZER"), MosekTools.Mosek.MSK_OPTIMIZER_DUAL_SIMPLEX)
+            @test MOI.get(optimizer, MOI.RawOptimizerAttribute("MSK_IPAR_OPTIMIZER")) == convert(Int32, MosekTools.Mosek.MSK_OPTIMIZER_DUAL_SIMPLEX)
         end
     end
     @testset "String Parameter" begin
-        MOI.set(optimizer, MOI.RawParameter("PARAM_WRITE_FILE_NAME"), "foo.txt")
+        MOI.set(optimizer, MOI.RawOptimizerAttribute("PARAM_WRITE_FILE_NAME"), "foo.txt")
         # Needs https://github.com/JuliaOpt/Mosek.jl/pull/174
-        #@test MOI.get(optimizer, MOI.RawParameter("MSK_SPAR_PARAM_WRITE_FILE_NAME")) == "foo.txt"
-        MOI.set(optimizer, MOI.RawParameter("MSK_SPAR_PARAM_WRITE_FILE_NAME"), "bar.txt")
-        #@test MOI.get(optimizer, MOI.RawParameter("MSK_SPAR_PARAM_WRITE_FILE_NAME")) == "bar.txt"
+        #@test MOI.get(optimizer, MOI.RawOptimizerAttribute("MSK_SPAR_PARAM_WRITE_FILE_NAME")) == "foo.txt"
+        MOI.set(optimizer, MOI.RawOptimizerAttribute("MSK_SPAR_PARAM_WRITE_FILE_NAME"), "bar.txt")
+        #@test MOI.get(optimizer, MOI.RawOptimizerAttribute("MSK_SPAR_PARAM_WRITE_FILE_NAME")) == "bar.txt"
     end
     @testset "TimeLimitSec" begin
-        @test MOI.get(optimizer, MOI.RawParameter("MSK_DPAR_OPTIMIZER_MAX_TIME")) == -1
+        @test MOI.get(optimizer, MOI.RawOptimizerAttribute("MSK_DPAR_OPTIMIZER_MAX_TIME")) == -1
         @test MOI.get(optimizer, MOI.TimeLimitSec()) === nothing
         MOI.set(optimizer, MOI.TimeLimitSec(), 1.0)
-        @test MOI.get(optimizer, MOI.RawParameter("MSK_DPAR_OPTIMIZER_MAX_TIME")) == 1.0
+        @test MOI.get(optimizer, MOI.RawOptimizerAttribute("MSK_DPAR_OPTIMIZER_MAX_TIME")) == 1.0
         @test MOI.get(optimizer, MOI.TimeLimitSec()) === 1.0
         MOI.set(optimizer, MOI.TimeLimitSec(), nothing)
-        @test MOI.get(optimizer, MOI.RawParameter("MSK_DPAR_OPTIMIZER_MAX_TIME")) == -1
+        @test MOI.get(optimizer, MOI.RawOptimizerAttribute("MSK_DPAR_OPTIMIZER_MAX_TIME")) == -1
         @test MOI.get(optimizer, MOI.TimeLimitSec()) === nothing
     end
 end
@@ -68,152 +70,180 @@ end
     @test MOIU.supports_default_copy_to(optimizer, true)
 end
 
-const config = MOIT.TestConfig(atol=1e-3, rtol=1e-3)
+const config = MOIT.Config(
+    Float64, atol=1e-3, rtol=1e-3,
+    exclude=Any[MOI.ConstraintName, MOI.VariableBasisStatus, MOI.ConstraintBasisStatus], # result in errors for now
+)
 
-@testset "Basic" begin
-    @testset "Linear" begin
-        MOIT.basic_constraint_tests(
-            optimizer, config,
-            include=[
-                (MOI.SingleVariable, MOI.EqualTo{Float64}),
-                (MOI.SingleVariable, MOI.LessThan{Float64}),
-                (MOI.SingleVariable, MOI.GreaterThan{Float64}),
-                (MOI.SingleVariable, MOI.Interval{Float64}),
-                (MOI.SingleVariable, MOI.ZeroOne),
-                (MOI.SingleVariable, MOI.Integer),
-                (MOI.ScalarAffineFunction{Float64}, MOI.EqualTo{Float64}),
-                (MOI.ScalarAffineFunction{Float64}, MOI.LessThan{Float64}),
-                (MOI.ScalarAffineFunction{Float64}, MOI.GreaterThan{Float64}),
-                (MOI.ScalarAffineFunction{Float64}, MOI.Interval{Float64})
-        ])
-    end
-    @testset "Conic" begin
-        MOIT.basic_constraint_tests(
-            optimizer, config,
-            include=[
-                (MOI.VectorOfVariables, MOI.SecondOrderCone),
-                (MOI.VectorOfVariables, MOI.RotatedSecondOrderCone)
-        ])
-    end
+@testset "Direct optimizer tests" begin
+    MOIT.runtests(optimizer, config,
+        exclude=[
+            # issues/74,
+            "test_variable_solve_ZeroOne_with_0_upper_bound",
+            "test_variable_solve_ZeroOne_with_upper_bound",
+            "test_linear_Indicator_ON_ONE",
+            "test_model_ListOfConstraintAttributesSet", # TODO implement
+            "test_model_LowerBoundAlreadySet",
+            "test_model_UpperBoundAlreadySet",
+            "test_model_ModelFilter_AbstractVariableAttribute",
+            "test_model_VariableName",
+            "test_model_VariablePrimalStart",
+            "test_model_copy_to_UnsupportedConstraint",
+            "test_model_duplicate_VariableName",
+            "test_modification_incorrect_VariableIndex",
+            "test_solve_ObjectiveBound_MAX_SENSE_LP",
+            "test_objective_set_via_modify",
+            "test_model_VariableIndex_ConstraintName",
+            # Failing with Mosek v8 but not Mosek v9
+            # The solutions is: `Mosek.MSK_SOL_ITG, Mosek.MSK_SOL_STA_NEAR_DUAL_FEAS, Mosek.MSK_PRO_STA_PRIM_FEAS`
+            # Expression: MOI.get(model, MOI.PrimalStatus()) == MOI.FEASIBLE_POINT
+            #  Evaluated: MathOptInterface.UNKNOWN_RESULT_STATUS == MathOptInterface.FEASIBLE_POINT
+            "test_solve_ObjectiveBound_MAX_SENSE_IP",
+            "test_solve_ObjectiveBound_MIN_SENSE_IP",
+            "test_variable_solve_Integer_with_lower_bound",
+            "test_variable_solve_Integer_with_upper_bound",
+        ],
+    )
 end
 
-const bridged = MOIB.full_bridge_optimizer(optimizer, Float64)
-
-# Mosek errors during `MOI.set` instead of `MOI.get` when there are duplicates.
-#@testset "Name" begin
-#    MOIT.nametest(bridged)
-#end
-
-@testset "Copy" begin
+@testset "Bridged and cached" begin
     model = MOIB.full_bridge_optimizer(Mosek.Optimizer(), Float64)
-    MOIT.copytest(bridged, model)
+    MOI.set(model, MOI.Silent(), true)
+
+    # linear and basic tests
+    MOIT.runtests(model, config,
+        exclude=[
+            "test_basic_ScalarQuadraticFunction_EqualTo", # non-PSD quadratic
+            "test_basic_ScalarQuadraticFunction_GreaterThan",
+            "test_basic_ScalarQuadraticFunction_Interval",
+            "test_basic_ScalarQuadraticFunction_Semi",
+            "test_basic_ScalarQuadraticFunction_ZeroOne",
+            "test_basic_ScalarQuadraticFunction_Integer",
+            "test_basic_VectorQuadraticFunction_Nonnegatives",
+            "test_basic_VectorQuadraticFunction_Zeros",
+            "test_basic_VectorQuadraticFunction_DualExponentialCone",
+            "test_basic_VectorQuadraticFunction_DualPowerCone",
+            "test_basic_VectorQuadraticFunction_ExponentialCone",
+            "test_basic_VectorQuadraticFunction_GeometricMeanCone",
+            "test_basic_VectorQuadraticFunction_LogDetConeTriangle",
+            "test_basic_VectorQuadraticFunction_NormInfinityCone",
+            "test_basic_VectorQuadraticFunction_NormNuclearCone",
+            "test_basic_VectorQuadraticFunction_NormOneCone",
+            "test_basic_VectorQuadraticFunction_NormSpectralCone",
+            "test_basic_VectorQuadraticFunction_PositiveSemidefiniteConeSquare",
+            "test_basic_VectorQuadraticFunction_PositiveSemidefiniteConeTriangle",
+            "test_basic_VectorQuadraticFunction_PowerCone",
+            "test_basic_VectorQuadraticFunction_RelativeEntropyCone",
+            "test_basic_VectorQuadraticFunction_RootDetConeTriangle",
+            "test_basic_VectorQuadraticFunction_RotatedSecondOrderCone",
+            "test_basic_VectorQuadraticFunction_SecondOrderCone",
+            "test_quadratic_nonconvex_constraint_basic",
+            "test_quadratic_nonconvex_constraint_integration",
+            "test_basic_VectorAffineFunction_PositiveSemidefiniteConeSquare", # AssertionError: (m.x_sd[ref2id(vi)]).matrix == -1 src/variable.jl:173
+            "test_basic_VectorOfVariables_PositiveSemidefiniteConeSquare",
+            "test_basic_VectorAffineFunction_LogDetConeTriangle",
+            "test_basic_VectorAffineFunction_NormNuclearCone",
+            "test_basic_VectorOfVariables_NormNuclearCone",
+            "test_basic_VectorAffineFunction_NormSpectralCone",
+            "test_basic_VectorOfVariables_NormSpectralCone",
+            "test_basic_VectorAffineFunction_RootDetConeTriangle",
+            "test_basic_VectorOfVariables_RootDetConeTriangle",
+            "test_basic_VectorAffineFunction_PositiveSemidefiniteConeTriangle", # TODO: implement get ConstraintSet for SAF
+            "test_basic_VectorOfVariables_PositiveSemidefiniteConeTriangle",
+            "test_quadratic_SecondOrderCone_basic",
+            "test_basic_VectorOfVariables_LogDetConeTriangle", # Mosek.MosekError(1307, "Variable '' (1) is a member of cone '' (0).") src/msk_functions.jl:477
+            "test_conic_LogDetConeTriangle_VectorOfVariables",
+            "test_constraint_ZeroOne_bounds", # Cannot put multiple bound sets of the same type on a variable
+            "test_variable_solve_ZeroOne_with_0_upper_bound",
+            "test_variable_solve_ZeroOne_with_upper_bound",
+            "test_basic_ScalarQuadraticFunction_ZeroOne", # non-PSD quadratic
+            "test_model_ListOfConstraintAttributesSet", # list not properly set
+            "BoundAlreadySet", # TODO throw error if bound already set
+            "test_model_ModelFilter_AbstractVariableAttribute",
+            "test_model_VariableName", # Mosek currently throws when setting twice, not when getting names
+            "test_model_Name_VariableName_ConstraintName",
+            "test_model_duplicate_VariableName",
+            "test_model_VariablePrimalStart", # able to set but not to get VariablePrimalStart
+            "test_objective_qp_ObjectiveFunction_zero_ofdiag", # MOI.ListOfModelAttributesSet
+            "test_objective_set_via_modify",
+            "test_quadratic_nonconvex_constraint_integration",
+            "test_solve_ObjectiveBound_MAX_SENSE_LP", # ObjectiveBound invalid
+            # Failing with Mosek v8 but not Mosek v9
+            # The solutions is: `Mosek.MSK_SOL_ITG, Mosek.MSK_SOL_STA_NEAR_DUAL_FEAS, Mosek.MSK_PRO_STA_PRIM_FEAS`
+            # Expression: MOI.get(model, MOI.PrimalStatus()) == MOI.FEASIBLE_POINT
+            #  Evaluated: MathOptInterface.UNKNOWN_RESULT_STATUS == MathOptInterface.FEASIBLE_POINT
+            "test_solve_ObjectiveBound_MAX_SENSE_IP",
+            "test_solve_ObjectiveBound_MIN_SENSE_IP",
+            "test_variable_solve_Integer_with_lower_bound",
+            "test_variable_solve_Integer_with_upper_bound",
+            "test_quadratic_Integer_SecondOrderCone",
+            "test_linear_integer_solve_twice",
+            "test_linear_integer_knapsack",
+            "test_linear_integer_integration",
+            "test_linear_Semiinteger_integration",
+            "test_linear_Semicontinuous_integration",
+        ],
+    )
+
+    @test MOI.supports(model, MOI.VariablePrimalStart(), MOI.VariableIndex)
+
+    model = MOI.Bridges.full_bridge_optimizer(
+        MOI.Utilities.CachingOptimizer(
+                MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}()),
+                Mosek.Optimizer(),
+        ),
+        Float64,
+    )
+    MOI.set(model, MOI.Silent(), true)
+
+    MOI.Test.runtests(model, config,
+        exclude=[
+            "test_basic_ScalarQuadraticFunction_EqualTo", # non-PSD quadratic
+            "test_basic_ScalarQuadraticFunction_GreaterThan",
+            "test_basic_ScalarQuadraticFunction_Interval",
+            "test_basic_ScalarQuadraticFunction_Semi",
+            "test_basic_ScalarQuadraticFunction_ZeroOne",
+            "test_basic_ScalarQuadraticFunction_Integer",
+            "test_basic_VectorQuadraticFunction_Nonnegatives",
+            "test_basic_VectorQuadraticFunction_Zeros",
+            "test_quadratic_nonconvex_constraint_basic",
+            "test_quadratic_nonconvex_constraint_integration",
+            "test_quadratic_SecondOrderCone_basic",
+            "test_basic_VectorQuadraticFunction_", # not PSD because of equality
+            "test_basic_VectorOfVariables_LogDetConeTriangle", # Mosek.MosekError(1307, "Variable '' (1) is a member of cone '' (0).") src/msk_functions.jl:477
+            "test_conic_LogDetConeTriangle_VectorOfVariables",
+            "test_constraint_ZeroOne_bounds",
+            "BoundAlreadySet", # TODO throw error if bound already set
+            "test_solve_ObjectiveBound_MAX_SENSE_LP",
+            "test_variable_solve_ZeroOne_with_0_upper_bound",
+            "test_variable_solve_ZeroOne_with_upper_bound",
+            # Failing with Mosek v8 but not Mosek v9
+            # The solutions is: `Mosek.MSK_SOL_ITG, Mosek.MSK_SOL_STA_NEAR_DUAL_FEAS, Mosek.MSK_PRO_STA_PRIM_FEAS`
+            # Expression: MOI.get(model, MOI.PrimalStatus()) == MOI.FEASIBLE_POINT
+            #  Evaluated: MathOptInterface.UNKNOWN_RESULT_STATUS == MathOptInterface.FEASIBLE_POINT
+            "test_solve_ObjectiveBound_MAX_SENSE_IP",
+            "test_solve_ObjectiveBound_MIN_SENSE_IP",
+            "test_variable_solve_Integer_with_lower_bound",
+            "test_variable_solve_Integer_with_upper_bound",
+            "test_quadratic_Integer_SecondOrderCone",
+            "test_linear_integer_solve_twice",
+            "test_linear_integer_knapsack",
+            "test_linear_integer_integration",
+            "test_linear_Semiinteger_integration",
+            "test_linear_Semicontinuous_integration",
+        ],
+    )
 end
 
-@testset "Unit" begin
-    # Mosek does not support names
-    MOIT.unittest(bridged, config, [
-        # TODO
-        "number_threads",
-        # Find objective bound of 0.0 which is lower than 4.0
-        "solve_objbound_edge_cases",
-        # Cannot put multiple bound sets of the same type on a variable
-        "solve_integer_edge_cases",
-        # Cannot mix `ZeroOne` with `GreaterThan`/`LessThan`
-        "solve_zero_one_with_bounds_1",
-        "solve_zero_one_with_bounds_2",
-        "solve_zero_one_with_bounds_3"])
+@testset "Matrix name" begin
+    MOI.empty!(optimizer)
+    x, cx = MOI.add_constrained_variables(optimizer, MOI.PositiveSemidefiniteConeTriangle(3))
+    err = MOI.UnsupportedAttribute{MOI.VariableName}
+    @test_throws err MOI.set(optimizer, MOI.VariableName(), x[1], "a")
+    MOI.empty!(optimizer)
+    model = MOI.Utilities.CachingOptimizer(MOI.Utilities.Model{Float64}(), optimizer)
+    x, cx = MOI.add_constrained_variables(model, MOI.PositiveSemidefiniteConeTriangle(3))
+    MOI.set(model, MOI.VariableName(), x[1], "a")
+    MOI.Utilities.attach_optimizer(model) # Should drop errors silently in the copy
+    @test "a" == MOI.get(model, MOI.VariableName(), x[1])
 end
-
-@testset "Continuous Linear" begin
-    MOIT.contlineartest(bridged, config)
-end
-
-@testset "Continuous Quadratic" begin
-    MOIT.contquadratictest(bridged, config, [
-        # Non-convex
-        "ncqcp",
-        # QuadtoSOC does not work as the matrix is not SDP
-        "socp"
-    ])
-end
-
-@testset "Continuous Conic" begin
-    MOIT.contconictest(bridged, config, ["exp", "dualexp", "pow", "dualpow", "rootdets", "logdet"])
-end
-
-@testset "Integer Linear" begin
-    MOIT.intlineartest(optimizer, config, ["int2", "indicator1", "indicator2", "indicator3"])
-end
-
-# Test that objective and constraint data are copied over correctly when
-# a scalar variable is transformed to a matrix one
-@testset "SDP $add_before" for add_before in [true, false]
-    atol = 1e-4
-    rtol = 1e-3
-    # Problem SDP1 - sdo1 from MOSEK docs
-    # See sdp1 of MOI contconic tests for how to get the analytical solution
-    δ = √(1 + (3*√2+2)*√(-116*√2+166) / 14) / 2
-    ε = √((1 - 2*(√2-1)*δ^2) / (2-√2))
-    y2 = 1 - ε*δ
-    y1 = 1 - √2*y2
-    obj = y1 + y2/2
-    k = -2*δ/ε
-    x2 = ((3-2obj)*(2+k^2)-4) / (4*(2+k^2)-4*√2)
-    α = √(3-2obj-4x2)/2
-    β = k*α
-
-    MOI.empty!(bridged)
-
-    X = MOI.add_variables(bridged, 6)
-    x = MOI.add_variables(bridged, 3)
-
-    cx = MOI.add_constraint(bridged, MOI.VectorOfVariables(x), MOI.SecondOrderCone(3))
-    if add_before
-        cX = MOI.add_constraint(bridged, MOI.VectorOfVariables(X), MOI.PositiveSemidefiniteConeTriangle(3))
-    end
-
-    c1 = MOI.add_constraint(bridged, MOI.ScalarAffineFunction(MOI.ScalarAffineTerm.([1., 1, 1, 1], [X[1], X[3], X[end], x[1]]), 0.), MOI.EqualTo(1.))
-    c2 = MOI.add_constraint(bridged, MOI.ScalarAffineFunction(MOI.ScalarAffineTerm.([1., 2, 1, 2, 2, 1, 1, 1], [X; x[2]; x[3]]), 0.), MOI.EqualTo(1/2))
-
-    objXidx = [1:3; 5:6]
-    objXcoefs = 2*ones(5)
-    MOI.set(bridged, MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
-            MOI.ScalarAffineFunction(MOI.ScalarAffineTerm.([objXcoefs; 1.0], [X[objXidx]; x[1]]), 0.0))
-    MOI.set(bridged, MOI.ObjectiveSense(), MOI.MIN_SENSE)
-
-    if !add_before
-        cX = MOI.add_constraint(bridged, MOI.VectorOfVariables(X), MOI.PositiveSemidefiniteConeTriangle(3))
-    end
-
-    @test MOI.get(bridged, MOI.TerminationStatus()) == MOI.OPTIMIZE_NOT_CALLED
-    MOI.optimize!(bridged)
-    @test MOI.get(bridged, MOI.TerminationStatus()) == MOI.OPTIMAL
-
-    @test MOI.get(bridged, MOI.PrimalStatus()) == MOI.FEASIBLE_POINT
-    @test MOI.get(bridged, MOI.DualStatus()) == MOI.FEASIBLE_POINT
-
-    @test MOI.get(bridged, MOI.ObjectiveValue()) ≈ obj atol=atol rtol=rtol
-
-    Xv = [α^2, α*β, β^2, α^2, α*β, α^2]
-    xv = [√2*x2, x2, x2]
-    @test MOI.get(bridged, MOI.VariablePrimal(), X) ≈ Xv atol=atol rtol=rtol
-    @test MOI.get(bridged, MOI.VariablePrimal(), x) ≈ xv atol=atol rtol=rtol
-
-    @test MOI.get(bridged, MOI.ConstraintPrimal(), cX) ≈ Xv atol=atol rtol=rtol
-    @test MOI.get(bridged, MOI.ConstraintPrimal(), cx) ≈ xv atol=atol rtol=rtol
-    @test MOI.get(bridged, MOI.ConstraintPrimal(), c1) ≈ 1. atol=atol rtol=rtol
-    @test MOI.get(bridged, MOI.ConstraintPrimal(), c2) ≈ .5 atol=atol rtol=rtol
-
-    cX0 = 1+(√2-1)*y2
-    cX1 = 1-y2
-    cX2 = -y2
-    cXv = [cX0, cX1, cX0, cX2, cX1, cX0]
-    @test MOI.get(bridged, MOI.ConstraintDual(), cX) ≈ cXv atol=atol rtol=rtol
-    @test MOI.get(bridged, MOI.ConstraintDual(), cx) ≈ [1-y1, -y2, -y2] atol=atol rtol=rtol
-    @test MOI.get(bridged, MOI.ConstraintDual(), c1) ≈ y1 atol=atol rtol=rtol
-    @test MOI.get(bridged, MOI.ConstraintDual(), c2) ≈ y2 atol=atol rtol=rtol
-
-    @test MosekTools.Mosek.getnumvar(optimizer.task) == (add_before ? 3 : 9)
-end
-
-#include("test_jump.jl")

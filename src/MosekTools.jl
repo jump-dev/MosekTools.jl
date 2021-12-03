@@ -3,7 +3,15 @@ module MosekTools
 import MathOptInterface
 const MOI = MathOptInterface
 const MOIU = MOI.Utilities
+
 using Mosek
+export Mosek
+# Allows the user to use `Mosek.Optimizer` instead of `MosekTools.Optimizer`
+# for convenience and for consitency with other solvers where the syntax is
+# `SolverName.Optimizer`.
+function Mosek.Optimizer(; kws...)
+    return MosekTools.Optimizer(; kws...)
+end
 
 include("LinkedInts.jl")
 
@@ -28,8 +36,6 @@ struct MosekSolution
     y        :: Vector{Float64}
 end
 
-@enum VariableType Undecided Deleted ScalarVariable MatrixVariable
-
 struct ColumnIndex
     value::Int32
 end
@@ -49,7 +55,7 @@ struct MatrixIndex
 end
 
 """
-    MosekModel <: MathOptInterface.AbstractModel
+    Optimizer <: MathOptInterface.AbstractModel
 
 Linear variables and constraint can be deleted. For some reason MOSEK
 does not support deleting PSD variables.
@@ -59,7 +65,7 @@ some (currently between 1 and 3) Int64s that a `delete!` will not
 remove. This ensures that Indices (Variable and constraint) that
 are deleted are thereafter invalid.
 """
-mutable struct MosekModel  <: MOI.AbstractOptimizer
+mutable struct Optimizer  <: MOI.AbstractOptimizer
     task :: Mosek.MSKtask
     ## Options passed in `Mosek.Optimizer` that are used to create a new task
     ## in `MOI.empty!`:
@@ -72,18 +78,12 @@ mutable struct MosekModel  <: MOI.AbstractOptimizer
     # String parameters, i.e. parameters starting with `MSK_SPAR_`
     spars :: Dict{String, AbstractString}
 
-    """
-    Number of variables explicitly created by user
-    """
-    publicnumvar :: Int
-
     has_variable_names::Bool
     constrnames :: Dict{String, Vector{MOI.ConstraintIndex}}
     # Mosek only support names for `MOI.ScalarAffineFunction` so we need a
     # fallback for `SingleVariable` and `VectorOfVariables`.
     con_to_name :: Dict{MOI.ConstraintIndex, String}
 
-    x_type::Vector{VariableType}
     # For each MOI index of variables, gives the flags of constraints present
     # The SingleVariable constraints added cannot just be inferred from getvartype
     # and getvarbound so we need to keep them here so implement `MOI.is_valid`
@@ -125,50 +125,87 @@ mutable struct MosekModel  <: MOI.AbstractOptimizer
     """
     Indicating whether the objective sense is MOI.FEASIBILITY_SENSE. It is
     encoded as a MOI.MIN_SENSE with a zero objective internally but this allows
-    MOI.get(::MosekModel, ::ObjectiveSense) to still return the right value
+    MOI.get(::Optimizer, ::ObjectiveSense) to still return the right value
     """
     feasibility :: Bool
 
     fallback :: Union{String, Nothing}
+
+    function Optimizer(; kws...)
+        optimizer = new(
+            maketask(), # task
+            false, # be_quiet
+            Dict{String, Int32}(), # ipars
+            Dict{String, Float64}(), # dpars
+            Dict{String, AbstractString}(), # spars
+            false, # has_variable_names
+            Dict{String, Vector{MOI.ConstraintIndex}}(), # constrnames
+            Dict{MOI.ConstraintIndex, String}(), # con_to_name
+            UInt8[], # x_constraints
+            LinkedInts(),# x_block
+            MatrixIndex[], # x_sd
+            Int[], # sd_dim
+            LinkedInts(), # c_block
+            Int32[], # variable_to_vector_constraint_id
+            nothing,# trm
+            MosekSolution[],
+            true, # feasibility_sense
+            nothing,
+        )
+        Mosek.putstreamfunc(optimizer.task, Mosek.MSK_STREAM_LOG, m -> print(m))
+        if length(kws) > 0
+            @warn("""Passing optimizer attributes as keyword arguments to
+            Mosek.Optimizer is deprecated. Use
+                MOI.set(model, MOI.RawOptimizerAttribute("key"), value)
+            or
+                JuMP.set_optimizer_attribute(model, "key", value)
+            instead.
+            """)
+        end
+        for (option, value) in kws
+            MOI.set(optimizer, MOI.RawOptimizerAttribute(string(option)), value)
+        end
+        return optimizer
+    end
 end
 
 struct IntegerParameter <: MOI.AbstractOptimizerAttribute
     name::String
 end
-function MOI.set(m::MosekModel, p::IntegerParameter, value)
+function MOI.set(m::Optimizer, p::IntegerParameter, value)
     m.ipars[p.name] = value
     Mosek.putnaintparam(m.task, p.name, value)
 end
-function MOI.get(m::MosekModel, p::IntegerParameter)
+function MOI.get(m::Optimizer, p::IntegerParameter)
     Mosek.getnaintparam(m.task, p.name)
 end
 
 struct DoubleParameter <: MOI.AbstractOptimizerAttribute
     name::String
 end
-function MOI.set(m::MosekModel, p::DoubleParameter, value)
+function MOI.set(m::Optimizer, p::DoubleParameter, value)
     m.dpars[p.name] = value
     Mosek.putnadouparam(m.task, p.name, value)
 end
-function MOI.get(m::MosekModel, p::DoubleParameter)
+function MOI.get(m::Optimizer, p::DoubleParameter)
     Mosek.getnadouparam(m.task, p.name)
 end
 
 struct StringParameter <: MOI.AbstractOptimizerAttribute
     name::String
 end
-function MOI.set(m::MosekModel, p::StringParameter, value::AbstractString)
+function MOI.set(m::Optimizer, p::StringParameter, value::AbstractString)
     m.spars[p.name] = value
     Mosek.putnastrparam(m.task, p.name, value)
 end
-function MOI.get(m::MosekModel, p::StringParameter)
+function MOI.get(m::Optimizer, p::StringParameter)
     # We need to give the maximum length of the value of the parameter.
     # 255 should be ok in most cases.
     len, str = Mosek.getnastrparam(m.task, p.name, 255)
     return str
 end
 
-function MOI.set(m::MosekModel, p::MOI.RawParameter, value)
+function MOI.set(m::Optimizer, p::MOI.RawOptimizerAttribute, value)
     if p.name == "QUIET"
         if m.be_quiet != convert(Bool, value)
             m.be_quiet = !m.be_quiet
@@ -202,7 +239,7 @@ function MOI.set(m::MosekModel, p::MOI.RawParameter, value)
     end
 end
 
-function MOI.get(m::MosekModel, p::MOI.RawParameter)
+function MOI.get(m::Optimizer, p::MOI.RawOptimizerAttribute)
     if p.name == "QUIET"
         return m.be_quiet
     elseif p.name == "fallback"
@@ -221,23 +258,23 @@ function MOI.get(m::MosekModel, p::MOI.RawParameter)
     end
 end
 
-MOI.supports(::MosekModel, ::MOI.Silent) = true
-function MOI.set(model::MosekModel, ::MOI.Silent, value::Bool)
-    MOI.set(model, MOI.RawParameter("QUIET"), value)
+MOI.supports(::Optimizer, ::MOI.Silent) = true
+function MOI.set(model::Optimizer, ::MOI.Silent, value::Bool)
+    MOI.set(model, MOI.RawOptimizerAttribute("QUIET"), value)
 end
-function MOI.get(model::MosekModel, ::MOI.Silent)
-    MOI.get(model, MOI.RawParameter("QUIET"))
+function MOI.get(model::Optimizer, ::MOI.Silent)
+    MOI.get(model, MOI.RawOptimizerAttribute("QUIET"))
 end
 
-MOI.supports(::MosekModel, ::MOI.TimeLimitSec) = true
-function MOI.set(model::MosekModel, ::MOI.TimeLimitSec, value::Real)
-    MOI.set(model, MOI.RawParameter("MSK_DPAR_OPTIMIZER_MAX_TIME"), value)
+MOI.supports(::Optimizer, ::MOI.TimeLimitSec) = true
+function MOI.set(model::Optimizer, ::MOI.TimeLimitSec, value::Real)
+    MOI.set(model, MOI.RawOptimizerAttribute("MSK_DPAR_OPTIMIZER_MAX_TIME"), value)
 end
-function MOI.set(model::MosekModel, ::MOI.TimeLimitSec, ::Nothing)
-    MOI.set(model, MOI.RawParameter("MSK_DPAR_OPTIMIZER_MAX_TIME"), -1.0)
+function MOI.set(model::Optimizer, ::MOI.TimeLimitSec, ::Nothing)
+    MOI.set(model, MOI.RawOptimizerAttribute("MSK_DPAR_OPTIMIZER_MAX_TIME"), -1.0)
 end
-function MOI.get(model::MosekModel, ::MOI.TimeLimitSec)
-    value = MOI.get(model, MOI.RawParameter("MSK_DPAR_OPTIMIZER_MAX_TIME"))
+function MOI.get(model::Optimizer, ::MOI.TimeLimitSec)
+    value = MOI.get(model, MOI.RawOptimizerAttribute("MSK_DPAR_OPTIMIZER_MAX_TIME"))
     if value < 0.0
         return nothing
     else
@@ -245,42 +282,38 @@ function MOI.get(model::MosekModel, ::MOI.TimeLimitSec)
     end
 end
 
-export Mosek
-function Mosek.Optimizer(; kws...)
-    model = MosekModel(maketask(), # task
-                       false, # be_quiet
-                       Dict{String, Int32}(), # ipars
-                       Dict{String, Float64}(), # dpars
-                       Dict{String, AbstractString}(), # spars
-                       0, # public numvar
-                       false, # has_variable_names
-                       Dict{String, Vector{MOI.ConstraintIndex}}(), # constrnames
-                       Dict{MOI.ConstraintIndex, String}(), # con_to_name
-                       VariableType[], # x_type
-                       UInt8[], # x_constraints
-                       LinkedInts(),# x_block
-                       MatrixIndex[], # x_sd
-                       Int[], # sd_dim
-                       LinkedInts(), # c_block
-                       Int32[], # variable_to_vector_constraint_id
-                       nothing,# trm
-                       MosekSolution[],
-                       true, # feasibility_sense
-                       nothing)
-    Mosek.putstreamfunc(model.task, Mosek.MSK_STREAM_LOG, m -> print(m))
-    for (option, value) in kws
-        MOI.set(model, MOI.RawParameter(string(option)), value)
-    end
-    return model
-end
+MOI.supports_incremental_interface(::Optimizer) = true
 
-function matrix_solution(m::MosekModel, sol)
+function matrix_solution(m::Optimizer, sol)
     return Vector{Float64}[getbarxj(m.task, sol, j) for j in 1:length(m.sd_dim)]
 end
 
-function MOI.optimize!(m::MosekModel)
+function MOI.optimize!(m::Optimizer)
     m.trm = if m.fallback == nothing; optimize(m.task) else optimize(m.task,m.fallback) end
     m.solutions = MosekSolution[]
+    # If the problem is conic but a starting value is set,
+    # `MSK_SOL_ITG` simply contains the starting value and
+    # `MSK_SOL_ITR` contains the actual solution found.
+    # We want `VariablePrimal(1)`, ... to be `MSK_SOL_ITR` in that case
+    # so puting it first should solve the issue in that case, see
+    # https://github.com/jump-dev/MosekTools.jl/issues/66
+    if solutiondef(m.task,MSK_SOL_ITR)
+        push!(m.solutions,
+              MosekSolution(MSK_SOL_ITR,
+                            getsolsta(m.task,MSK_SOL_ITR),
+                            getprosta(m.task,MSK_SOL_ITR),
+                            getskx(m.task,MSK_SOL_ITR),
+                            getxx(m.task,MSK_SOL_ITR),
+                            matrix_solution(m, MSK_SOL_ITR),
+                            getslx(m.task,MSK_SOL_ITR),
+                            getsux(m.task,MSK_SOL_ITR),
+                            getsnx(m.task,MSK_SOL_ITR),
+                            getskc(m.task,MSK_SOL_ITR),
+                            getxc(m.task,MSK_SOL_ITR),
+                            getslc(m.task,MSK_SOL_ITR),
+                            getsuc(m.task,MSK_SOL_ITR),
+                            gety(m.task,MSK_SOL_ITR)))
+    end
     if solutiondef(m.task,MSK_SOL_ITG)
         push!(m.solutions,
               MosekSolution(MSK_SOL_ITG,
@@ -315,33 +348,16 @@ function MOI.optimize!(m::MosekModel)
                             getsuc(m.task,MSK_SOL_BAS),
                             gety(m.task,MSK_SOL_BAS)))
     end
-    if solutiondef(m.task,MSK_SOL_ITR)
-        push!(m.solutions,
-              MosekSolution(MSK_SOL_ITR,
-                            getsolsta(m.task,MSK_SOL_ITR),
-                            getprosta(m.task,MSK_SOL_ITR),
-                            getskx(m.task,MSK_SOL_ITR),
-                            getxx(m.task,MSK_SOL_ITR),
-                            matrix_solution(m, MSK_SOL_ITR),
-                            getslx(m.task,MSK_SOL_ITR),
-                            getsux(m.task,MSK_SOL_ITR),
-                            getsnx(m.task,MSK_SOL_ITR),
-                            getskc(m.task,MSK_SOL_ITR),
-                            getxc(m.task,MSK_SOL_ITR),
-                            getslc(m.task,MSK_SOL_ITR),
-                            getsuc(m.task,MSK_SOL_ITR),
-                            gety(m.task,MSK_SOL_ITR)))
-    end
 end
 
-MOI.supports(::MosekModel, ::MOI.Name) = true
-function MOI.set(m::MosekModel, ::MOI.Name, name::String)
+MOI.supports(::Optimizer, ::MOI.Name) = true
+function MOI.set(m::Optimizer, ::MOI.Name, name::String)
     puttaskname(m.task, name)
 end
-function MOI.get(m::MosekModel, ::MOI.Name)
+function MOI.get(m::Optimizer, ::MOI.Name)
     return gettaskname(m.task)
 end
-function MOI.get(m::MosekModel, ::MOI.ListOfModelAttributesSet)
+function MOI.get(m::Optimizer, ::MOI.ListOfModelAttributesSet)
     set = MOI.AbstractModelAttribute[]
     if !m.feasibility
         push!(set, MOI.ObjectiveSense())
@@ -354,11 +370,11 @@ function MOI.get(m::MosekModel, ::MOI.ListOfModelAttributesSet)
     return set
 end
 
-function MOI.is_empty(m::MosekModel)
+function MOI.is_empty(m::Optimizer)
     getnumvar(m.task) == 0 && getnumcon(m.task) == 0 && getnumcone(m.task) == 0 && getnumbarvar(m.task) == 0
 end
 
-function MOI.empty!(model::MosekModel)
+function MOI.empty!(model::Optimizer)
     model.task               = maketask()
     for (name, value) in model.ipars
         Mosek.putnaintparam(model.task, name, value)
@@ -372,11 +388,9 @@ function MOI.empty!(model::MosekModel)
     if !model.be_quiet
         Mosek.putstreamfunc(model.task, Mosek.MSK_STREAM_LOG, m -> print(m))
     end
-    model.publicnumvar       = 0
     model.has_variable_names = false
     empty!(model.constrnames)
     empty!(model.con_to_name)
-    empty!(model.x_type)
     empty!(model.x_constraints)
     model.x_block            = LinkedInts()
     empty!(model.x_sd)
@@ -388,14 +402,19 @@ function MOI.empty!(model::MosekModel)
     model.feasibility        = true
 end
 
-MOI.get(::MosekModel, ::MOI.SolverName) = "Mosek"
+MOI.get(::Optimizer, ::MOI.SolverName) = "Mosek"
 
-MOIU.supports_default_copy_to(::MosekModel, copy_names::Bool) = true
-function MOI.copy_to(dest::MosekModel, src::MOI.ModelLike; kws...)
-    return MOIU.automatic_copy_to(dest, src; kws...)
+function MOI.get(::Optimizer, ::MOI.SolverVersion)
+    major, minor, revision = Mosek.getversion()
+    return string(VersionNumber(major, minor, revision))
 end
 
-function MOI.write_to_file(m::MosekModel, filename :: String)
+MOIU.supports_default_copy_to(::Optimizer, copy_names::Bool) = true
+function MOI.copy_to(dest::Optimizer, src::MOI.ModelLike; kws...)
+    return MOIU.default_copy_to(dest, src; kws...)
+end
+
+function MOI.write_to_file(m::Optimizer, filename :: String)
     putintparam(m.task,MSK_IPAR_OPF_WRITE_SOLUTIONS, MSK_ON)
     writedata(m.task,filename)
 end
@@ -408,7 +427,7 @@ end
 #function supportsconstraints(m::MosekSolver, constraint_types) :: Bool
 #    for (fun,dom) in constraint_types
 #        if  fun in [MOI.ScalarAffineFunction{Float64},
-#                    MOI.SingleVariable,
+#                    MOI.VariableIndex,
 #                    MOI.VectorOfVariables] &&
 #            dom in [MOI.GreaterThan{Float64},
 #                    MOI.LessThan{Float64},
@@ -419,10 +438,7 @@ end
 #                    MOI.PositiveSemidefiniteConeTriangle,
 #                    MOI.PositiveSemidefiniteConeScaled ]
 #            # ok
-#        elseif dom in [MOI.ZeroOne,
-#                       MOI.Integer] &&
-#                           fun in [MOI.SingleVariable,
-#                                   MOI.VectorOfVariables]
+#        elseif dom == MOI.Integer && fun in [MOI.VariableIndex, MOI.VectorOfVariables]
 #            # ok
 #        else
 #            return false
@@ -438,9 +454,5 @@ include("objective.jl")
 include("variable.jl")
 include("constraint.jl")
 include("attributes.jl")
-
-
-export MosekModel
-
 
 end # module
