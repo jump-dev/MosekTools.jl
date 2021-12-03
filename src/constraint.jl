@@ -270,7 +270,11 @@ function row(m::MosekModel,
     return getindex(m.c_block, c.value)
 end
 function columns(m::MosekModel, ci::MOI.ConstraintIndex{MOI.VectorOfVariables})
-    return ColumnIndices(getcone(m.task, cone_id(m, ci))[4])
+    coneidx = cone_id(m, ci)
+    if coneidx < 1 || coneidx > getnumcone(m.task)
+        throw(MOI.InvalidIndex(ci))
+    end
+    return ColumnIndices(getcone(m.task, coneidx)[4])
 end
 
 const VectorCone = Union{MOI.SecondOrderCone,
@@ -672,6 +676,7 @@ end
 function MOI.delete(model::MosekModel,
                     ci::MOI.ConstraintIndex{MOI.VectorOfVariables, <:VectorCone})
     id = cone_id(model, ci)
+
     for vi in MOI.get(model, MOI.ConstraintFunction(), ci).variables
         model.variable_to_vector_constraint_id[vi.value] = 0
     end
