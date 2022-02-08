@@ -77,7 +77,6 @@ mutable struct Optimizer  <: MOI.AbstractOptimizer
     dpars :: Dict{String, Float64}
     # String parameters, i.e. parameters starting with `MSK_SPAR_`
     spars :: Dict{String, AbstractString}
-
     has_variable_names::Bool
     constrnames :: Dict{String, Vector{MOI.ConstraintIndex}}
     # Mosek only support names for `MOI.ScalarAffineFunction` so we need a
@@ -289,6 +288,7 @@ function matrix_solution(m::Optimizer, sol)
 end
 
 function MOI.optimize!(m::Optimizer)
+    println("------ fallback = $(m.fallback)")
     m.trm = if m.fallback == nothing; optimize(m.task) else optimize(m.task,m.fallback) end
     m.solutions = MosekSolution[]
     # If the problem is conic but a starting value is set,
