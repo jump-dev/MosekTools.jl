@@ -19,12 +19,20 @@ const optimizer = Mosek.Optimizer()
 MOI.set(optimizer, MOI.RawOptimizerAttribute("fallback"), FALLBACK_URL)
 MOI.set(optimizer, MOI.Silent(), true)
 
+function MosekOptimizerWithFallback()
+    optimizer = Mosek.Optimizer()
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("fallback"), FALLBACK_URL)
+    MOI.set(optimizer, MOI.Silent(), true)
+    return optimizer
+end
+
+
 @testset "SolverName" begin
     @test MOI.get(optimizer, MOI.SolverName()) == "Mosek"
 end
 
 @testset "Parameters" begin
-    optimizer = Mosek.Optimizer()
+    optimizer = MosekOptimizerWithFallback()
     MOI.set(optimizer, MOI.RawOptimizerAttribute("fallback"), FALLBACK_URL)
     @testset "Double Parameter" begin
         MOI.set(optimizer, MOI.RawOptimizerAttribute("INTPNT_CO_TOL_DFEAS"), 1e-7)
@@ -99,7 +107,8 @@ const config = MOIT.Config(
 end
 
 @testset "Bridged and cached" begin
-    model = MOIB.full_bridge_optimizer(Mosek.Optimizer(), Float64)
+    #model = MOIB.full_bridge_optimizer(Mosek.Optimizer(), Float64)
+    model = MOIB.full_bridge_optimizer(MosekOptimizerWithFallback(), Float64)
     MOI.set(model, MOI.Silent(), true)
 
     # linear and basic tests
@@ -168,7 +177,8 @@ end
     model = MOI.Bridges.full_bridge_optimizer(
         MOI.Utilities.CachingOptimizer(
                 MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}()),
-                Mosek.Optimizer(),
+                #Mosek.Optimizer(),
+                MosekOptimizerWithFallback(),
         ),
         Float64,
     )
