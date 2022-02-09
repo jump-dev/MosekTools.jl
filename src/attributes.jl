@@ -66,9 +66,23 @@ function MOI.get(m::Optimizer, attr::MOI.DualObjectiveValue)
     return getdualobj(m.task, m.solutions[attr.result_index].whichsol)
 end
 
-MOI.get(m::Optimizer, ::MOI.ObjectiveBound) = getdouinf(m.task,MSK_DINF_MIO_OBJ_BOUND)
+MOI.get(m::Optimizer, ::MOI.ObjectiveBound) =
+    if solutiondef(m.task,MSK_SOL_ITG)
+        getdouinf(m.task,MSK_DINF_MIO_OBJ_BOUND)
+    elseif solutiondef(m.task,MSK_SOL_ITR)
+        getprimalobj(m.task,MSK_SOL_ITR)
+    elseif solutiondef(m.task,MSK_SOL_BAS)
+        getprimalobj(m.task,MSK_SOL_BAS)
+    else
+        return 0.0
+    end
 
-MOI.get(m::Optimizer, ::MOI.RelativeGap) = getdouinf(m.task,MSK_DINF_MIO_OBJ_REL_GAP)
+MOI.get(m::Optimizer, ::MOI.RelativeGap) =
+    if solutiondef(m.task,MSK_SOL_ITG)
+        getdouinf(m.task,MSK_DINF_MIO_OBJ_REL_GAP)
+    else
+        0.0
+    end
 
 MOI.get(m::Optimizer, ::MOI.SolveTimeSec) = getdouinf(m.task,MSK_DINF_OPTIMIZER_TIME)
 
