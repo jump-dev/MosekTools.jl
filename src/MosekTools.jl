@@ -289,6 +289,7 @@ function matrix_solution(m::Optimizer, sol)
 end
 
 function MOI.optimize!(m::Optimizer)
+    putintparam(m.task,Mosek.MSK_IPAR_REMOVE_UNUSED_SOLUTIONS,Mosek.MSK_ON)
     m.trm = if m.fallback == nothing; optimize(m.task) else optimize(m.task,m.fallback) end
     m.solutions = MosekSolution[]
     # If the problem is conic but a starting value is set,
