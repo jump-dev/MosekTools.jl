@@ -3,7 +3,7 @@
 ``MosekTools`` is the
 [MathOptInterface.jl](https://github.com/jump-dev/MathOptInterface.jl)
 implementation for the MOSEK solver. The low-level solver API for MOSEK is
-found in the package [Mosek.jl](https://github.com/jump-dev/Mosek.jl).
+found in the package [Mosek.jl](https://github.com/MOSEK/Mosek.jl).
 The latest release of this package and the `master` branch are to be used with
 the latest release of Mosek.jl (which uses MOSEK v9). To use MOSEK v8, use
 the v0.7.x releases of this package (or the `mosekv8` branch) and v0.9.x releases Mosek.jl.
