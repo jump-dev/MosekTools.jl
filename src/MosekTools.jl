@@ -288,6 +288,7 @@ function matrix_solution(m::Optimizer, sol)
 end
 
 function MOI.optimize!(m::Optimizer)
+    # See https://github.com/jump-dev/MosekTools.jl/issues/70
     putintparam(m.task,Mosek.MSK_IPAR_REMOVE_UNUSED_SOLUTIONS,Mosek.MSK_ON)
     m.trm = if m.fallback == nothing; optimize(m.task) else optimize(m.task,m.fallback) end
     m.solutions = MosekSolution[]
@@ -321,6 +322,7 @@ function MOI.optimize!(m::Optimizer)
                             getprosta(m.task, MSK_SOL_ITG),
                             getskx(m.task, MSK_SOL_ITG),
                             getxx(m.task, MSK_SOL_ITG),
+                            # See https://github.com/jump-dev/MosekTools.jl/issues/71
                             Float64[], #matrix_solution(m, MSK_SOL_ITG),
                             Float64[],
                             Float64[],
@@ -338,6 +340,7 @@ function MOI.optimize!(m::Optimizer)
                             getprosta(m.task,MSK_SOL_BAS),
                             getskx(m.task,MSK_SOL_BAS),
                             getxx(m.task,MSK_SOL_BAS),
+                            # See https://github.com/jump-dev/MosekTools.jl/issues/71
                             Float64[], #matrix_solution(m, MSK_SOL_BAS),
                             getslx(m.task,MSK_SOL_BAS),
                             getsux(m.task,MSK_SOL_BAS),
