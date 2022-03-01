@@ -77,7 +77,6 @@ mutable struct Optimizer  <: MOI.AbstractOptimizer
     dpars :: Dict{String, Float64}
     # String parameters, i.e. parameters starting with `MSK_SPAR_`
     spars :: Dict{String, AbstractString}
-
     has_variable_names::Bool
     constrnames :: Dict{String, Vector{MOI.ConstraintIndex}}
     # Mosek only support names for `MOI.ScalarAffineFunction` so we need a

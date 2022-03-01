@@ -442,9 +442,9 @@ function MOI.add_constrained_variables(
     dom::MOI.PositiveSemidefiniteConeTriangle
 )
     N = dom.side_dimension
-    if N < 2
+    if N < 1
         error("Invalid dimension for semidefinite constraint, got $N which is ",
-              "smaller than the minimum dimension 2.")
+              "smaller than the minimum dimension 1.")
     end
     appendbarvars(m.task, [Int32(N)])
     push!(m.sd_dim, N)
