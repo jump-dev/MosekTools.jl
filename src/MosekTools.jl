@@ -412,7 +412,7 @@ function MOI.get(::Optimizer, ::MOI.SolverVersion)
     return string(VersionNumber(major, minor, revision))
 end
 
-MOIU.supports_default_copy_to(::Optimizer, copy_names::Bool) = true
+MOI.supports_incremental_interface(::Optimizer) = true
 function MOI.copy_to(dest::Optimizer, src::MOI.ModelLike; kws...)
     return MOIU.default_copy_to(dest, src; kws...)
 end
