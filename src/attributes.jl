@@ -465,12 +465,17 @@ function MOI.get(m::Optimizer, attr::MOI.TerminationStatus)
         # checking `any(sol -> sol.solsta == MSK_SOL_STA_PRIM_INFEAS_CER, m.solutions)`
         # doesn't work for MIP as there is not certificate, i.e. the solutions status is
         # `UNKNOWN`, only the problem status is `INFEAS`.
-        if any(sol -> sol.prosta == MSK_PRO_STA_PRIM_INFEAS, m.solutions)
+        if any(sol -> sol.prosta in [ MSK_PRO_STA_PRIM_INFEAS,
+                                      MSK_PRO_STA_ILL_POSED], m.solutions)
             MOI.INFEASIBLE
         elseif any(sol -> sol.prosta == MSK_PRO_STA_DUAL_INFEAS, m.solutions)
             MOI.DUAL_INFEASIBLE
-        else
+        elseif any(sol -> sol.prosta == MSK_PRO_STA_PRIM_INFEAS_OR_UNBOUNDED,m.solutions)
+            MOI.INFEASIBLE_OR_UNBOUNDED
+        elseif any(sol -> sol.solsta in [ MSK_SOL_STA_OPTIMAL,MSK_SOL_STA_INTEGER_OPTIMAL ], m.solutions)
             MOI.OPTIMAL
+        else
+            MOI.OTHER_ERROR # ??
         end
     elseif m.trm == MSK_RES_TRM_MAX_ITERATIONS
         MOI.ITERATION_LIMIT
