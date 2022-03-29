@@ -579,3 +579,10 @@ function MOI.get(m::Optimizer,attr::MOI.DualStatus)
         MOI.UNKNOWN_RESULT_STATUS
     end
 end
+
+function MOI.Utilities.substitute_variables(
+    ::F,
+    x::Mosek.MosekEnum,
+) where {F<:Function}
+    return x
+end

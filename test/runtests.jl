@@ -220,3 +220,23 @@ end
     MOI.Utilities.attach_optimizer(model) # Should drop errors silently in the copy
     @test "a" == MOI.get(model, MOI.VariableName(), x[1])
 end
+
+# See https://github.com/jump-dev/MosekTools.jl/issues/95
+@testset "Mapping enums" begin
+    MOI.empty!(optimizer)
+    # Force variable bridging to test attribute substitution
+    bridged = MOI.Bridges.Variable.Zeros{Float64}(optimizer)
+    cache = MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}())
+    model = MOI.Utilities.CachingOptimizer(cache, bridged)
+    attr = MOI.RawOptimizerAttribute("MSK_IPAR_INTPNT_SOLVE_FORM")
+    value = MosekTools.MSK_SOLVE_DUAL
+    MOI.add_constrained_variables(model, MOI.Zeros(1))
+    MOI.Utilities.attach_optimizer(model)
+    # The function should not be used so we can use anything here as first argument
+    @test MOI.Utilities.substitute_variables(x -> x^2, value) == value
+    MOI.set(model, attr, value)
+    # Currently Mosek returns `value.value` but we don't want the tests to fail if this gets fixed in the future
+    # so we also allow `value`.
+    @test MOI.get(model, attr) == value.value || MOI.get(model, attr) == value
+    @test MOI.get(optimizer, attr) == value.value || MOI.get(model, attr) == value
+end
