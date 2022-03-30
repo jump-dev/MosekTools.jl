@@ -409,6 +409,7 @@ function MOI.empty!(model::Optimizer)
     model.trm                = nothing
     empty!(model.solutions)
     model.feasibility        = true
+    model.has_objective      = false
 end
 
 MOI.get(::Optimizer, ::MOI.SolverName) = "Mosek"
