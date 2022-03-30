@@ -85,14 +85,26 @@ const config = MOIT.Config(
 @testset "Direct optimizer tests" begin
     MOIT.runtests(optimizer, config,
         exclude=[
-            "test_variable_solve_ZeroOne_with_0_upper_bound",
-            "test_model_ListOfConstraintAttributesSet", # TODO implement
+            # FIXME
+            # Expression: MOI.add_constraint(model, x, set2)
+            #   Expected: MathOptInterface.LowerBoundAlreadySet{MathOptInterface.EqualTo{Float64}, MathOptInterface.GreaterThan{Float64}}(MathOptInterface.VariableIndex(1))
+            #     Thrown: ErrorException("Cannot put multiple bound sets of the same type on a variable")
             "test_model_LowerBoundAlreadySet",
             "test_model_UpperBoundAlreadySet",
+            # FIXME ArgumentError: MosekTools.Optimizer does not support getting the attribute MathOptInterface.VariablePrimalStart().
             "test_model_VariablePrimalStart",
+            # FIXME
             "test_model_duplicate_VariableName",
+            # FIXME `MOI.ListOfConstraintAttributesSet` incorrect
+            "test_model_ListOfConstraintAttributesSet",
+            # FIXME `MOI.ListOfModelAttributesSet` incorrect
             "test_objective_set_via_modify",
+            #  Expression: MOI.set(model, MOI.ConstraintName(), c, "c1")
+            #    Expected: MathOptInterface.UnsupportedAttribute{MathOptInterface.ConstraintName}(MathOptInterface.ConstraintName(), "`ConstraintName`s are not supported for `VariableIndex` constraints.")
+            #  No exception thrown
             "test_model_VariableIndex_ConstraintName",
+            # FIXME Needs https://github.com/jump-dev/MathOptInterface.jl/pull/1787
+            "test_variable_solve_ZeroOne_with_0_upper_bound",
         ],
     )
 end
