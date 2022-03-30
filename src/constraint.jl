@@ -337,7 +337,7 @@ const ScalarLinearDomain = Union{MOI.LessThan{Float64},
 
 MOI.supports_constraint(::Optimizer, ::Type{<:Union{MOI.VariableIndex, MOI.ScalarAffineFunction}}, ::Type{<:ScalarLinearDomain}) = true
 MOI.supports_constraint(::Optimizer, ::Type{MOI.VectorOfVariables}, ::Type{<:VectorCone}) = true
-MOI.supports_constraint(::Optimizer, ::Type{MOI.VariableIndex}, ::Type{<:MOI.Integer}) = true
+MOI.supports_constraint(::Optimizer, ::Type{MOI.VariableIndex}, ::Type{MOI.Integer}) = true
 MOI.supports_add_constrained_variables(::Optimizer, ::Type{MOI.PositiveSemidefiniteConeTriangle}) = true
 
 ## Affine Constraints #########################################################
@@ -390,7 +390,8 @@ cone_type(::Type{MOI.RotatedSecondOrderCone}) = MSK_CT_RQUAD
 function MOI.add_constraint(
     m   :: Optimizer,
     xs  :: MOI.VariableIndex,
-    dom :: D) where {D <: MOI.AbstractScalarSet}
+    dom :: D,
+) where {D<:Union{ScalarLinearDomain,MOI.Integer}}
 
     msk_idx = mosek_index(m, xs)
     if !(msk_idx isa ColumnIndex)
