@@ -153,6 +153,12 @@ end
             "test_objective_set_via_modify",
             "test_quadratic_nonconvex_constraint_integration",
             "test_solve_ObjectiveBound_MAX_SENSE_LP", # ObjectiveBound invalid
+            # ZeroOne is bridged as bounds so it adds twice lower/upper bounds
+            "test_constraint_ZeroOne_bounds",
+            "test_constraint_ZeroOne_bounds_2",
+            "test_constraint_ZeroOne_bounds_3",
+            "test_variable_solve_ZeroOne_with_0_upper_bound",
+            "test_variable_solve_ZeroOne_with_upper_bound",
         ],
     )
 
@@ -182,6 +188,12 @@ end
             "test_basic_VectorOfVariables_LogDetConeTriangle", # Mosek.MosekError(1307, "Variable '' (1) is a member of cone '' (0).") src/msk_functions.jl:477
             "test_conic_LogDetConeTriangle_VectorOfVariables",
             "BoundAlreadySet", # TODO throw error if bound already set
+            # ZeroOne is bridged as bounds so it adds twice lower/upper bounds
+            "test_constraint_ZeroOne_bounds",
+            "test_constraint_ZeroOne_bounds_2",
+            "test_constraint_ZeroOne_bounds_3",
+            "test_variable_solve_ZeroOne_with_0_upper_bound",
+            "test_variable_solve_ZeroOne_with_upper_bound",
         ],
     )
 end
