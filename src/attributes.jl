@@ -113,6 +113,7 @@ function MOI.set(model::Optimizer,
     else
         @assert sense == MOI.FEASIBILITY_SENSE
         model.feasibility = true
+        model.has_objective = false
         putobjsense(model.task,MSK_OBJECTIVE_SENSE_MINIMIZE)
         MOI.set(model,
                 MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),

@@ -97,8 +97,6 @@ const config = MOIT.Config(
             "test_model_duplicate_VariableName",
             # FIXME `MOI.ListOfConstraintAttributesSet` incorrect
             "test_model_ListOfConstraintAttributesSet",
-            # FIXME `MOI.ListOfModelAttributesSet` incorrect
-            "test_objective_set_via_modify",
             #  Expression: MOI.set(model, MOI.ConstraintName(), c, "c1")
             #    Expected: MathOptInterface.UnsupportedAttribute{MathOptInterface.ConstraintName}(MathOptInterface.ConstraintName(), "`ConstraintName`s are not supported for `VariableIndex` constraints.")
             #  No exception thrown
