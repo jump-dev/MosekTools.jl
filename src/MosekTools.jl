@@ -127,6 +127,12 @@ mutable struct Optimizer  <: MOI.AbstractOptimizer
     MOI.get(::Optimizer, ::ObjectiveSense) to still return the right value
     """
     feasibility :: Bool
+    """
+    Indicates whether there is an objective set.
+    If `has_objective` is `false` then Mosek has a zero objective internally.
+    This affects `MOI.ListOfModelAttributesSet`.
+    """
+    has_objective :: Bool
 
     fallback :: Union{String, Nothing}
 
@@ -149,6 +155,7 @@ mutable struct Optimizer  <: MOI.AbstractOptimizer
             nothing,# trm
             MosekSolution[],
             true, # feasibility_sense
+            false, # has_objective
             nothing,
         )
         Mosek.putstreamfunc(optimizer.task, Mosek.MSK_STREAM_LOG, m -> print(m))
@@ -362,9 +369,10 @@ function MOI.get(m::Optimizer, ::MOI.ListOfModelAttributesSet)
     set = MOI.AbstractModelAttribute[]
     if !m.feasibility
         push!(set, MOI.ObjectiveSense())
+    end
+    if m.has_objective
         push!(set, MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}())
     end
-    set = [MOI.ObjectiveSense(), MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}()]
     if !isempty(MOI.get(m, MOI.Name()))
         push!(set, MOI.Name())
     end
@@ -401,6 +409,7 @@ function MOI.empty!(model::Optimizer)
     model.trm                = nothing
     empty!(model.solutions)
     model.feasibility        = true
+    model.has_objective      = false
 end
 
 MOI.get(::Optimizer, ::MOI.SolverName) = "Mosek"

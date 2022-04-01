@@ -39,16 +39,22 @@ function MOI.set(m::Optimizer, ::MOI.ObjectiveFunction,
     end
     putclist(m.task, convert(Vector{Int32}, 1:length(c)), c)
     putcfix(m.task,func.constant)
+    m.has_objective = true
+    return
 end
 
 function MOI.modify(m::Optimizer,
                     ::MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}},
                     change :: MOI.ScalarConstantChange)
     putcfix(m.task,change.new_constant)
+    m.has_objective = true
+    return
 end
 
 function MOI.modify(m::Optimizer,
                     ::MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}},
                     change :: MOI.ScalarCoefficientChange)
     putcj(m.task, column(m, change.variable).value, change.new_coefficient)
+    m.has_objective = true
+    return
 end
