@@ -65,9 +65,8 @@ end
     end
 end
 
-@testset "supports_default_copy_to" begin
-    @test MOIU.supports_default_copy_to(optimizer, false)
-    @test MOIU.supports_default_copy_to(optimizer, true)
+@testset "supports_incremental_interface" begin
+    @test MOI.supports_incremental_interface(optimizer)
 end
 
 const config = MOIT.Config(
