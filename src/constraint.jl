@@ -4,6 +4,21 @@
 
 ## Affine Constraints #########################################################
 ##################### lc ≤ Ax ≤ uc ############################################
+const VectorCone = Union{MOI.SecondOrderCone,
+                         MOI.RotatedSecondOrderCone,
+                         MOI.PowerCone,
+                         MOI.DualPowerCone,
+                         MOI.ExponentialCone,
+                         MOI.DualExponentialCone}
+
+# VectorConeDomain is a union of all domain types that can currently
+# be mapped from Julia domain types to Mosek ACCs
+const VectorConeDomain = Union{MOI.SecondOrderCone,
+                               MOI.RotatedSecondOrderCone,
+                               MOI.PowerCone,
+                               MOI.DualPowerCone,
+                               MOI.ExponentialCone,
+                               MOI.DualExponentialCone}
 
 function allocateconstraints(m::Optimizer, N::Int)
     numcon = getnumcon(m.task)
@@ -144,7 +159,7 @@ function get_bound(m::Optimizer,
 end
 
 function get_bound(m::Optimizer,
-                   ci::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64}, S}) where {S<:VectorCone}
+                   ci::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64}, S}) where {S<:VectorConeDomain}
     dt   = getdomaintype(m.task,getaccdomain(m.task,ci.value))
     if     dt == MSK_DOMAIN_QUADRATIC_CONE     MOI.SecondOrderCone()
     elseif dt == MSK_DOMAIN_RQUADRATIC_CONE    MOI.RotatedSecondOrderCone()
@@ -321,27 +336,14 @@ function columns(m::Optimizer, ci::MOI.ConstraintIndex{MOI.VectorOfVariables})
     return ColumnIndices(getcone(m.task, coneidx)[4])
 end
 
-const VectorCone = Union{MOI.SecondOrderCone,
-                         MOI.RotatedSecondOrderCone,
-                         MOI.PowerCone,
-                         MOI.DualPowerCone,
-                         MOI.ExponentialCone,
-                         MOI.DualExponentialCone}
-
-const VectorConeX = Union{MOI.SecondOrderCone,
-                          MOI.RotatedSecondOrderCone,
-                          MOI.PowerCone,
-                          MOI.DualPowerCone,
-                          MOI.ExponentialCone,
-                          MOI.DualExponentialCone}
 
 
-appendconedomain(t::Mosek.Task,n:UInt,dom::MOI.ExponentialCone)        = Mosek.appendprimalexpconedomain(t)
-appendconedomain(t::Mosek.Task,n:UInt,dom::MOI.DualExponentialCone)    = Mosek.appenddualexpconedomain(t)
-appendconedomain(t::Mosek.Task,n:UInt,dom::MOI.PowerCone{Float64})     = Mosek.appendprimalpowerconedomain(t,3,Float64[dom.exponent,1.0-dom.exponent])
-appendconedomain(t::Mosek.Task,n:UInt,dom::MOI.DualPowerCone{Float64}) = Mosek.appenddualpowerconedomain(t,3,Float64[dom.exponent,1.0-dom.exponent])
-appendconedomain(t::Mosek.Task,n:UInt,dom::MOI.SecondOrderCone)        = Mosek.appendquadraticconedomain(t,n)
-appendconedomain(t::Mosek.Task,n:UInt,dom::MOI.RotatedSecondOrderCone) = Mosek.appendrquadraticconedomain(t,n)
+appendconedomain(t::Mosek.Task,n::Int,dom::MOI.ExponentialCone)        = Mosek.appendprimalexpconedomain(t)
+appendconedomain(t::Mosek.Task,n::Int,dom::MOI.DualExponentialCone)    = Mosek.appenddualexpconedomain(t)
+appendconedomain(t::Mosek.Task,n::Int,dom::MOI.PowerCone{Float64})     = Mosek.appendprimalpowerconedomain(t,3,Float64[dom.exponent,1.0-dom.exponent])
+appendconedomain(t::Mosek.Task,n::Int,dom::MOI.DualPowerCone{Float64}) = Mosek.appenddualpowerconedomain(t,3,Float64[dom.exponent,1.0-dom.exponent])
+appendconedomain(t::Mosek.Task,n::Int,dom::MOI.SecondOrderCone)        = Mosek.appendquadraticconedomain(t,n)
+appendconedomain(t::Mosek.Task,n::Int,dom::MOI.RotatedSecondOrderCone) = Mosek.appendrquadraticconedomain(t,n)
 
 # Two `SingleVariable`-in-`S` cannot be set to the same variable if
 # the two constraints
@@ -387,7 +389,7 @@ const ScalarLinearDomain = Union{MOI.LessThan{Float64},
 MOI.supports_constraint(::Optimizer, ::Type{<:Union{MOI.VariableIndex, MOI.ScalarAffineFunction}}, ::Type{<:ScalarLinearDomain}) = true
 MOI.supports_constraint(::Optimizer, ::Type{MOI.VectorOfVariables}, ::Type{<:VectorCone}) = true
 MOI.supports_constraint(::Optimizer, ::Type{MOI.VariableIndex}, ::Type{MOI.Integer}) = true
-MOI.supports_constraint(::Optimizer, ::Type{MOI.VectorAffineFunction}, ::Type{<:VectorCone}) = true
+MOI.supports_constraint(::Optimizer, ::Type{MOI.VectorAffineFunction}, ::Type{<:VectorConeDomain}) = true
 MOI.supports_add_constrained_variables(::Optimizer, ::Type{MOI.PositiveSemidefiniteConeTriangle}) = true
 
 ## Affine Constraints #########################################################
@@ -487,7 +489,7 @@ reorder_idxs(jj :: Vector{Int64},T) = jj
 
 function MOI.add_constraints(m::Optimizer,
                              axbs::MOI.VectorAffineFunction{Float64},
-                             dom::D) where {D<:VectorCone}
+                             dom::D) where {D<:VectorConeDomain}
     # if any(vi -> is_matrix(m, vi), xs.variables)
     #     error("Cannot add $D constraint on a matrix variable")
     # end
@@ -630,7 +632,7 @@ function MOI.get(m::Optimizer, ::MOI.ConstraintFunction,
 end
 
 function MOI.get(m::Optimizer, ::MOI.ConstraintFunction,
-                 ci::MOI.ConstraintIndex{MOI.VectorAffineFunction, S}) where S <: VectorCone
+                 ci::MOI.ConstraintIndex{MOI.VectorAffineFunction, S}) where S <: VectorConeDomain
     acci = ci.value
     (frow,fcol,fval) = getaccftrip(m.task,acci)
     constants = getaccgvector(m.task,acci)
@@ -751,7 +753,7 @@ end
 ###############################################################################
 
 function MOI.is_valid(model::Optimizer,
-                      ci::MOI.ConstraintIndex{<:MOI.VectorAffineFunction{Float64}, S}) where S<:VectorCone
+                      ci::MOI.ConstraintIndex{<:MOI.VectorAffineFunction{Float64}, S}) where S<:VectorConeDomain
     numacc = getnumacc(model.task)
     if ci.value < 1 || ci.value > numacc
         false
@@ -776,7 +778,7 @@ end
 # not reclaim the AFEs.
 function MOI.delete(m::Optimizer,
                     cref::MOI.ConstraintIndex{F,D}) where {F <: MOI.VectorAffineFunction{Float64},
-                                                           D <: VectorCone}
+                                                           D <: VectorConeDomain}
     MOI.throw_if_not_valid(m, cref)
     putaccname(m.task,cref.value,"")
     afeidxs = getaccafeidxlist(m.task,cref.value)
