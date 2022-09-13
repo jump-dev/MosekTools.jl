@@ -451,7 +451,6 @@ function MOI.add_constraint(
 
     if !iszero(incompatible_mask(D) & m.x_constraints[xs.value])
         error("Cannot put multiple bound sets of the same type on a variable")
-        # throw(MOI.LowerBoundAlreadySet{?, D}(xs)) # TODO find which set was the initial constraint
     end
 
     set_flag(m, xs, D)

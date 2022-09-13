@@ -473,9 +473,9 @@ function MOI.get(m::Optimizer, attr::MOI.RawStatusString)
     if     m.trm === nothing
         return "MOI.OPTIMIZE_NOT_CALLED"
     elseif m.trm == MSK_RES_OK
-        return join([string(sol.solsta) for sol in m.solutions], ", ")
+        return join([Mosek.tostr(sol.solsta) for sol in m.solutions], ", ")
     else
-        return string(m.trm)
+        return Mosek.tostr(m.trm)
     end
 
 end
