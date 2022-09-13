@@ -158,6 +158,7 @@ mutable struct Optimizer  <: MOI.AbstractOptimizer
             false, # has_objective
             nothing,
         )
+        Mosek.appendrzerodomain(optimizer.task,0)
         Mosek.putstreamfunc(optimizer.task, Mosek.MSK_STREAM_LOG, m -> print(m))
         if length(kws) > 0
             @warn("""Passing optimizer attributes as keyword arguments to
@@ -385,6 +386,7 @@ end
 
 function MOI.empty!(model::Optimizer)
     model.task               = maketask()
+    Mosek.appendrzerodomain(model.task,0)
     for (name, value) in model.ipars
         Mosek.putnaintparam(model.task, name, value)
     end
