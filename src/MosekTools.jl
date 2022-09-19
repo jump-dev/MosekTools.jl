@@ -212,6 +212,13 @@ function MOI.get(m::Optimizer, p::StringParameter)
     return str
 end
 
+"""
+Set optimizer parameters. Set MOSEK solver parameters, or one of the
+additional parametes:
+
+- "QUIET" (true|false), to enable or disable solver log output
+- "fallback" (string), to set a solver server to use if no local license file was found,
+"""
 function MOI.set(m::Optimizer, p::MOI.RawOptimizerAttribute, value)
     if p.name == "QUIET"
         if m.be_quiet != convert(Bool, value)
