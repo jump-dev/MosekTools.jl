@@ -4,6 +4,21 @@
 
 ## Affine Constraints #########################################################
 ##################### lc ≤ Ax ≤ uc ############################################
+const VectorCone = Union{MOI.SecondOrderCone,
+                         MOI.RotatedSecondOrderCone,
+                         MOI.PowerCone,
+                         MOI.DualPowerCone,
+                         MOI.ExponentialCone,
+                         MOI.DualExponentialCone}
+
+# VectorConeDomain is a union of all domain types that can currently
+# be mapped from Julia domain types to Mosek ACCs
+const VectorConeDomain = Union{MOI.SecondOrderCone,
+                               MOI.RotatedSecondOrderCone,
+                               MOI.PowerCone,
+                               MOI.DualPowerCone,
+                               MOI.ExponentialCone,
+                               MOI.DualExponentialCone}
 
 function allocateconstraints(m::Optimizer, N::Int)
     numcon = getnumcon(m.task)
@@ -38,17 +53,17 @@ function split_scalar_matrix(m::Optimizer, terms::Vector{MOI.ScalarAffineTerm{Fl
     sd_row  = Vector{Int32}[Int32[] for i in 1:length(m.sd_dim)]
     sd_col  = Vector{Int32}[Int32[] for i in 1:length(m.sd_dim)]
     sd_coef = Vector{Float64}[Float64[] for i in 1:length(m.sd_dim)]
-	function add(col::ColumnIndex, coefficient::Float64)
-		push!(cols, col.value)
-		push!(values, coefficient)
-	end
-	function add(mat::MatrixIndex, coefficient::Float64)
+    function add(col::ColumnIndex, coefficient::Float64)
+	push!(cols, col.value)
+	push!(values, coefficient)
+    end
+    function add(mat::MatrixIndex, coefficient::Float64)
         coef = mat.row == mat.column ? coefficient : coefficient / 2
         push!(sd_row[mat.matrix], mat.row)
         push!(sd_col[mat.matrix], mat.column)
         push!(sd_coef[mat.matrix], coef)
     end
-	for term in terms
+    for term in terms
         add(mosek_index(m, term.variable), term.coefficient)
     end
     for j in 1:length(m.sd_dim)
@@ -141,6 +156,40 @@ end
 function get_bound(m::Optimizer,
                    ci::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}, S}) where {S}
     bounds_to_set(S, getconbound(m.task, row(m, ci))...)
+end
+
+function get_bound(m::Optimizer,
+                   ci::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64}, S}) where {S<:VectorConeDomain}
+    dt   = getdomaintype(m.task,getaccdomain(m.task,ci.value))
+    if     dt == MSK_DOMAIN_QUADRATIC_CONE     MOI.SecondOrderCone()
+    elseif dt == MSK_DOMAIN_RQUADRATIC_CONE    MOI.RotatedSecondOrderCone()
+    elseif dt == MSK_DOMAIN_PRIMAL_EXP_CONE    MOI.ExponentialCone()
+    elseif dt == MSK_DOMAIN_DUAL_EXP_CONE      MOI.DualExponentialCone()
+    elseif dt == MSK_DOMAIN_PRIMAL_POWER_CONE  MOI.PowerCone
+        (n,nleft) = getpowerdomaininfo(m.task,ci.value)
+        if n != 3 || nleft != 2
+            error("Incompatible power cone detected")
+        end
+        alpha = getpowerdomainalpha(m.taskci.value)
+        MOI.PowerCone(alpha[1])
+    elseif dt == MSK_DOMAIN_DUAL_POWER_CONE    MOI.DualPowerCone
+        (n,nleft) = getpowerdomaininfo(m.task,ci.value)
+        if n != 3 || nleft != 1
+            error("Incompatible power cone detected")
+        end
+        alpha = getpowerdomainalpha(m.taskci.value)
+        MOI.DualPowerCone(alpha[1])
+    # elseif dt == MSK_DOMAIN_R
+    # elseif dt == MSK_DOMAIN_RZERO
+    # elseif dt == MSK_DOMAIN_RPLUS
+    # elseif dt == MSK_DOMAIN_RMINUS
+    # elseif dt == MSK_DOMAIN_PRIMAL_GEO_MEAN_CONE
+    # elseif dt == MSK_DOMAIN_DUAL_GEO_MEAN_CONE
+    # elseif dt == MSK_DOMAIN_SVEC_PSD_CONE
+    else
+        error("Incompatible cone detected")
+    end
+
 end
 
 ## Variable Constraints #######################################################
@@ -287,12 +336,14 @@ function columns(m::Optimizer, ci::MOI.ConstraintIndex{MOI.VectorOfVariables})
     return ColumnIndices(getcone(m.task, coneidx)[4])
 end
 
-const VectorCone = Union{MOI.SecondOrderCone,
-                         MOI.RotatedSecondOrderCone,
-                         MOI.PowerCone,
-                         MOI.DualPowerCone,
-                         MOI.ExponentialCone,
-                         MOI.DualExponentialCone}
+
+
+appendconedomain(t::Mosek.Task,n::Int,dom::MOI.ExponentialCone)        = Mosek.appendprimalexpconedomain(t)
+appendconedomain(t::Mosek.Task,n::Int,dom::MOI.DualExponentialCone)    = Mosek.appenddualexpconedomain(t)
+appendconedomain(t::Mosek.Task,n::Int,dom::MOI.PowerCone{Float64})     = Mosek.appendprimalpowerconedomain(t,3,Float64[dom.exponent,1.0-dom.exponent])
+appendconedomain(t::Mosek.Task,n::Int,dom::MOI.DualPowerCone{Float64}) = Mosek.appenddualpowerconedomain(t,3,Float64[dom.exponent,1.0-dom.exponent])
+appendconedomain(t::Mosek.Task,n::Int,dom::MOI.SecondOrderCone)        = Mosek.appendquadraticconedomain(t,n)
+appendconedomain(t::Mosek.Task,n::Int,dom::MOI.RotatedSecondOrderCone) = Mosek.appendrquadraticconedomain(t,n)
 
 # Two `SingleVariable`-in-`S` cannot be set to the same variable if
 # the two constraints
@@ -338,6 +389,7 @@ const ScalarLinearDomain = Union{MOI.LessThan{Float64},
 MOI.supports_constraint(::Optimizer, ::Type{<:Union{MOI.VariableIndex, MOI.ScalarAffineFunction}}, ::Type{<:ScalarLinearDomain}) = true
 MOI.supports_constraint(::Optimizer, ::Type{MOI.VectorOfVariables}, ::Type{<:VectorCone}) = true
 MOI.supports_constraint(::Optimizer, ::Type{MOI.VariableIndex}, ::Type{MOI.Integer}) = true
+MOI.supports_constraint(::Optimizer, ::Type{MOI.VectorAffineFunction}, ::Type{<:VectorConeDomain}) = true
 MOI.supports_add_constrained_variables(::Optimizer, ::Type{MOI.PositiveSemidefiniteConeTriangle}) = true
 
 ## Affine Constraints #########################################################
@@ -346,7 +398,6 @@ MOI.supports_add_constrained_variables(::Optimizer, ::Type{MOI.PositiveSemidefin
 function MOI.add_constraint(m  ::Optimizer,
                             axb::MOI.ScalarAffineFunction{Float64},
                             dom::D) where {D <: MOI.AbstractScalarSet}
-
     if !iszero(axb.constant)
         throw(MOI.ScalarFunctionConstantNotZero{Float64, typeof(axb), D}(axb.constant))
     end
@@ -400,7 +451,6 @@ function MOI.add_constraint(
 
     if !iszero(incompatible_mask(D) & m.x_constraints[xs.value])
         error("Cannot put multiple bound sets of the same type on a variable")
-        # throw(MOI.LowerBoundAlreadySet{?, D}(xs)) # TODO find which set was the initial constraint
     end
 
     set_flag(m, xs, D)
@@ -431,6 +481,76 @@ function MOI.add_constraint(m::Optimizer, xs::MOI.VectorOfVariables,
     ci = MOI.ConstraintIndex{MOI.VectorOfVariables, D}(idx)
     return ci
 end
+
+reorder_idxs(jj :: Vector{Int64},::Type{MOI.ExponentialCone}) = jj[[3,2,1]]
+reorder_idxs(jj :: Vector{Int64},::Type{MOI.DualExponentialCone}) = jj[[3,2,1]]
+reorder_idxs(jj :: Vector{Int64},T) = jj
+
+function MOI.add_constraints(m::Optimizer,
+                             axbs::MOI.VectorAffineFunction{Float64},
+                             dom::D) where {D<:VectorConeDomain}
+    # if any(vi -> is_matrix(m, vi), xs.variables)
+    #     error("Cannot add $D constraint on a matrix variable")
+    # end
+
+    let acci = getnumacc(m.task),
+        afei = getnumafe(m.task),
+        b    = axbs.constants,
+        num  = length(axbs.constants),
+        nnz  = length(axbs.terms),
+        domi = appendconedomain(dom.task,num,dom)
+
+        appendafes(num)
+        appendaccseq(domi,afei,b)
+
+        rsubi = Vector{Int64}(); sizehint!(rsubi,nnz)
+        rsubj = Vector{Int32}(); sizehint!(rsubj,nnz)
+        rcof  = Vector{Float64}(); sizehint!(rcof, nnz)
+
+        rbarsubi = Vector{Int64}(); sizehint!(rsubi,nnz)
+        rbarsubj = Vector{Int32}(); sizehint!(rsubj,nnz)
+        rbarsubk = Vector{Int64}(); sizehint!(rsubk,nnz)
+        rbarsubl = Vector{Int64}(); sizehint!(rsubl,nnz)
+        rbarcof  = Vector{Float64}(); sizehint!(rsubl,nnz)
+
+        function add(row::Int,col::ColumnIndex, coefficient::Float64)
+            push!(rsubi,row)
+            push!(rsubj,col.value)
+	    push!(rcof, coefficient)
+        end
+        function add(row::Int,mat::MatrixIndex, coefficient::Float64)
+            push!(rbarsubi,row)
+            push!(rbarsubj,mat.matrix)
+            push!(rbarsubk,mat.row)
+            push!(rbarsubl,mat.column)
+	    push!(rbarcof,mat.row == mat.column ? coefficient : coefficient / 2)
+        end
+
+        for term in axbs.terms
+            add(term.output_index+afei,term.scalar_term.variable,term.scalar_term.coefficient)
+        end
+
+        rsubi = reorder_idxs(rsubi,D)
+
+        putafefentrylist(m.task,rsubi,rsubj,rcof)
+        putafebarfblocktriplet(m.task,rbarsubi,rbarsubj,rbarsubk,rbarsubl,rbarcof)
+
+        MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},D}(acci)
+    end
+
+    # cols = ColumnIndices(reorder(columns(m, xs.variables).values, D))
+
+    # id = add_cone(m, cols, dom)
+    # idx = first(xs.variables).value
+    # for vi in xs.variables
+    #     m.variable_to_vector_constraint_id[vi.value] = -idx
+    # end
+    # m.variable_to_vector_constraint_id[idx] = id
+
+    # ci = MOI.ConstraintIndex{MOI.VectorOfVariables, D}(idx)
+    # return ci
+end
+
 function cone_id(model::Optimizer, ci::MOI.ConstraintIndex{MOI.VectorOfVariables})
     return model.variable_to_vector_constraint_id[ci.value]
 end
@@ -496,6 +616,12 @@ function MOI.get(m::Optimizer, ::MOI.ConstraintSet,
     MOI.throw_if_not_valid(m, ci)
     return get_bound(m, ci)
 end
+function MOI.get(m::Optimizer,
+                 ::MOI.ConstraintSet,
+                 ci::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64}})
+    MOI.throw_if_not_valid(m,ci)
+    return get_bound(m,ci)
+end
 
 function MOI.get(m::Optimizer, ::MOI.ConstraintFunction,
                  ci::MOI.ConstraintIndex{MOI.VectorOfVariables, S}) where S <: VectorCone
@@ -503,6 +629,25 @@ function MOI.get(m::Optimizer, ::MOI.ConstraintFunction,
         index_of_column(m, col) for col in reorder(columns(m, ci).values, S)
     ])
 end
+
+function MOI.get(m::Optimizer, ::MOI.ConstraintFunction,
+                 ci::MOI.ConstraintIndex{MOI.VectorAffineFunction, S}) where S <: VectorConeDomain
+    acci = ci.value
+    (frow,fcol,fval) = getaccftrip(m.task,acci)
+    constants = getaccgvector(m.task,acci)
+    terms = [ VectorAffineTerm(frow[i],ScalarAffineTerm(fcol,fval)) for i in 1:length(frow) ]
+end
+
+function MOI.get(m::Optimizer, ::MOI.ConstraintFunction,
+                 ci::MOI.ConstraintIndex{MOI.VectorAffineFunction, S}) where S <: Union{MOI.ExponentialCone,MOI.DualExponentialCone}
+    acci = ci.value
+    (frow,fcol,fval) = getaccftrip(m.task,acci)
+    constants = getaccgvector(m.task,acci)
+    idxmap = Int64[3,2,1]
+    terms = [ MOI.VectorAffineTerm(idxmap[frow[i]],MOI.ScalarAffineTerm(fcol,fval)) for i in 1:length(frow) ]
+    MOI.VectorAffineFunction(terms,constants)
+end
+
 function type_cone(ct)
     if ct == MSK_CT_PEXP
         return MOI.ExponentialCone
@@ -551,7 +696,6 @@ function MOI.set(m::Optimizer,
     bl, bu = chgbound(bl, bu, 0.0, dom)
     putvarbound(m.task, col.value, bk, bl, bu)
 end
-
 
 function MOI.set(m::Optimizer,
                  ::MOI.ConstraintSet,
@@ -606,6 +750,46 @@ end
 
 ## Delete #####################################################################
 ###############################################################################
+
+function MOI.is_valid(model::Optimizer,
+                      ci::MOI.ConstraintIndex{<:MOI.VectorAffineFunction{Float64}, S}) where S<:VectorConeDomain
+    numacc = getnumacc(model.task)
+    if ci.value < 1 || ci.value > numacc
+        false
+    else
+        domidx = getaccdomain(model.task,ci.value)
+        if domidx == 1
+            false
+        else
+            dt = getdomaintype(modek.task,domidx)
+            ( (dt == MSK_DOMAIN_QUADRATIC_CONE    && S == MOI.SecondOrderCone) ||
+              (dt == MSK_DOMAIN_RQUADRATIC_CONE   && S == MOI.RotatedSecondOrderCone) ||
+              (dt == MSK_DOMAIN_PRIMAL_EXP_CONE   && S == MOI.ExponentialCone) ||
+              (dt == MSK_DOMAIN_DUAL_EXP_CONE     && S == MOI.DualExponentialCone) ||
+              (dt == MSK_DOMAIN_PRIMAL_POWER_CONE && S == MOI.PowerCone) ||
+              (dt == MSK_DOMAIN_DUAL_POWER_CONE   && S == MOI.DualPowerCone) )
+        end
+    end
+end
+
+# Deleting a constraint block means clearing non-zeros from the its
+# AFE rows and resetting the underlying ACC to an empty domain. We do
+# not reclaim the AFEs.
+function MOI.delete(m::Optimizer,
+                    cref::MOI.ConstraintIndex{F,D}) where {F <: MOI.VectorAffineFunction{Float64},
+                                                           D <: VectorConeDomain}
+    MOI.throw_if_not_valid(m, cref)
+    putaccname(m.task,cref.value,"")
+    afeidxs = getaccafeidxlist(m.task,cref.value)
+    # clear afe non-zeros, but don't delete or reuse afe idx
+    putafefrowlist(afeidxs,zeros(Int32,length(afeidxs)),zeros(Int64,length(afeidxs)),Int32[],Float64[])
+    putaccdom(m.task,
+              cref.value,
+              1, # the empty zero domain,
+              Int64[],
+              Float64[])
+end
+
 
 function MOI.is_valid(model::Optimizer,
                       ci::MOI.ConstraintIndex{<:MOI.ScalarAffineFunction{Float64},

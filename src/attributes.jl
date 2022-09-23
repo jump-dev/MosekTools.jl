@@ -188,6 +188,12 @@ function MOI.get(model::Optimizer,
                  eachindex(model.variable_to_vector_constraint_id))
 end
 function MOI.get(model::Optimizer,
+                 ::MOI.NumberOfConstraints{MOI.VectorAffineFunction, S}) where S<:VectorConeDomain
+    F = MOI.VectorAffineFunction
+    numacc = getnumacc(model.task)
+    return count(i -> MOI.is_valid(model, MOI.ConstraintIndex{F, S}(i)), 1:numacc)
+end
+function MOI.get(model::Optimizer,
                  ::MOI.ListOfConstraintIndices{MOI.VectorOfVariables, S}) where S<:VectorCone
     F = MOI.VectorOfVariables
     ids = filter(i -> MOI.is_valid(model, MOI.ConstraintIndex{F, S}(i)),
@@ -467,9 +473,9 @@ function MOI.get(m::Optimizer, attr::MOI.RawStatusString)
     if     m.trm === nothing
         return "MOI.OPTIMIZE_NOT_CALLED"
     elseif m.trm == MSK_RES_OK
-        return join([string(sol.solsta) for sol in m.solutions], ", ")
+        return join([Mosek.tostr(sol.solsta) for sol in m.solutions], ", ")
     else
-        return string(m.trm)
+        return Mosek.tostr(m.trm)
     end
 
 end
