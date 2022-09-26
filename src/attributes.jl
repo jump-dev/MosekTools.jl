@@ -188,8 +188,8 @@ function MOI.get(model::Optimizer,
                  eachindex(model.variable_to_vector_constraint_id))
 end
 function MOI.get(model::Optimizer,
-                 ::MOI.NumberOfConstraints{MOI.VectorAffineFunction, S}) where S<:VectorConeDomain
-    F = MOI.VectorAffineFunction
+                 ::MOI.NumberOfConstraints{MOI.VectorAffineFunction{Float64}, S}) where S<:VectorConeDomain
+    F = MOI.VectorAffineFunction{Float64}
     numacc = getnumacc(model.task)
     return count(i -> MOI.is_valid(model, MOI.ConstraintIndex{F, S}(i)), 1:numacc)
 end
