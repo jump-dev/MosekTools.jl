@@ -5,8 +5,8 @@
 implementation for the MOSEK solver. The low-level solver API for MOSEK is
 found in the package [Mosek.jl](https://github.com/MOSEK/Mosek.jl).
 The latest release of this package and the `master` branch are to be used with
-the latest release of Mosek.jl (which uses MOSEK v9). To use MOSEK v8, use
-the v0.7.x releases of this package (or the `mosekv8` branch) and v0.9.x releases Mosek.jl.
+the latest release of Mosek.jl (which uses MOSEK v10). To use MOSEK v9 (resp. v8), use
+the v0.12.x (resp. v0.7.x) releases of this package or the `mosekv9` (resp. `mosekv8`) branch and v1.2.x (resp. v0.9.x) releases of Mosek.jl.
 
 The ``Mosek`` specific model object (used for example with JuMP) is created as
 ```julia
