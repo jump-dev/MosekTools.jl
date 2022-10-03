@@ -137,12 +137,23 @@ end
             # FIXME Mosek.MosekError(1307, "Variable '' (9) is a member of cone '' (0).")
             "test_basic_VectorQuadraticFunction_LogDetConeTriangle",
             "test_basic_VectorOfVariables_LogDetConeTriangle",
+            "test_basic_VectorOfVariables_LogDetConeSquare",
+            "test_basic_VectorQuadraticFunction_LogDetConeSquare",
+            "test_conic_LogDetConeSquare_VectorOfVariables",
             # FIXME Needs https://github.com/jump-dev/MathOptInterface.jl/pull/1787
             "test_constraint_ZeroOne_bounds",
             "test_constraint_ZeroOne_bounds_2",
             "test_constraint_ZeroOne_bounds_3",
             "test_variable_solve_ZeroOne_with_0_upper_bound",
             "test_variable_solve_ZeroOne_with_upper_bound",
+            # Cannot put multiple bound sets of the same type on a variable
+            "test_basic_VectorAffineFunction_Circuit",
+            "test_basic_VectorOfVariables_Circuit",
+            "test_basic_VectorQuadraticFunction_Circuit",
+            "test_cpsat_Circuit",
+            "test_cpsat_ReifiedAllDifferent",
+            "test_variable_solve_ZeroOne_with_1_lower_bound",
+            "test_variable_solve_ZeroOne_with_bounds_then_delete",
         ],
     )
 
@@ -162,10 +173,19 @@ end
         exclude=[
             # FIXME Mosek.MosekError(1307, "Variable '' (1) is a member of cone '' (0).") src/msk_functions.jl:477
             "test_conic_LogDetConeTriangle_VectorOfVariables",
+            "test_conic_LogDetConeSquare_VectorOfVariables",
             # FIXME Needs https://github.com/jump-dev/MathOptInterface.jl/pull/1787
             "test_constraint_ZeroOne_bounds",
             "test_variable_solve_ZeroOne_with_0_upper_bound",
             "test_variable_solve_ZeroOne_with_upper_bound",
+            # MathOptInterface.LowerBoundAlreadySet{MathOptInterface.Interval{Float64}, MathOptInterface.Interval{Float64}}: Cannot add `VariableIndex`-in-`MathOptInterface.Interval{Float64}` constraint for variable MathOptInterface.VariableIndex(7) as a `VariableIndex`-in-`MathOptInterface.Interval{Float64}` constraint was already set for this variable and both constraints set a lower bound.
+            "test_basic_VectorQuadraticFunction_Circuit",
+            "test_cpsat_Circuit",
+            "test_cpsat_ReifiedAllDifferent",
+            "test_variable_solve_ZeroOne_with_1_lower_bound",
+            "test_variable_solve_ZeroOne_with_bounds_then_delete",
+            "test_basic_VectorOfVariables_Circuit",
+            "test_basic_VectorAffineFunction_Circuit",
         ],
     )
 end

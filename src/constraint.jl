@@ -389,7 +389,7 @@ const ScalarLinearDomain = Union{MOI.LessThan{Float64},
 MOI.supports_constraint(::Optimizer, ::Type{<:Union{MOI.VariableIndex, MOI.ScalarAffineFunction}}, ::Type{<:ScalarLinearDomain}) = true
 MOI.supports_constraint(::Optimizer, ::Type{MOI.VectorOfVariables}, ::Type{<:VectorCone}) = true
 MOI.supports_constraint(::Optimizer, ::Type{MOI.VariableIndex}, ::Type{MOI.Integer}) = true
-MOI.supports_constraint(::Optimizer, ::Type{MOI.VectorAffineFunction}, ::Type{<:VectorConeDomain}) = true
+MOI.supports_constraint(::Optimizer, ::Type{MOI.VectorAffineFunction{Float64}}, ::Type{<:VectorConeDomain}) = true
 MOI.supports_add_constrained_variables(::Optimizer, ::Type{MOI.PositiveSemidefiniteConeTriangle}) = true
 
 ## Affine Constraints #########################################################
@@ -631,7 +631,7 @@ function MOI.get(m::Optimizer, ::MOI.ConstraintFunction,
 end
 
 function MOI.get(m::Optimizer, ::MOI.ConstraintFunction,
-                 ci::MOI.ConstraintIndex{MOI.VectorAffineFunction, S}) where S <: VectorConeDomain
+                 ci::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64}, S}) where S <: VectorConeDomain
     acci = ci.value
     (frow,fcol,fval) = getaccftrip(m.task,acci)
     constants = getaccgvector(m.task,acci)
@@ -639,7 +639,7 @@ function MOI.get(m::Optimizer, ::MOI.ConstraintFunction,
 end
 
 function MOI.get(m::Optimizer, ::MOI.ConstraintFunction,
-                 ci::MOI.ConstraintIndex{MOI.VectorAffineFunction, S}) where S <: Union{MOI.ExponentialCone,MOI.DualExponentialCone}
+                 ci::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64}, S}) where S <: Union{MOI.ExponentialCone,MOI.DualExponentialCone}
     acci = ci.value
     (frow,fcol,fval) = getaccftrip(m.task,acci)
     constants = getaccgvector(m.task,acci)
