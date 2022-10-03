@@ -7,6 +7,13 @@ found in the package [Mosek.jl](https://github.com/MOSEK/Mosek.jl).
 The latest release of this package and the `master` branch are to be used with
 the latest release of Mosek.jl (which uses MOSEK v10). To use MOSEK v9 (resp. v8), use
 the v0.12.x (resp. v0.7.x) releases of this package or the `mosekv9` (resp. `mosekv8`) branch and v1.2.x (resp. v0.9.x) releases of Mosek.jl.
+See the following table for a summary:
+
+| MOSEK | Mosek.jl | MosekTools.jl release | MosekTools.jl branch |
+|-------|----------|-----------------------|----------------------|
+| v10   | v10      | v0.13                 | master               |
+| v9    | v0.12    | v0.12                 | mosekv9              |
+| v8    | v0.9     | v0.7                  | mosekv8              |
 
 The ``Mosek`` specific model object (used for example with JuMP) is created as
 ```julia
