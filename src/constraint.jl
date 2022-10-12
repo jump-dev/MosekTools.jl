@@ -501,33 +501,33 @@ function MOI.add_constraint(m::Optimizer,
         domi = appendconedomain(m.task,num,dom)
 
         appendafes(m.task,num)
-        appendaccseq(m.task,domi,afei,b)
+        appendaccseq(m.task,domi,afei+1,b)
 
         rsubi = Vector{Int64}(); sizehint!(rsubi,nnz)
         rsubj = Vector{Int32}(); sizehint!(rsubj,nnz)
         rcof  = Vector{Float64}(); sizehint!(rcof, nnz)
 
-        rbarsubi = Vector{Int64}(); sizehint!(rsubi,nnz)
-        rbarsubj = Vector{Int32}(); sizehint!(rsubj,nnz)
-        rbarsubk = Vector{Int64}(); sizehint!(rsubk,nnz)
-        rbarsubl = Vector{Int64}(); sizehint!(rsubl,nnz)
-        rbarcof  = Vector{Float64}(); sizehint!(rsubl,nnz)
+        rbarsubi = Vector{Int64}(); sizehint!(rbarsubi,nnz)
+        rbarsubj = Vector{Int32}(); sizehint!(rbarsubj,nnz)
+        rbarsubk = Vector{Int64}(); sizehint!(rbarsubk,nnz)
+        rbarsubl = Vector{Int64}(); sizehint!(rbarsubl,nnz)
+        rbarcof  = Vector{Float64}(); sizehint!(rbarcof,nnz)
 
         function add(row::Int,col::ColumnIndex, coefficient::Float64)
-            push!(rsubi,row)
-            push!(rsubj,col.value)
-	    push!(rcof, coefficient)
+            push!(rsubi, row)
+            push!(rsubj, col.value)
+	        push!(rcof, coefficient)
         end
         function add(row::Int,mat::MatrixIndex, coefficient::Float64)
-            push!(rbarsubi,row)
-            push!(rbarsubj,mat.matrix)
-            push!(rbarsubk,mat.row)
-            push!(rbarsubl,mat.column)
-	    push!(rbarcof,mat.row == mat.column ? coefficient : coefficient / 2)
+            push!(rbarsubi, row)
+            push!(rbarsubj, mat.matrix)
+            push!(rbarsubk, mat.row)
+            push!(rbarsubl, mat.column)
+	        push!(rbarcof, mat.row == mat.column ? coefficient : coefficient / 2)
         end
 
         for term in axbs.terms
-            add(term.output_index+afei,term.scalar_term.variable,term.scalar_term.coefficient)
+            add(term.output_index+afei,mosek_index(m,term.scalar_term.variable),term.scalar_term.coefficient)
         end
 
         rsubi = reorder_idxs(rsubi,D)
