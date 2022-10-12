@@ -486,9 +486,9 @@ reorder_idxs(jj :: Vector{Int64},::Type{MOI.ExponentialCone}) = jj[[3,2,1]]
 reorder_idxs(jj :: Vector{Int64},::Type{MOI.DualExponentialCone}) = jj[[3,2,1]]
 reorder_idxs(jj :: Vector{Int64},T) = jj
 
-function MOI.add_constraints(m::Optimizer,
-                             axbs::MOI.VectorAffineFunction{Float64},
-                             dom::D) where {D<:VectorConeDomain}
+function MOI.add_constraint(m::Optimizer,
+                            axbs::MOI.VectorAffineFunction{Float64},
+                            dom::D) where {D<:VectorConeDomain}
     # if any(vi -> is_matrix(m, vi), xs.variables)
     #     error("Cannot add $D constraint on a matrix variable")
     # end
@@ -498,10 +498,10 @@ function MOI.add_constraints(m::Optimizer,
         b    = axbs.constants,
         num  = length(axbs.constants),
         nnz  = length(axbs.terms),
-        domi = appendconedomain(dom.task,num,dom)
+        domi = appendconedomain(m.task,num,dom)
 
-        appendafes(num)
-        appendaccseq(domi,afei,b)
+        appendafes(m.task,num)
+        appendaccseq(m.task,domi,afei,b)
 
         rsubi = Vector{Int64}(); sizehint!(rsubi,nnz)
         rsubj = Vector{Int32}(); sizehint!(rsubj,nnz)
