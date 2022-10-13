@@ -533,8 +533,12 @@ function MOI.add_constraint(m::Optimizer,
             add(reorder(term.output_index, D) + afei, mosek_index(m,term.scalar_term.variable), term.scalar_term.coefficient)
         end
 
-        putafefentrylist(m.task, rsubi, rsubj, rcof)
-        putafebarfblocktriplet(m.task, rbarsubi, rbarsubj, rbarsubk, rbarsubl, rbarcof)
+        if !isempty(rsubi) # Mosek segfaults otherwise, see https://github.com/jump-dev/MosekTools.jl/actions/runs/3243196430/jobs/5317555832#step:7:132
+            putafefentrylist(m.task, rsubi, rsubj, rcof)
+        end
+        if !isempty(rbarsubi)
+            putafebarfblocktriplet(m.task, rbarsubi, rbarsubj, rbarsubk, rbarsubl, rbarcof)
+        end
 
         MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},D}(acci)
     end
