@@ -385,7 +385,10 @@ function reorder(x, ::Type{MOI.PositiveSemidefiniteConeTriangle})
     return y
 end
 
-function reorder(x, ::Type{<:Union{MOI.ExponentialCone,
+function reorder(i::Integer, ::Type{<:Union{MOI.ExponentialCone,MOI.DualExponentialCone}})
+    return (3:-1:1)[i]
+end
+function reorder(x::AbstractVector, ::Type{<:Union{MOI.ExponentialCone,
                                    MOI.DualExponentialCone}})
     return [x[3], x[2], x[1]]
 end
@@ -432,6 +435,24 @@ function MOI.get!(
     end
 end
 
+function MOI.get!(
+    output::Vector{Float64},
+    m     ::Optimizer,
+    attr  ::MOI.ConstraintDual,
+    ci  ::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},D}) where D
+    MOI.check_result_index_bounds(m, attr)
+
+    r = rows(m, ci)
+
+    idx = reorder(1:length(output), D)
+
+    if (getobjsense(m.task) == MSK_OBJECTIVE_SENSE_MINIMIZE)
+        output[idx] = m.solutions[attr.result_index].doty[r]
+    else
+        output[idx] = -m.solutions[attr.result_index].doty[r]
+    end
+end
+
 function MOI.get(m     ::Optimizer,
                  attr  ::MOI.ConstraintDual,
                  ci  ::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D}) where D
@@ -451,6 +472,9 @@ solsize(m::Optimizer, ::MOI.ConstraintIndex{<:MOI.AbstractScalarFunction}) = 1
 function solsize(m::Optimizer, ci::MOI.ConstraintIndex{MOI.VectorOfVariables})
     return getconeinfo(m.task, cone_id(m, ci))[3]
 end
+function solsize(m::Optimizer, ci::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64}})
+    return length(rows(m, ci))
+end
 function solsize(m::Optimizer,
                  ci::MOI.ConstraintIndex{MOI.VectorOfVariables,
                                          MOI.PositiveSemidefiniteConeTriangle})
@@ -466,6 +490,13 @@ function MOI.get(m::Optimizer,
     output = Vector{Float64}(undef, solsize(m, ci))
     MOI.get!(output, m, attr, ci)
     return output
+end
+function MOI.get(
+    m::Optimizer, # FIXME does Mosek provide this ?
+    attr::MOI.ConstraintPrimal,
+    ci::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64}},
+)
+    return MOI.Utilities.get_fallback(m, attr, ci)
 end
 
 #### Status codes

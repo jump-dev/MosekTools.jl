@@ -28,6 +28,7 @@ struct MosekSolution
     slx      :: Vector{Float64}
     sux      :: Vector{Float64}
     snx      :: Vector{Float64}
+    doty     :: Vector{Float64}
 
     cstatus  :: Vector{Stakey}
     xc       :: Vector{Float64}
@@ -88,6 +89,8 @@ mutable struct Optimizer  <: MOI.AbstractOptimizer
     # and getvarbound so we need to keep them here so implement `MOI.is_valid`
     x_constraints::Vector{UInt8}
 
+    F_rows::Dict{Int,UnitRange{Int}} # TODO can it be obtained from Mosek ?
+
     """
         The total length of `x_block` matches the number of variables in
     the underlying task, and the number of blocks corresponds to the
@@ -147,6 +150,7 @@ mutable struct Optimizer  <: MOI.AbstractOptimizer
             Dict{String, Vector{MOI.ConstraintIndex}}(), # constrnames
             Dict{MOI.ConstraintIndex, String}(), # con_to_name
             UInt8[], # x_constraints
+            Dict{Int,UnitRange{Int}}(),
             LinkedInts(),# x_block
             MatrixIndex[], # x_sd
             Int[], # sd_dim
@@ -322,6 +326,7 @@ function MOI.optimize!(m::Optimizer)
                             getslx(m.task,MSK_SOL_ITR),
                             getsux(m.task,MSK_SOL_ITR),
                             getsnx(m.task,MSK_SOL_ITR),
+                            getaccdotys(m.task,MSK_SOL_ITR),
                             getskc(m.task,MSK_SOL_ITR),
                             getxc(m.task,MSK_SOL_ITR),
                             getslc(m.task,MSK_SOL_ITR),
@@ -337,6 +342,7 @@ function MOI.optimize!(m::Optimizer)
                             getxx(m.task, MSK_SOL_ITG),
                             # See https://github.com/jump-dev/MosekTools.jl/issues/71
                             Float64[], #matrix_solution(m, MSK_SOL_ITG),
+                            Float64[],
                             Float64[],
                             Float64[],
                             Float64[],
@@ -357,6 +363,7 @@ function MOI.optimize!(m::Optimizer)
                             Float64[], #matrix_solution(m, MSK_SOL_BAS),
                             getslx(m.task,MSK_SOL_BAS),
                             getsux(m.task,MSK_SOL_BAS),
+                            Float64[],
                             Float64[],
                             getskc(m.task,MSK_SOL_BAS),
                             getxc(m.task,MSK_SOL_BAS),
@@ -388,7 +395,7 @@ function MOI.get(m::Optimizer, ::MOI.ListOfModelAttributesSet)
 end
 
 function MOI.is_empty(m::Optimizer)
-    getnumvar(m.task) == 0 && getnumcon(m.task) == 0 && getnumcone(m.task) == 0 && getnumbarvar(m.task) == 0
+    getnumvar(m.task) == 0 && getnumcon(m.task) == 0 && getnumcone(m.task) == 0 && getnumbarvar(m.task) == 0 && isempty(m.F_rows)
 end
 
 function MOI.empty!(model::Optimizer)
@@ -409,6 +416,7 @@ function MOI.empty!(model::Optimizer)
     model.has_variable_names = false
     empty!(model.constrnames)
     empty!(model.con_to_name)
+    empty!(model.F_rows)
     empty!(model.x_constraints)
     model.x_block            = LinkedInts()
     empty!(model.x_sd)
