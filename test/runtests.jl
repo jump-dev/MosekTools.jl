@@ -106,6 +106,8 @@ const config = MOIT.Config(
             # FIXME INFEASIBLE instead of OPTIMAL: this is worrying
             "test_conic_Exponential_hard",
             "test_conic_RotatedSecondOrderCone_VectorAffineFunction",
+            # FIXME segfault, see https://github.com/jump-dev/MosekTools.jl/actions/runs/3243196430/jobs/5317555832#step:7:123
+            "test_conic_empty_matrix",
         ],
     )
 end
