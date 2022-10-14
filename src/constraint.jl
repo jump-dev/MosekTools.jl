@@ -768,23 +768,26 @@ function MOI.is_valid(model::Optimizer,
     end
 end
 
+# Commenting out as it doesn't work (gives a MethodError)
+
 # Deleting a constraint block means clearing non-zeros from the its
 # AFE rows and resetting the underlying ACC to an empty domain. We do
 # not reclaim the AFEs.
-function MOI.delete(m::Optimizer,
-                    cref::MOI.ConstraintIndex{F,D}) where {F <: MOI.VectorAffineFunction{Float64},
-                                                           D <: VectorConeDomain}
-    MOI.throw_if_not_valid(m, cref)
-    putaccname(m.task,cref.value,"")
-    afeidxs = getaccafeidxlist(m.task,cref.value)
-    # clear afe non-zeros, but don't delete or reuse afe idx
-    putafefrowlist(afeidxs,zeros(Int32,length(afeidxs)),zeros(Int64,length(afeidxs)),Int32[],Float64[])
-    putaccdom(m.task,
-              cref.value,
-              1, # the empty zero domain,
-              Int64[],
-              Float64[])
-end
+# function MOI.delete(m::Optimizer,
+#                     cref::MOI.ConstraintIndex{F,D}) where {F <: MOI.VectorAffineFunction{Float64},
+#                                                            D <: VectorConeDomain}
+#     MOI.throw_if_not_valid(m, cref)
+#     putaccname(m.task,cref.value,"")
+#     afeidxs = getaccafeidxlist(m.task,cref.value)
+#     # clear afe non-zeros, but don't delete or reuse afe idx
+#     # FIXME gives a MethodError
+#     putafefrowlist(afeidxs,zeros(Int32,length(afeidxs)),zeros(Int64,length(afeidxs)),Int32[],Float64[])
+#     putaccdom(m.task,
+#               cref.value,
+#               1, # the empty zero domain,
+#               Int64[],
+#               Float64[])
+# end
 
 
 function MOI.is_valid(model::Optimizer,
