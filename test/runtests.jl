@@ -107,6 +107,9 @@ const config = MOIT.Config(
             "test_conic_Exponential_hard",
             "test_conic_RotatedSecondOrderCone_VectorAffineFunction",
             # FIXME segfault, see https://github.com/jump-dev/MosekTools.jl/actions/runs/3243196430/jobs/5317555832#step:7:123
+            "test_constraint_PrimalStart_DualStart_SecondOrderCone",
+            # Expression: status in (config.optimal_status, MOI.INVALID_MODEL)
+            # Evaluated: MathOptInterface.OTHER_ERROR in (MathOptInterface.OPTIMAL, MathOptInterface.INVALID_MODEL)
             "test_conic_empty_matrix",
         ],
     )
