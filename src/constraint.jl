@@ -389,7 +389,8 @@ const ScalarLinearDomain = Union{MOI.LessThan{Float64},
 MOI.supports_constraint(::Optimizer, ::Type{<:Union{MOI.VariableIndex, MOI.ScalarAffineFunction}}, ::Type{<:ScalarLinearDomain}) = true
 MOI.supports_constraint(::Optimizer, ::Type{MOI.VectorOfVariables}, ::Type{<:VectorCone}) = true
 MOI.supports_constraint(::Optimizer, ::Type{MOI.VariableIndex}, ::Type{MOI.Integer}) = true
-MOI.supports_constraint(::Optimizer, ::Type{MOI.VectorAffineFunction{Float64}}, ::Type{<:VectorConeDomain}) = true
+# disables as it is not working yet
+#MOI.supports_constraint(::Optimizer, ::Type{MOI.VectorAffineFunction{Float64}}, ::Type{<:VectorConeDomain}) = true
 MOI.supports_add_constrained_variables(::Optimizer, ::Type{MOI.PositiveSemidefiniteConeTriangle}) = true
 
 ## Affine Constraints #########################################################
