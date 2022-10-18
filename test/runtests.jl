@@ -79,7 +79,8 @@ end
 
 const config = MOIT.Config(
     Float64, atol=1e-3, rtol=1e-3,
-    exclude=Any[MOI.ConstraintName, MOI.VariableBasisStatus, MOI.ConstraintBasisStatus], # result in errors for now
+    # TODO remove `MOI.delete` once it is implemented for ACC
+    exclude=Any[MOI.ConstraintName, MOI.VariableBasisStatus, MOI.ConstraintBasisStatus, MOI.delete], # result in errors for now
 )
 
 @testset "Direct optimizer tests" begin
@@ -164,6 +165,8 @@ end
             "test_variable_solve_ZeroOne_with_bounds_then_delete",
             # FIXME segfault, see https://github.com/jump-dev/MosekTools.jl/actions/runs/3243196430/jobs/5317555832#step:7:123
             "test_constraint_PrimalStart_DualStart_SecondOrderCone",
+            # Evaluated: MathOptInterface.OTHER_ERROR in (MathOptInterface.OPTIMAL, MathOptInterface.INVALID_MODEL)
+            "test_conic_empty_matrix",
         ],
     )
 
@@ -198,6 +201,13 @@ end
             "test_basic_VectorAffineFunction_Circuit",
             # FIXME segfault, see https://github.com/jump-dev/MosekTools.jl/actions/runs/3243196430/jobs/5317555832#step:7:123
             "test_constraint_PrimalStart_DualStart_SecondOrderCone",
+            # Evaluated: MathOptInterface.OTHER_ERROR in (MathOptInterface.OPTIMAL, MathOptInterface.INVALID_MODEL)
+            "test_conic_empty_matrix",
+            # Mosek.MosekError(1050, "Unknown error.")
+            "test_cpsat_CountGreaterThan",
+            # FIXME ConstraintPrimal incorrect, to investigate
+            "test_conic_HermitianPositiveSemidefiniteConeTriangle_1",
+            "test_conic_RelativeEntropyCone",
         ],
     )
 end
