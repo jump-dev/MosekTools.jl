@@ -497,7 +497,7 @@ function MOI.add_constraint(m::Optimizer,
     axbs = MOI.Utilities.canonical(func)
     let acci = getnumacc(m.task) + 1,
         afei = getnumafe(m.task),
-        b    = reorder(axbs.constants, D),
+        b    = -reorder(axbs.constants, D),
         num  = length(axbs.constants),
         nnz  = length(axbs.terms),
         domi = appendconedomain(m.task,num,dom)
@@ -639,9 +639,9 @@ function MOI.get(m::Optimizer, ::MOI.ConstraintFunction,
                  ci::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64}, S}) where S <: VectorConeDomain
     r = rows(m, ci)
     (frow,fcol,fval) = getaccftrip(m.task)
-    constants = getaccgvector(m.task)
+    constants = getaccb(m.task, ci.value)
     terms = [MOI.VectorAffineTerm(reorder(frow[i] - first(r) + 1, S), MOI.ScalarAffineTerm(fval[i], index_of_column(m, fcol[i]))) for i in eachindex(frow) if i in r]
-    return MOI.VectorAffineFunction(terms, constants)
+    return MOI.VectorAffineFunction(terms, -constants)
 end
 
 function type_cone(ct)
