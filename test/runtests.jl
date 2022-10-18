@@ -162,6 +162,8 @@ end
             "test_cpsat_ReifiedAllDifferent",
             "test_variable_solve_ZeroOne_with_1_lower_bound",
             "test_variable_solve_ZeroOne_with_bounds_then_delete",
+            # FIXME segfault, see https://github.com/jump-dev/MosekTools.jl/actions/runs/3243196430/jobs/5317555832#step:7:123
+            "test_constraint_PrimalStart_DualStart_SecondOrderCone",
         ],
     )
 
@@ -194,6 +196,8 @@ end
             "test_variable_solve_ZeroOne_with_bounds_then_delete",
             "test_basic_VectorOfVariables_Circuit",
             "test_basic_VectorAffineFunction_Circuit",
+            # FIXME segfault, see https://github.com/jump-dev/MosekTools.jl/actions/runs/3243196430/jobs/5317555832#step:7:123
+            "test_constraint_PrimalStart_DualStart_SecondOrderCone",
         ],
     )
 end
