@@ -640,7 +640,7 @@ function MOI.get(m::Optimizer, ::MOI.ConstraintFunction,
     r = rows(m, ci)
     (frow,fcol,fval) = getaccftrip(m.task)
     constants = getaccb(m.task, ci.value)
-    terms = [MOI.VectorAffineTerm(reorder(frow[i] - first(r) + 1, S), MOI.ScalarAffineTerm(fval[i], index_of_column(m, fcol[i]))) for i in eachindex(frow) if i in r]
+    terms = [MOI.VectorAffineTerm(reorder(frow[i] - first(r) + 1, S), MOI.ScalarAffineTerm(fval[i], index_of_column(m, fcol[i]))) for i in eachindex(frow) if frow[i] in r]
     return MOI.VectorAffineFunction(terms, -constants)
 end
 
