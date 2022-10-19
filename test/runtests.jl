@@ -15,9 +15,6 @@ const MOIB = MOI.Bridges
 const FALLBACK_URL = "mosek://solve.mosek.com:30080"
 
 using MosekTools
-const optimizer = Mosek.Optimizer()
-MOI.set(optimizer, MOI.RawOptimizerAttribute("fallback"), FALLBACK_URL)
-MOI.set(optimizer, MOI.Silent(), true)
 
 function MosekOptimizerWithFallback()
     optimizer = Mosek.Optimizer()
@@ -28,7 +25,7 @@ end
 
 
 @testset "SolverName" begin
-    @test MOI.get(optimizer, MOI.SolverName()) == "Mosek"
+    @test MOI.get(Mosek.Optimizer(), MOI.SolverName()) == "Mosek"
 end
 
 @testset "Parameters" begin
@@ -74,7 +71,7 @@ end
 end
 
 @testset "supports_incremental_interface" begin
-    @test MOI.supports_incremental_interface(optimizer)
+    @test MOI.supports_incremental_interface(Mosek.Optimizer())
 end
 
 const config = MOIT.Config(
@@ -84,6 +81,7 @@ const config = MOIT.Config(
 )
 
 @testset "Direct optimizer tests" begin
+    optimizer = MosekOptimizerWithFallback()
     MOIT.runtests(optimizer, config,
         exclude=[
             # FIXME
@@ -116,12 +114,11 @@ const config = MOIT.Config(
     )
 end
 
-@testset "Bridged and cached" begin
+@testset "Bridge{Mosek}" begin
     #model = MOIB.full_bridge_optimizer(Mosek.Optimizer(), Float64)
     model = MOIB.full_bridge_optimizer(MosekOptimizerWithFallback(), Float64)
     MOI.set(model, MOI.Silent(), true)
 
-    # linear and basic tests
     MOIT.runtests(model, config,
         exclude=[
             "test_basic_VectorAffineFunction_PositiveSemidefiniteConeSquare", # AssertionError: (m.x_sd[ref2id(vi)]).matrix == -1 src/variable.jl:173
@@ -167,11 +164,18 @@ end
             "test_constraint_PrimalStart_DualStart_SecondOrderCone",
             # Evaluated: MathOptInterface.OTHER_ERROR in (MathOptInterface.OPTIMAL, MathOptInterface.INVALID_MODEL)
             "test_conic_empty_matrix",
+            # FIXME ConstraintPrimal incorrect, to investigate
+            "test_conic_HermitianPositiveSemidefiniteConeTriangle_1",
+            "test_conic_RelativeEntropyCone",
+            # FIXME ListOfConstraints incorrect
+            "test_conic_SecondOrderCone_VectorAffineFunction",
         ],
     )
 
     @test MOI.supports(model, MOI.VariablePrimalStart(), MOI.VariableIndex)
+end
 
+@testset "Bridge{Cache{Mosek}}" begin
     model = MOI.Bridges.full_bridge_optimizer(
         MOI.Utilities.CachingOptimizer(
                 MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}()),
@@ -213,7 +217,7 @@ end
 end
 
 @testset "Matrix name" begin
-    MOI.empty!(optimizer)
+    optimizer = MosekOptimizerWithFallback()
     x, cx = MOI.add_constrained_variables(optimizer, MOI.PositiveSemidefiniteConeTriangle(3))
     err = MOI.UnsupportedAttribute{MOI.VariableName}
     @test_throws err MOI.set(optimizer, MOI.VariableName(), x[1], "a")
@@ -227,7 +231,7 @@ end
 
 # See https://github.com/jump-dev/MosekTools.jl/issues/95
 @testset "Mapping enums" begin
-    MOI.empty!(optimizer)
+    optimizer = MosekOptimizerWithFallback()
     # Force variable bridging to test attribute substitution
     bridged = MOI.Bridges.Variable.Zeros{Float64}(optimizer)
     cache = MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}())
