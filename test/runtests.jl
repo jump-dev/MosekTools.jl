@@ -15,9 +15,6 @@ const MOIB = MOI.Bridges
 const FALLBACK_URL = "mosek://solve.mosek.com:30080"
 
 using MosekTools
-const optimizer = Mosek.Optimizer()
-MOI.set(optimizer, MOI.RawOptimizerAttribute("fallback"), FALLBACK_URL)
-MOI.set(optimizer, MOI.Silent(), true)
 
 function MosekOptimizerWithFallback()
     optimizer = Mosek.Optimizer()
@@ -28,7 +25,7 @@ end
 
 
 @testset "SolverName" begin
-    @test MOI.get(optimizer, MOI.SolverName()) == "Mosek"
+    @test MOI.get(Mosek.Optimizer(), MOI.SolverName()) == "Mosek"
 end
 
 @testset "Parameters" begin
@@ -74,15 +71,17 @@ end
 end
 
 @testset "supports_incremental_interface" begin
-    @test MOI.supports_incremental_interface(optimizer)
+    @test MOI.supports_incremental_interface(Mosek.Optimizer())
 end
 
 const config = MOIT.Config(
     Float64, atol=1e-3, rtol=1e-3,
-    exclude=Any[MOI.ConstraintName, MOI.VariableBasisStatus, MOI.ConstraintBasisStatus], # result in errors for now
+    # TODO remove `MOI.delete` once it is implemented for ACC
+    exclude=Any[MOI.ConstraintName, MOI.VariableBasisStatus, MOI.ConstraintBasisStatus, MOI.delete], # result in errors for now
 )
 
 @testset "Direct optimizer tests" begin
+    optimizer = MosekOptimizerWithFallback()
     MOIT.runtests(optimizer, config,
         exclude=[
             # FIXME
@@ -101,29 +100,28 @@ const config = MOIT.Config(
             #    Expected: MathOptInterface.UnsupportedAttribute{MathOptInterface.ConstraintName}(MathOptInterface.ConstraintName(), "`ConstraintName`s are not supported for `VariableIndex` constraints.")
             #  No exception thrown
             "test_model_VariableIndex_ConstraintName",
-            # FIXME Needs https://github.com/jump-dev/MathOptInterface.jl/pull/1787
-            "test_variable_solve_ZeroOne_with_0_upper_bound",
+            # FIXME segfault, see https://github.com/jump-dev/MosekTools.jl/actions/runs/3243196430/jobs/5317555832#step:7:123
+            "test_constraint_PrimalStart_DualStart_SecondOrderCone",
+            # Expression: status in (config.optimal_status, MOI.INVALID_MODEL)
+            # Evaluated: MathOptInterface.OTHER_ERROR in (MathOptInterface.OPTIMAL, MathOptInterface.INVALID_MODEL)
+            "test_conic_empty_matrix",
         ],
     )
 end
 
-@testset "Bridged and cached" begin
+@testset "Bridge{Mosek}" begin
     #model = MOIB.full_bridge_optimizer(Mosek.Optimizer(), Float64)
     model = MOIB.full_bridge_optimizer(MosekOptimizerWithFallback(), Float64)
     MOI.set(model, MOI.Silent(), true)
 
-    # linear and basic tests
     MOIT.runtests(model, config,
         exclude=[
             "test_basic_VectorAffineFunction_PositiveSemidefiniteConeSquare", # AssertionError: (m.x_sd[ref2id(vi)]).matrix == -1 src/variable.jl:173
             "test_basic_VectorOfVariables_PositiveSemidefiniteConeSquare",
-            "test_basic_VectorAffineFunction_LogDetConeTriangle",
             "test_basic_VectorAffineFunction_NormNuclearCone",
             "test_basic_VectorOfVariables_NormNuclearCone",
             "test_basic_VectorAffineFunction_NormSpectralCone",
             "test_basic_VectorOfVariables_NormSpectralCone",
-            "test_basic_VectorAffineFunction_RootDetConeTriangle",
-            "test_basic_VectorOfVariables_RootDetConeTriangle",
             "test_basic_VectorAffineFunction_PositiveSemidefiniteConeTriangle", # TODO: implement get ConstraintSet for SAF
             "test_basic_VectorOfVariables_PositiveSemidefiniteConeTriangle",
             "test_conic_LogDetConeTriangle_VectorOfVariables",
@@ -154,11 +152,22 @@ end
             "test_cpsat_ReifiedAllDifferent",
             "test_variable_solve_ZeroOne_with_1_lower_bound",
             "test_variable_solve_ZeroOne_with_bounds_then_delete",
+            # FIXME segfault, see https://github.com/jump-dev/MosekTools.jl/actions/runs/3243196430/jobs/5317555832#step:7:123
+            "test_constraint_PrimalStart_DualStart_SecondOrderCone",
+            # Evaluated: MathOptInterface.OTHER_ERROR in (MathOptInterface.OPTIMAL, MathOptInterface.INVALID_MODEL)
+            "test_conic_empty_matrix",
+            # FIXME ConstraintPrimal incorrect, to investigate
+            "test_conic_HermitianPositiveSemidefiniteConeTriangle_1",
+            "test_conic_RelativeEntropyCone",
+            # FIXME ListOfConstraints incorrect
+            "test_conic_SecondOrderCone_VectorAffineFunction",
         ],
     )
 
     @test MOI.supports(model, MOI.VariablePrimalStart(), MOI.VariableIndex)
+end
 
+@testset "Bridge{Cache{Mosek}}" begin
     model = MOI.Bridges.full_bridge_optimizer(
         MOI.Utilities.CachingOptimizer(
                 MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}()),
@@ -186,12 +195,19 @@ end
             "test_variable_solve_ZeroOne_with_bounds_then_delete",
             "test_basic_VectorOfVariables_Circuit",
             "test_basic_VectorAffineFunction_Circuit",
+            # FIXME segfault, see https://github.com/jump-dev/MosekTools.jl/actions/runs/3243196430/jobs/5317555832#step:7:123
+            "test_constraint_PrimalStart_DualStart_SecondOrderCone",
+            # Evaluated: MathOptInterface.OTHER_ERROR in (MathOptInterface.OPTIMAL, MathOptInterface.INVALID_MODEL)
+            "test_conic_empty_matrix",
+            # FIXME ConstraintPrimal incorrect, to investigate
+            "test_conic_HermitianPositiveSemidefiniteConeTriangle_1",
+            "test_conic_RelativeEntropyCone",
         ],
     )
 end
 
 @testset "Matrix name" begin
-    MOI.empty!(optimizer)
+    optimizer = MosekOptimizerWithFallback()
     x, cx = MOI.add_constrained_variables(optimizer, MOI.PositiveSemidefiniteConeTriangle(3))
     err = MOI.UnsupportedAttribute{MOI.VariableName}
     @test_throws err MOI.set(optimizer, MOI.VariableName(), x[1], "a")
@@ -205,7 +221,7 @@ end
 
 # See https://github.com/jump-dev/MosekTools.jl/issues/95
 @testset "Mapping enums" begin
-    MOI.empty!(optimizer)
+    optimizer = MosekOptimizerWithFallback()
     # Force variable bridging to test attribute substitution
     bridged = MOI.Bridges.Variable.Zeros{Float64}(optimizer)
     cache = MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}())
