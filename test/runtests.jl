@@ -100,11 +100,6 @@ const config = MOIT.Config(
             #    Expected: MathOptInterface.UnsupportedAttribute{MathOptInterface.ConstraintName}(MathOptInterface.ConstraintName(), "`ConstraintName`s are not supported for `VariableIndex` constraints.")
             #  No exception thrown
             "test_model_VariableIndex_ConstraintName",
-            # FIXME Needs https://github.com/jump-dev/MathOptInterface.jl/pull/1787
-            "test_variable_solve_ZeroOne_with_0_upper_bound",
-            # FIXME INFEASIBLE instead of OPTIMAL: this is worrying
-            "test_conic_Exponential_hard",
-            "test_conic_RotatedSecondOrderCone_VectorAffineFunction",
             # FIXME segfault, see https://github.com/jump-dev/MosekTools.jl/actions/runs/3243196430/jobs/5317555832#step:7:123
             "test_constraint_PrimalStart_DualStart_SecondOrderCone",
             # Expression: status in (config.optimal_status, MOI.INVALID_MODEL)
@@ -123,13 +118,10 @@ end
         exclude=[
             "test_basic_VectorAffineFunction_PositiveSemidefiniteConeSquare", # AssertionError: (m.x_sd[ref2id(vi)]).matrix == -1 src/variable.jl:173
             "test_basic_VectorOfVariables_PositiveSemidefiniteConeSquare",
-            "test_basic_VectorAffineFunction_LogDetConeTriangle",
             "test_basic_VectorAffineFunction_NormNuclearCone",
             "test_basic_VectorOfVariables_NormNuclearCone",
             "test_basic_VectorAffineFunction_NormSpectralCone",
             "test_basic_VectorOfVariables_NormSpectralCone",
-            "test_basic_VectorAffineFunction_RootDetConeTriangle",
-            "test_basic_VectorOfVariables_RootDetConeTriangle",
             "test_basic_VectorAffineFunction_PositiveSemidefiniteConeTriangle", # TODO: implement get ConstraintSet for SAF
             "test_basic_VectorOfVariables_PositiveSemidefiniteConeTriangle",
             "test_conic_LogDetConeTriangle_VectorOfVariables",
@@ -207,8 +199,6 @@ end
             "test_constraint_PrimalStart_DualStart_SecondOrderCone",
             # Evaluated: MathOptInterface.OTHER_ERROR in (MathOptInterface.OPTIMAL, MathOptInterface.INVALID_MODEL)
             "test_conic_empty_matrix",
-            # Mosek.MosekError(1050, "Unknown error.")
-            "test_cpsat_CountGreaterThan",
             # FIXME ConstraintPrimal incorrect, to investigate
             "test_conic_HermitianPositiveSemidefiniteConeTriangle_1",
             "test_conic_RelativeEntropyCone",
