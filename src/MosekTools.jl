@@ -309,12 +309,6 @@ function MOI.optimize!(m::Optimizer)
     putintparam(m.task,Mosek.MSK_IPAR_REMOVE_UNUSED_SOLUTIONS,Mosek.MSK_ON)
     m.trm = if m.fallback == nothing; optimize(m.task) else optimize(m.task,m.fallback) end
     m.solutions = MosekSolution[]
-    # If the problem is conic but a starting value is set,
-    # `MSK_SOL_ITG` simply contains the starting value and
-    # `MSK_SOL_ITR` contains the actual solution found.
-    # We want `VariablePrimal(1)`, ... to be `MSK_SOL_ITR` in that case
-    # so puting it first should solve the issue in that case, see
-    # https://github.com/jump-dev/MosekTools.jl/issues/66
     if solutiondef(m.task,MSK_SOL_ITR)
         push!(m.solutions,
               MosekSolution(MSK_SOL_ITR,
@@ -371,6 +365,13 @@ function MOI.optimize!(m::Optimizer)
                             getsuc(m.task,MSK_SOL_BAS),
                             gety(m.task,MSK_SOL_BAS)))
     end
+    # We need to sort the solutions, so that an optimal one is first (if it exists).
+    sort!(
+        m.solutions;
+        by = x -> x.solsta in [MSK_SOL_STA_OPTIMAL, MSK_SOL_STA_INTEGER_OPTIMAL],
+        rev = true,
+    )
+    return
 end
 
 MOI.supports(::Optimizer, ::MOI.Name) = true
