@@ -206,6 +206,25 @@ end
     )
 end
 
+@testset "Number of variables and deletion" begin
+    optimizer = MosekOptimizerWithFallback()
+    x = MOI.add_variable(optimizer)
+    @test MOI.get(optimizer, MOI.NumberOfVariables()) == 1
+    y, cy = MOI.add_constrained_variables(optimizer, MOI.PositiveSemidefiniteConeTriangle(3))
+    @test MOI.get(optimizer, MOI.NumberOfVariables()) == 7
+    MOI.delete(optimizer, x)
+    @test MOI.get(optimizer, MOI.NumberOfVariables()) == 6
+    z, cz = MOI.add_constrained_variables(optimizer, MOI.SecondOrderCone(3))
+    @test MOI.get(optimizer, MOI.NumberOfVariables()) == 9
+    @test_throws MOI.DeleteNotAllowed MOI.delete(optimizer, y[1])
+    @test_throws MOI.DeleteNotAllowed MOI.delete(optimizer, y)
+    @test MOI.get(optimizer, MOI.NumberOfVariables()) == 9
+    @test_throws MOI.DeleteNotAllowed MOI.delete(optimizer, z[1])
+    @test MOI.get(optimizer, MOI.NumberOfVariables()) == 9
+    MOI.delete(optimizer, z)
+    @test MOI.get(optimizer, MOI.NumberOfVariables()) == 6
+end
+
 @testset "Matrix name" begin
     optimizer = MosekOptimizerWithFallback()
     x, cx = MOI.add_constrained_variables(optimizer, MOI.PositiveSemidefiniteConeTriangle(3))

@@ -173,9 +173,18 @@ end
 ######### API to delete a column, it is costly and is best avoided.          ##
 
 function throw_if_cannot_delete(m::Optimizer, vi::MOI.VariableIndex)
+    id = ref2id(vi)
     if !allocated(m.x_block, ref2id(vi))
-        @assert m.x_sd[ref2id(vi)].matrix == -1
-        throw(MOI.InvalidIndex(vi))
+        # The matrix variables are created but not allocated so
+        # if it can either be a scalar variable that was deleted
+        # or a matrix variable
+        if m.x_sd[ref2id(vi)].matrix == -1
+            # scalar variable that was deleted
+            throw(MOI.InvalidIndex(vi))
+        else
+            # matrix variable
+            throw(MOI.DeleteNotAllowed(vi, "It is part of a positive semidefinite matrix block."))
+        end
     end
     if is_scalar(m, vi)
         col = column(m, vi)
@@ -185,11 +194,6 @@ function throw_if_cannot_delete(m::Optimizer, vi::MOI.VariableIndex)
             if has_flag(m, vi, S)
                 MOI.delete(m, MOI.ConstraintIndex{MOI.VariableIndex, S}(vi.value))
             end
-        end
-        # All bounds have been removed so there can only be not constraint left
-        # on the variable or a `VectorOfVariable`-in-`VectorCone` constraint.
-        if has_flag(m, vi, VectorCone)
-            throw(MOI.DeleteNotAllowed("Cannot delete variable $vi as it is involved in a `VectorOfVariables` constraint."))
         end
     end
 end
@@ -276,7 +280,7 @@ end
 
 ## List #######################################################################
 ###############################################################################
-MOI.get(m::Optimizer, ::MOI.NumberOfVariables) = num_allocated(m.x_block)
+MOI.get(m::Optimizer, ::MOI.NumberOfVariables) = sum(m.x_block.size)
 function MOI.get(m::Optimizer, ::MOI.ListOfVariableIndices)
     ids = allocatedlist(m.x_block)
     return MOI.VariableIndex[MOI.VariableIndex(vid) for vid in ids]

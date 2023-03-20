@@ -46,10 +46,16 @@ struct ColumnIndices
 end
 
 struct MatrixIndex
+    # `-1` means it has been deleted (hence it was a scalar variable since deleting a matrix variable is not supported)
+    # `0` means it is a scalar variable
+    # `> 0` means it is a matrix variable part of the `matrix`th block
     matrix::Int32
+    # `row` in the lower-triangular part of the `matrix`th block
     row::Int32
+    # `column` in the lower-triangular part of the `matrix`th block
     column::Int32
     function MatrixIndex(matrix::Integer, row::Integer, column::Integer)
+        # Since it is in the lower-triangular part:
         @assert column ≤ row
         new(matrix, row, column)
     end
