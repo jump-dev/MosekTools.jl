@@ -15,13 +15,13 @@ using Printf                    #
     end
 
 Block linked list, there are `length(next) = length(prev)` indices, `free_cap`
-of which are free and the other are used. `root` gives the last one ones, i.e.
+of which are free and the other are used. `root` gives the last one used, i.e.
 starting from `root` and following `prev` until it gives zero should give the
 `length(prev) - free_cap` used indices. Similarly, `free_ptr` gives the last
-index free, i.e. starting from `free_ptr` and following `prev` until it gives
+free index, i.e. starting from `free_ptr` and following `prev` until it gives
 zero should give the `free_cap` free indices.
 
-`length(next) == length(prev) == length(back)`.
+We always have `length(next) == length(prev) == length(back)`.
 * `next[i]` is the minimum `j > i` such that `j` is used, or 0 if `i` is the
   last one used, i.e. `i = root`.
 * `prev[i]` is the maximum `j < i` such that `j` is used, or 0 if `i` is the
@@ -33,7 +33,7 @@ zero should give the `free_cap` free indices.
 * `free_ptr` last index of the `free_cap` free slots.
 * `root` last used index.
 
-`length(block) == length(size)`.
+We always have `length(block) == length(size)`.
 * `block`: mapping from block index to first index of the block
 * `size`: mapping from block index to length of the block
 """
@@ -56,7 +56,6 @@ function LinkedInts(capacity=128)
                       Int[], Int[])
 end
 
-num_allocated(s::LinkedInts) = count(b -> b > 0, s.block)
 allocatedlist(s::LinkedInts) = findall(s.block .> 0)
 allocated(s::LinkedInts, id :: Int) = id > 0 && id <= length(s.block) && s.block[id] > 0
 blocksize(s::LinkedInts, id :: Int) = s.size[id]

@@ -367,7 +367,7 @@ flag(::Type{MOI.Interval{Float64}}) = 0x8
 incompatible_mask(::Type{MOI.Interval{Float64}}) = 0x2f
 flag(::Type{MOI.Integer}) = 0x10
 incompatible_mask(::Type{MOI.Integer}) = 0x30
-flag(::Type{<:VectorCone}) = 0x40
+#flag(::Type{<:VectorCone}) = 0x40 # FIXME unused
 incompatible_mask(::Type{<:VectorCone}) = 0x40
 
 function set_flag(model::Optimizer, vi::MOI.VariableIndex, S::Type)
