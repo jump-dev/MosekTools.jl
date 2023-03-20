@@ -18,16 +18,8 @@ function MOI.get(m::Optimizer,
     return MOI.ScalarAffineFunction(terms, constant)
 end
 
-const ObjF = Union{MOI.VariableIndex, MOI.ScalarAffineFunction{Float64}}
-MOI.supports(::Optimizer,::MOI.ObjectiveFunction{<:ObjF})  = true
+MOI.supports(::Optimizer,::MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}})  = true
 MOI.supports(::Optimizer,::MOI.ObjectiveSense) = true
-
-
-function MOI.set(m::Optimizer, ::MOI.ObjectiveFunction,
-                 func::MOI.VariableIndex)
-    MOI.set(m, MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
-            convert(MOI.ScalarAffineFunction{Float64}, func))
-end
 
 function MOI.set(m::Optimizer, ::MOI.ObjectiveFunction,
                  func::MOI.ScalarAffineFunction{Float64})
