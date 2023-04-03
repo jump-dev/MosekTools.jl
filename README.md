@@ -17,7 +17,7 @@ MOSEK.
 `MosekTools.jl` is licensed under the [MIT License](https://github.com/jump-dev/MosekTools.jl/blob/master/LICENSE.md).
 
 The underlying solver is a closed-source commercial product for which you must
-[obtainn a license](https://www.mosek.com).
+[obtain a license](https://www.mosek.com).
 
 ## Installation
 
