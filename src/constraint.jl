@@ -118,12 +118,7 @@ bound_key(::Type{MOI.LessThan{Float64}})    = MSK_BK_UP
 bound_key(::Type{MOI.EqualTo{Float64}})     = MSK_BK_FX
 bound_key(::Type{MOI.Interval{Float64}})    = MSK_BK_RA
 
-
-
-add_bound(m::Optimizer, row::Int32, dom::MOI.GreaterThan{Float64}) = putconbound(m.task, row, bound_key(typeof(dom)), dom.lower, dom.lower)
-add_bound(m::Optimizer, row::Int32, dom::MOI.LessThan{Float64})    = putconbound(m.task, row, bound_key(typeof(dom)), dom.upper, dom.upper)
-add_bound(m::Optimizer, row::Int32, dom::MOI.EqualTo{Float64})     = putconbound(m.task, row, bound_key(typeof(dom)), dom.value, dom.value)
-function add_bound(m::Optimizer, row::Int32, dom::MOI.Interval{Float64})
+function _bounds(dom::MOI.Interval)
     bl = dom.lower
     bu = dom.upper
     bk = bound_key(typeof(dom))
@@ -136,9 +131,13 @@ function add_bound(m::Optimizer, row::Int32, dom::MOI.Interval{Float64})
     elseif bu > 0 && isinf(bu)
         bk = MSK_BK_LO
     end
-
-    putconbound(m.task, row, bk,bl,bu)
+    return bk, bl, bu
 end
+
+add_bound(m::Optimizer, row::Int32, dom::MOI.GreaterThan{Float64}) = putconbound(m.task, row, bound_key(typeof(dom)), dom.lower, dom.lower)
+add_bound(m::Optimizer, row::Int32, dom::MOI.LessThan{Float64})    = putconbound(m.task, row, bound_key(typeof(dom)), dom.upper, dom.upper)
+add_bound(m::Optimizer, row::Int32, dom::MOI.EqualTo{Float64})     = putconbound(m.task, row, bound_key(typeof(dom)), dom.value, dom.value)
+add_bound(m::Optimizer, row::Int32, dom::MOI.Interval{Float64})    = putconbound(m.task, row, _bounds(dom)...)
 
 function bounds_to_set(::Type{S}, bk, bl, bu) where S
     if S == MOI.GreaterThan{Float64}
@@ -243,7 +242,7 @@ function delete_variable_constraint(m::Optimizer, col::ColumnIndex,
     putvarbound(m.task, col.value, bk, 0.0, up)
 end
 function add_variable_constraint(m::Optimizer, col::ColumnIndex, dom::MOI.Interval)
-    putvarbound(m.task, col.value, MSK_BK_RA, dom.lower, dom.upper)
+    putvarbound(m.task, col.value, _bounds(dom)...)
 end
 function add_variable_constraint(m::Optimizer, col::ColumnIndex, dom::MOI.EqualTo)
     putvarbound(m.task, col.value, MSK_BK_FX, dom.value, dom.value)
