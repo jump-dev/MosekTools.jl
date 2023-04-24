@@ -6,11 +6,7 @@
 
 using Test
 
-using MathOptInterface
-const MOI = MathOptInterface
-const MOIT = MOI.Test
-const MOIU = MOI.Utilities
-const MOIB = MOI.Bridges
+import MathOptInterface as MOI
 
 const FALLBACK_URL = "mosek://solve.mosek.com:30080"
 
@@ -74,7 +70,7 @@ end
     @test MOI.supports_incremental_interface(Mosek.Optimizer())
 end
 
-const config = MOIT.Config(
+const config = MOI.Test.Config(
     Float64, atol=1e-3, rtol=1e-3,
     # TODO remove `MOI.delete` once it is implemented for ACC
     exclude=Any[MOI.ConstraintName, MOI.VariableBasisStatus, MOI.ConstraintBasisStatus, MOI.delete], # result in errors for now
@@ -82,7 +78,7 @@ const config = MOIT.Config(
 
 @testset "Direct optimizer tests" begin
     optimizer = MosekOptimizerWithFallback()
-    MOIT.runtests(optimizer, config,
+    MOI.Test.runtests(optimizer, config,
         exclude=[
             # FIXME
             # Expression: MOI.add_constraint(model, x, set2)
@@ -110,11 +106,11 @@ const config = MOIT.Config(
 end
 
 @testset "Bridge{Mosek}" begin
-    #model = MOIB.full_bridge_optimizer(Mosek.Optimizer(), Float64)
-    model = MOIB.full_bridge_optimizer(MosekOptimizerWithFallback(), Float64)
+    #model = MOI.Bridges.full_bridge_optimizer(Mosek.Optimizer(), Float64)
+    model = MOI.Bridges.full_bridge_optimizer(MosekOptimizerWithFallback(), Float64)
     MOI.set(model, MOI.Silent(), true)
 
-    MOIT.runtests(model, config,
+    MOI.Test.runtests(model, config,
         exclude=[
             "test_basic_VectorAffineFunction_PositiveSemidefiniteConeSquare", # AssertionError: (m.x_sd[ref2id(vi)]).matrix == -1 src/variable.jl:173
             "test_basic_VectorOfVariables_PositiveSemidefiniteConeSquare",

@@ -1,8 +1,6 @@
 module MosekTools
 
-import MathOptInterface
-const MOI = MathOptInterface
-const MOIU = MOI.Utilities
+import MathOptInterface as MOI
 
 using Mosek
 export Mosek
@@ -62,7 +60,7 @@ struct MatrixIndex
 end
 
 """
-    Optimizer <: MathOptInterface.AbstractModel
+    Optimizer <: MOI.AbstractOptimizer
 
 Linear variables and constraint can be deleted. For some reason MOSEK
 does not support deleting PSD variables.
@@ -445,7 +443,7 @@ end
 
 MOI.supports_incremental_interface(::Optimizer) = true
 function MOI.copy_to(dest::Optimizer, src::MOI.ModelLike; kws...)
-    return MOIU.default_copy_to(dest, src; kws...)
+    return MOI.Utilities.default_copy_to(dest, src; kws...)
 end
 
 function MOI.write_to_file(m::Optimizer, filename :: String)

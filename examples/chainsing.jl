@@ -1,8 +1,6 @@
 using JuMP
 using MosekTools
-import MathOptInterface
-const MOI = MathOptInterface
-const MOIU = MathOptInterface.Utilities
+import MathOptInterface as MOI
 
 """
 Formulate the problem
@@ -211,7 +209,7 @@ function main(argv :: Vector{String})
             solver = Mosek.Optimizer()
             Model( mode = JuMP.Direct, backend = solver)
         elseif backend == :mock
-            solver = MOIU.MockOptimizer(JuMP.JuMPMOIModel{Float64}())
+            solver = MOI.Utilities.MockOptimizer(JuMP.JuMPMOIModel{Float64}())
             Model( optimizer = solver)
         end
 
@@ -235,7 +233,7 @@ function main(argv :: Vector{String})
     end
 
     if backend != :mosek
-        MOIU.attachoptimizer!(m)
+        MOI.Utilities.attachoptimizer!(m)
     end
     T1 = time()    
     T = T1-T0
