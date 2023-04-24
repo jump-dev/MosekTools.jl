@@ -60,7 +60,7 @@ struct MatrixIndex
 end
 
 """
-    Optimizer <: MathOptInterface.AbstractModel
+    Optimizer <: MOI.AbstractOptimizer
 
 Linear variables and constraint can be deleted. For some reason MOSEK
 does not support deleting PSD variables.

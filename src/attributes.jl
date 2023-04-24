@@ -215,7 +215,7 @@ function MOI.get(model::Optimizer,
 end
 
 function MOI.get(model::Optimizer,
-                 ::MathOptInterface.ListOfConstraintTypesPresent)
+                 ::MOI.ListOfConstraintTypesPresent)
     list = Tuple{DataType, DataType}[]
     F = MOI.VariableIndex
     for D in [MOI.LessThan{Float64}, MOI.GreaterThan{Float64},
