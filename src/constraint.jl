@@ -408,7 +408,7 @@ function MOI.add_constraint(m  ::Optimizer,
     end
 
     # Duplicate indices not supported
-    axb = MOIU.canonical(axb)
+    axb = MOI.Utilities.canonical(axb)
 
     N = 1
     conid = allocateconstraints(m, N)

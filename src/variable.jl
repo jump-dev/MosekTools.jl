@@ -270,7 +270,7 @@ function MOI.delete(m::Optimizer, vi::MOI.VariableIndex)
     throw_if_cannot_delete(m, vi)
     delete_vector_of_variables_constraint(m, [vi])
     if !iszero(m.variable_to_vector_constraint_id[vi.value])
-        MOIU.throw_delete_variable_in_vov(vi)
+        MOI.Utilities.throw_delete_variable_in_vov(vi)
     end
     clear_columns(m, [vi])
     clear_variable(m, vi)
