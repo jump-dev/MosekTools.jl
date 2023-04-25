@@ -18,7 +18,8 @@ const VectorConeDomain = Union{MOI.SecondOrderCone,
                                MOI.PowerCone,
                                MOI.DualPowerCone,
                                MOI.ExponentialCone,
-                               MOI.DualExponentialCone}
+                               MOI.DualExponentialCone,
+                               ScaledPSDCone,}
 
 function allocateconstraints(m::Optimizer, N::Int)
     numcon = getnumcon(m.task)
@@ -185,7 +186,8 @@ function get_bound(m::Optimizer,
     # elseif dt == MSK_DOMAIN_RMINUS
     # elseif dt == MSK_DOMAIN_PRIMAL_GEO_MEAN_CONE
     # elseif dt == MSK_DOMAIN_DUAL_GEO_MEAN_CONE
-    # elseif dt == MSK_DOMAIN_SVEC_PSD_CONE
+    elseif dt == MSK_DOMAIN_SVEC_PSD_CONE
+        return ScaledPSDCone(MOI.Utilities.side_dimension_for_vectorized_dimension(solsize(m, ci)))
     else
         error("Incompatible cone detected")
     end
@@ -343,12 +345,13 @@ function rows(m::Optimizer, ci::MOI.ConstraintIndex{MOI.VectorAffineFunction{Flo
 end
 
 
-appendconedomain(t::Mosek.Task,n::Int,dom::MOI.ExponentialCone)        = Mosek.appendprimalexpconedomain(t)
-appendconedomain(t::Mosek.Task,n::Int,dom::MOI.DualExponentialCone)    = Mosek.appenddualexpconedomain(t)
-appendconedomain(t::Mosek.Task,n::Int,dom::MOI.PowerCone{Float64})     = Mosek.appendprimalpowerconedomain(t,3,Float64[dom.exponent,1.0-dom.exponent])
-appendconedomain(t::Mosek.Task,n::Int,dom::MOI.DualPowerCone{Float64}) = Mosek.appenddualpowerconedomain(t,3,Float64[dom.exponent,1.0-dom.exponent])
-appendconedomain(t::Mosek.Task,n::Int,dom::MOI.SecondOrderCone)        = Mosek.appendquadraticconedomain(t,n)
-appendconedomain(t::Mosek.Task,n::Int,dom::MOI.RotatedSecondOrderCone) = Mosek.appendrquadraticconedomain(t,n)
+appendconedomain(t::Mosek.Task,::Int,dom::MOI.ExponentialCone)        = Mosek.appendprimalexpconedomain(t)
+appendconedomain(t::Mosek.Task,::Int,dom::MOI.DualExponentialCone)    = Mosek.appenddualexpconedomain(t)
+appendconedomain(t::Mosek.Task,::Int,dom::MOI.PowerCone{Float64})     = Mosek.appendprimalpowerconedomain(t,3,Float64[dom.exponent,1.0-dom.exponent])
+appendconedomain(t::Mosek.Task,::Int,dom::MOI.DualPowerCone{Float64}) = Mosek.appenddualpowerconedomain(t,3,Float64[dom.exponent,1.0-dom.exponent])
+appendconedomain(t::Mosek.Task,n::Int,::MOI.SecondOrderCone)        = Mosek.appendquadraticconedomain(t,n)
+appendconedomain(t::Mosek.Task,n::Int,::MOI.RotatedSecondOrderCone) = Mosek.appendrquadraticconedomain(t,n)
+appendconedomain(t::Mosek.Task,n::Int,::ScaledPSDCone) = Mosek.appendsvecpsdconedomain(t,n)
 
 # Two `SingleVariable`-in-`S` cannot be set to the same variable if
 # the two constraints
@@ -470,7 +473,7 @@ function MOI.add_constraint(m::Optimizer, xs::MOI.VectorOfVariables,
     if any(vi -> is_matrix(m, vi), xs.variables)
         error("Cannot add $D constraint on a matrix variable")
     end
-    cols = ColumnIndices(reorder(columns(m, xs.variables).values, D))
+    cols = ColumnIndices(reorder(columns(m, xs.variables).values, D, true))
 
     if !all(vi -> iszero(incompatible_mask(D) & m.x_constraints[vi.value]), xs.variables)
         error("Cannot multiple bound sets of the same type to a variable")
@@ -496,7 +499,7 @@ function MOI.add_constraint(m::Optimizer,
     axbs = MOI.Utilities.canonical(func)
     let acci = getnumacc(m.task) + 1,
         afei = getnumafe(m.task),
-        b    = -reorder(axbs.constants, D),
+        b    = -reorder(axbs.constants, D, true),
         num  = length(axbs.constants),
         nnz  = length(axbs.terms),
         domi = appendconedomain(m.task,num,dom)
@@ -529,7 +532,7 @@ function MOI.add_constraint(m::Optimizer,
         end
 
         for term in axbs.terms
-            add(reorder(term.output_index, D) + afei, mosek_index(m,term.scalar_term.variable), term.scalar_term.coefficient)
+            add(reorder(term.output_index, dom, true) + afei, mosek_index(m,term.scalar_term.variable), term.scalar_term.coefficient)
         end
 
         if !isempty(rsubi) # Mosek segfaults otherwise, see https://github.com/jump-dev/MosekTools.jl/actions/runs/3243196430/jobs/5317555832#step:7:132
@@ -630,7 +633,7 @@ end
 function MOI.get(m::Optimizer, ::MOI.ConstraintFunction,
                  ci::MOI.ConstraintIndex{MOI.VectorOfVariables, S}) where S <: VectorCone
     return MOI.VectorOfVariables([
-        index_of_column(m, col) for col in reorder(columns(m, ci).values, S)
+        index_of_column(m, col) for col in reorder(columns(m, ci).values, S, true)
     ])
 end
 
@@ -639,8 +642,9 @@ function MOI.get(m::Optimizer, ::MOI.ConstraintFunction,
     r = rows(m, ci)
     (frow,fcol,fval) = getaccftrip(m.task)
     constants = getaccb(m.task, ci.value)
-    terms = [MOI.VectorAffineTerm(reorder(frow[i] - first(r) + 1, S), MOI.ScalarAffineTerm(fval[i], index_of_column(m, fcol[i]))) for i in eachindex(frow) if frow[i] in r]
-    return MOI.VectorAffineFunction(terms, -constants)
+    set = MOI.Utilities.set_with_dimension(S, length(r))
+    terms = [MOI.VectorAffineTerm(reorder(frow[i] - first(r) + 1, set, false), MOI.ScalarAffineTerm(fval[i], index_of_column(m, fcol[i]))) for i in eachindex(frow) if frow[i] in r]
+    return MOI.VectorAffineFunction(terms, -reorder(constants, S, false))
 end
 
 function type_cone(ct)
@@ -762,7 +766,8 @@ function MOI.is_valid(model::Optimizer,
               (dt == MSK_DOMAIN_PRIMAL_EXP_CONE   && S == MOI.ExponentialCone) ||
               (dt == MSK_DOMAIN_DUAL_EXP_CONE     && S == MOI.DualExponentialCone) ||
               (dt == MSK_DOMAIN_PRIMAL_POWER_CONE && S == MOI.PowerCone{Float64}) ||
-              (dt == MSK_DOMAIN_DUAL_POWER_CONE   && S == MOI.DualPowerCone{Float64}) )
+              (dt == MSK_DOMAIN_DUAL_POWER_CONE   && S == MOI.DualPowerCone{Float64}) ||
+              (dt == MSK_DOMAIN_SVEC_PSD_CONE     && S == ScaledPSDCone) )
         end
     end
 end

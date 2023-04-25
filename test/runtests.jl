@@ -135,7 +135,7 @@ end
             "test_basic_VectorQuadraticFunction_LogDetConeSquare",
             "test_conic_LogDetConeSquare_VectorOfVariables",
             # FIXME Needs https://github.com/jump-dev/MathOptInterface.jl/pull/1787
-            "test_constraint_ZeroOne_bounds",
+            r"^test_constraint_ZeroOne_bounds$",
             "test_constraint_ZeroOne_bounds_2",
             "test_constraint_ZeroOne_bounds_3",
             "test_variable_solve_ZeroOne_with_0_upper_bound",
@@ -180,7 +180,7 @@ end
             "test_conic_LogDetConeTriangle_VectorOfVariables",
             "test_conic_LogDetConeSquare_VectorOfVariables",
             # FIXME Needs https://github.com/jump-dev/MathOptInterface.jl/pull/1787
-            "test_constraint_ZeroOne_bounds",
+            r"^test_constraint_ZeroOne_bounds$",
             "test_variable_solve_ZeroOne_with_0_upper_bound",
             "test_variable_solve_ZeroOne_with_upper_bound",
             # MathOptInterface.LowerBoundAlreadySet{MathOptInterface.Interval{Float64}, MathOptInterface.Interval{Float64}}: Cannot add `VariableIndex`-in-`MathOptInterface.Interval{Float64}` constraint for variable MathOptInterface.VariableIndex(7) as a `VariableIndex`-in-`MathOptInterface.Interval{Float64}` constraint was already set for this variable and both constraints set a lower bound.
@@ -252,4 +252,35 @@ end
     # so we also allow `value`.
     @test MOI.get(model, attr) == value.value || MOI.get(model, attr) == value
     @test MOI.get(optimizer, attr) == value.value || MOI.get(model, attr) == value
+end
+
+@testset "LMIs" begin
+    optimizer = MosekOptimizerWithFallback()
+    @test MOI.supports_constraint(optimizer, MOI.VectorAffineFunction{Float64}, MosekTools.ScaledPSDCone)
+    bridged = MOI.Bridges.full_bridge_optimizer(optimizer, Float64)
+    @show MOI.Bridges.bridge_type(bridged, MOI.VectorAffineFunction{Float64}, MOI.PositiveSemidefiniteConeTriangle) === MosekTools.ScaledPSDConeBridge{Float64,MOI.VectorAffineFunction{Float64}}
+end
+
+function _test_symmetric_reorder(lower, n)
+    set = MosekTools.ScaledPSDCone(n)
+    N = MOI.dimension(set)
+    @test MosekTools.reorder(lower, MosekTools.ScaledPSDCone, true) == 1:N
+    @test MosekTools.reorder(1:N, MosekTools.ScaledPSDCone, false) == lower
+    for (up, low) in enumerate(lower)
+        @test MosekTools.reorder(up, set, true) == low
+        @test MosekTools.reorder(low, set, false) == up
+    end
+end
+
+function test_symmetric_reorder()
+    _test_symmetric_reorder([1], 1)
+    _test_symmetric_reorder([1, 2, 3], 2)
+    _test_symmetric_reorder([1, 2, 4, 3, 5, 6], 3)
+    _test_symmetric_reorder([1, 2, 5, 3, 6, 8, 4, 7, 9, 10], 4)
+    _test_symmetric_reorder([1, 2, 6, 3, 7, 10, 4, 8, 11, 13, 5, 9, 12, 14, 15], 5)
+    _test_symmetric_reorder([1, 2, 7, 3, 8, 12, 4, 9, 13, 16, 5, 10, 14, 17, 19, 6, 11, 15, 18, 20, 21], 6)
+end
+
+@testset "test_symmetric_reorder" begin
+    test_symmetric_reorder()
 end
