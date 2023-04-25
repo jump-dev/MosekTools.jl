@@ -484,6 +484,10 @@ ref2id(ci::MOI.ConstraintIndex)::Int = ci.value
 
 include("objective.jl")
 include("variable.jl")
+include("scaled_psd_cone_bridge.jl")
+function MOI.get(::Optimizer, ::MOI.Bridges.ListOfNonstandardBridges)
+    return [ScaledPSDConeBridge{Float64}]
+end
 include("constraint.jl")
 include("attributes.jl")
 

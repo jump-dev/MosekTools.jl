@@ -322,7 +322,8 @@ function MOI.get!(
     MOI.check_result_index_bounds(m, attr)
     whichsol = getsolcode(m,attr.result_index)
     output[1:length(output)] = reorder(getbarxj(m.task, whichsol, ci.value),
-                                       MOI.PositiveSemidefiniteConeTriangle)
+                                       MOI.PositiveSemidefiniteConeTriangle,
+                                       false)
 end
 
 # Any other domain for variable vector
@@ -333,7 +334,7 @@ function MOI.get!(
     ci  ::MOI.ConstraintIndex{MOI.VectorOfVariables,D}) where D
     MOI.check_result_index_bounds(m, attr)
     cols = columns(m, ci)
-    output[1:length(output)] = reorder(m.solutions[attr.result_index].xx[cols.values], D)
+    output[1:length(output)] = reorder(m.solutions[attr.result_index].xx[cols.values], D, false)
 end
 
 function MOI.get(m     ::Optimizer,
@@ -371,28 +372,63 @@ getsolcode(m::Optimizer, N) = m.solutions[N].whichsol
 
 # The dual or primal of an SDP variable block is returned in lower triangular
 # form but the constraint is in upper triangular form.
-function reorder(x, ::Type{MOI.PositiveSemidefiniteConeTriangle})
-    n = div(isqrt(1 + 8length(x)) - 1, 2)
+function reorder(k::Integer, set::ScaledPSDCone, moi_to_mosek::Bool)
+    # `i` is the row in columnwise upper triangular form
+    # the returned value is in columnwise lower triangular form
+    if !moi_to_mosek
+        # If we reverse things, the columnwise lower triangular becomes a
+        # columnwise upper triangular so we can use `trimap`
+        k = MOI.dimension(set) - k + 1
+    end
+    j = div(1 + isqrt(8k - 7), 2)
+    i = k - div((j - 1) * j, 2)
+    @assert 0 < j <= set.side_dimension
+    @assert 0 < i <= j
+    k = MOI.Utilities.trimap(set.side_dimension - j + 1, set.side_dimension - i + 1)
+    if moi_to_mosek
+        k = MOI.dimension(set) - k + 1
+    end
+    return k
+end
+function reorder(x::AbstractVector, ::Type{<:Union{ScaledPSDCone,MOI.PositiveSemidefiniteConeTriangle}}, moi_to_mosek::Bool)
+    n = MOI.Utilities.side_dimension_for_vectorized_dimension(length(x))
     @assert length(x) == MOI.dimension(MOI.PositiveSemidefiniteConeTriangle(n))
     y = similar(x)
     k = 0
     for j in 1:n, i in j:n
         k += 1
-        y[div((i - 1) * i, 2) + j] = x[k]
-
+        o = div((i - 1) * i, 2) + j
+        if moi_to_mosek
+            y[k] = x[o]
+        else
+            y[o] = x[k]
+        end
     end
     @assert k == length(x)
     return y
 end
 
-function reorder(i::Integer, ::Type{<:Union{MOI.ExponentialCone,MOI.DualExponentialCone}})
+
+const ExpCones = Union{
+    MOI.ExponentialCone,
+    MOI.DualExponentialCone,
+}
+
+function reorder(i::Integer, ::ExpCones, ::Bool)
     return (3:-1:1)[i]
 end
-function reorder(x::AbstractVector, ::Type{<:Union{MOI.ExponentialCone,
-                                   MOI.DualExponentialCone}})
+function reorder(x::AbstractVector, ::Union{ExpCones,Type{<:ExpCones}}, ::Bool)
     return [x[3], x[2], x[1]]
 end
-reorder(x, ::Type{<:VectorCone}) = x
+
+const NoReorder = Union{
+    MOI.SecondOrderCone,
+    MOI.RotatedSecondOrderCone,
+    MOI.PowerCone,
+    MOI.DualPowerCone,
+}
+
+reorder(x, ::Union{NoReorder,Type{<:NoReorder}}, ::Bool) = x
 
 
 # Semidefinite domain for a variable
@@ -405,7 +441,7 @@ function MOI.get!(
     whichsol = getsolcode(m,attr.result_index)
     # It is in fact a real constraint and cid is the id of an ordinary constraint
     dual = reorder(getbarsj(m.task, whichsol, ci.value),
-                   MOI.PositiveSemidefiniteConeTriangle)
+                   MOI.PositiveSemidefiniteConeTriangle, false)
     if (getobjsense(m.task) == MSK_OBJECTIVE_SENSE_MINIMIZE)
         output[1:length(output)] .= dual
     else
@@ -426,7 +462,7 @@ function MOI.get!(
 
     cols = columns(m, ci)
 
-    idx = reorder(1:length(output), D)
+    idx = reorder(1:length(output), D, true)
 
     if (getobjsense(m.task) == MSK_OBJECTIVE_SENSE_MINIMIZE)
         output[idx] = m.solutions[attr.result_index].snx[cols.values]
@@ -444,7 +480,7 @@ function MOI.get!(
 
     r = rows(m, ci)
 
-    idx = reorder(1:length(output), D)
+    idx = reorder(1:length(output), D, true)
 
     if (getobjsense(m.task) == MSK_OBJECTIVE_SENSE_MINIMIZE)
         output[idx] = m.solutions[attr.result_index].doty[r]
