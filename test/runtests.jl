@@ -256,16 +256,16 @@ end
 
 @testset "LMIs" begin
     optimizer = MosekOptimizerWithFallback()
-    @test MOI.supports_constraint(optimizer, MOI.VectorAffineFunction{Float64}, MosekTools.ScaledPSDCone)
+    @test MOI.supports_constraint(optimizer, MOI.VectorAffineFunction{Float64}, MOI.ScaledPositiveSemidefiniteConeTriangle)
     bridged = MOI.Bridges.full_bridge_optimizer(optimizer, Float64)
-    @show MOI.Bridges.bridge_type(bridged, MOI.VectorAffineFunction{Float64}, MOI.PositiveSemidefiniteConeTriangle) === MosekTools.ScaledPSDConeBridge{Float64,MOI.VectorAffineFunction{Float64}}
+    @show MOI.Bridges.bridge_type(bridged, MOI.VectorAffineFunction{Float64}, MOI.PositiveSemidefiniteConeTriangle) === MOI.Bridges.Constraint.SymmetricMatrixScalingBridge{Float64,MOI.VectorAffineFunction{Float64}}
 end
 
 function _test_symmetric_reorder(lower, n)
-    set = MosekTools.ScaledPSDCone(n)
+    set = MOI.ScaledPositiveSemidefiniteConeTriangle(n)
     N = MOI.dimension(set)
-    @test MosekTools.reorder(lower, MosekTools.ScaledPSDCone, true) == 1:N
-    @test MosekTools.reorder(1:N, MosekTools.ScaledPSDCone, false) == lower
+    @test MosekTools.reorder(lower, MOI.ScaledPositiveSemidefiniteConeTriangle, true) == 1:N
+    @test MosekTools.reorder(1:N, MOI.ScaledPositiveSemidefiniteConeTriangle, false) == lower
     for (up, low) in enumerate(lower)
         @test MosekTools.reorder(up, set, true) == low
         @test MosekTools.reorder(low, set, false) == up
