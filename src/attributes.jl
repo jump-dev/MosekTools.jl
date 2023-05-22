@@ -234,9 +234,8 @@ function MOI.get(model::Optimizer,
     end
     F = MOI.VectorOfVariables
     for D in [MOI.SecondOrderCone, MOI.RotatedSecondOrderCone,
-              # TODO reenable for Mosek 9
-              #MOI.PowerCone{Float64}, MOI.DualPowerCone{Float64},
-              #MOI.ExponentialCone, MOI.DualExponentialCone,
+              MOI.PowerCone{Float64}, MOI.DualPowerCone{Float64},
+              MOI.ExponentialCone, MOI.DualExponentialCone,
               MOI.PositiveSemidefiniteConeTriangle]
         if !iszero(MOI.get(model, MOI.NumberOfConstraints{F, D}()))
             push!(list, (F, D))
