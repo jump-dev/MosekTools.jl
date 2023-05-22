@@ -181,6 +181,7 @@ end
             # FIXME Mosek.MosekError(1307, "Variable '' (1) is a member of cone '' (0).") src/msk_functions.jl:477
             "test_conic_LogDetConeTriangle_VectorOfVariables",
             "test_conic_LogDetConeSquare_VectorOfVariables",
+            "test_conic_NormCone",
             # FIXME Needs https://github.com/jump-dev/MathOptInterface.jl/pull/1787
             r"^test_constraint_ZeroOne_bounds$",
             "test_variable_solve_ZeroOne_with_0_upper_bound",
