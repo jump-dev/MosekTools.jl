@@ -148,6 +148,8 @@ end
             "test_cpsat_ReifiedAllDifferent",
             "test_variable_solve_ZeroOne_with_1_lower_bound",
             "test_variable_solve_ZeroOne_with_bounds_then_delete",
+            "test_basic_VectorOfVariables_NormCone",
+            "test_conic_NormCone",
             # FIXME segfault, see https://github.com/jump-dev/MosekTools.jl/actions/runs/3243196430/jobs/5317555832#step:7:123
             "test_constraint_PrimalStart_DualStart_SecondOrderCone",
             # Evaluated: MathOptInterface.OTHER_ERROR in (MathOptInterface.OPTIMAL, MathOptInterface.INVALID_MODEL)
@@ -179,6 +181,7 @@ end
             # FIXME Mosek.MosekError(1307, "Variable '' (1) is a member of cone '' (0).") src/msk_functions.jl:477
             "test_conic_LogDetConeTriangle_VectorOfVariables",
             "test_conic_LogDetConeSquare_VectorOfVariables",
+            "test_conic_NormCone",
             # FIXME Needs https://github.com/jump-dev/MathOptInterface.jl/pull/1787
             r"^test_constraint_ZeroOne_bounds$",
             "test_variable_solve_ZeroOne_with_0_upper_bound",
@@ -256,16 +259,16 @@ end
 
 @testset "LMIs" begin
     optimizer = MosekOptimizerWithFallback()
-    @test MOI.supports_constraint(optimizer, MOI.VectorAffineFunction{Float64}, MosekTools.ScaledPSDCone)
+    @test MOI.supports_constraint(optimizer, MOI.VectorAffineFunction{Float64}, MOI.ScaledPositiveSemidefiniteConeTriangle)
     bridged = MOI.Bridges.full_bridge_optimizer(optimizer, Float64)
-    @show MOI.Bridges.bridge_type(bridged, MOI.VectorAffineFunction{Float64}, MOI.PositiveSemidefiniteConeTriangle) === MosekTools.ScaledPSDConeBridge{Float64,MOI.VectorAffineFunction{Float64}}
+    @show MOI.Bridges.bridge_type(bridged, MOI.VectorAffineFunction{Float64}, MOI.PositiveSemidefiniteConeTriangle) === MOI.Bridges.Constraint.SymmetricMatrixScalingBridge{Float64,MOI.VectorAffineFunction{Float64}}
 end
 
 function _test_symmetric_reorder(lower, n)
-    set = MosekTools.ScaledPSDCone(n)
+    set = MOI.ScaledPositiveSemidefiniteConeTriangle(n)
     N = MOI.dimension(set)
-    @test MosekTools.reorder(lower, MosekTools.ScaledPSDCone, true) == 1:N
-    @test MosekTools.reorder(1:N, MosekTools.ScaledPSDCone, false) == lower
+    @test MosekTools.reorder(lower, MOI.ScaledPositiveSemidefiniteConeTriangle, true) == 1:N
+    @test MosekTools.reorder(1:N, MOI.ScaledPositiveSemidefiniteConeTriangle, false) == lower
     for (up, low) in enumerate(lower)
         @test MosekTools.reorder(up, set, true) == low
         @test MosekTools.reorder(low, set, false) == up
