@@ -73,7 +73,7 @@ end
 const config = MOI.Test.Config(
     Float64, atol=1e-3, rtol=1e-3,
     # TODO remove `MOI.delete` once it is implemented for ACC
-    exclude=Any[MOI.ConstraintName, MOI.VariableBasisStatus, MOI.ConstraintBasisStatus, MOI.delete], # result in errors for now
+    exclude=Any[MOI.ConstraintName, MOI.ConstraintBasisStatus, MOI.delete], # result in errors for now
 )
 
 @testset "Direct optimizer tests" begin
