@@ -569,7 +569,7 @@ function MOI.add_constrained_variables(
     m  ::Optimizer,
     dom::MOI.PositiveSemidefiniteConeTriangle
 )
-    N = dom.side_dimension
+    N = MOI.side_dimension(dom)
     if N < 1
         error("Invalid dimension for semidefinite constraint, got $N which is ",
               "smaller than the minimum dimension 1.")

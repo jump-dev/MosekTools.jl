@@ -381,9 +381,10 @@ function reorder(k::Integer, set::MOI.Scaled{MOI.PositiveSemidefiniteConeTriangl
     end
     j = div(1 + isqrt(8k - 7), 2)
     i = k - div((j - 1) * j, 2)
-    @assert 0 < j <= set.side_dimension
+    d = MOI.side_dimension(set)
+    @assert 0 < j <= d
     @assert 0 < i <= j
-    k = MOI.Utilities.trimap(set.side_dimension - j + 1, set.side_dimension - i + 1)
+    k = MOI.Utilities.trimap(d - j + 1, d - i + 1)
     if moi_to_mosek
         k = MOI.dimension(set) - k + 1
     end
