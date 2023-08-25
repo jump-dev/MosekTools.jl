@@ -259,13 +259,13 @@ end
 
 @testset "LMIs" begin
     optimizer = MosekOptimizerWithFallback()
-    @test MOI.supports_constraint(optimizer, MOI.VectorAffineFunction{Float64}, MOI.ScaledPositiveSemidefiniteConeTriangle)
+    @test MOI.supports_constraint(optimizer, MOI.VectorAffineFunction{Float64}, MOI.Scaled{MOI.PositiveSemidefiniteConeTriangle})
     bridged = MOI.Bridges.full_bridge_optimizer(optimizer, Float64)
     @show MOI.Bridges.bridge_type(bridged, MOI.VectorAffineFunction{Float64}, MOI.PositiveSemidefiniteConeTriangle) === MOI.Bridges.Constraint.SymmetricMatrixScalingBridge{Float64}
 end
 
 function _test_symmetric_reorder(lower, n)
-    set = MOI.ScaledPositiveSemidefiniteConeTriangle(n)
+    set = MOI.Scaled(MOI.PositiveSemidefiniteConeTriangle(n))
     N = MOI.dimension(set)
     @test MosekTools.reorder(lower, MOI.ScaledPositiveSemidefiniteConeTriangle, true) == 1:N
     @test MosekTools.reorder(1:N, MOI.ScaledPositiveSemidefiniteConeTriangle, false) == lower
