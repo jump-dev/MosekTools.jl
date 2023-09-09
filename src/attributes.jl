@@ -371,7 +371,7 @@ getsolcode(m::Optimizer, N) = m.solutions[N].whichsol
 
 # The dual or primal of an SDP variable block is returned in lower triangular
 # form but the constraint is in upper triangular form.
-function reorder(k::Integer, set::MOI.ScaledPositiveSemidefiniteConeTriangle, moi_to_mosek::Bool)
+function reorder(k::Integer, set::MOI.Scaled{MOI.PositiveSemidefiniteConeTriangle}, moi_to_mosek::Bool)
     # `i` is the row in columnwise upper triangular form
     # the returned value is in columnwise lower triangular form
     if !moi_to_mosek
@@ -381,15 +381,16 @@ function reorder(k::Integer, set::MOI.ScaledPositiveSemidefiniteConeTriangle, mo
     end
     j = div(1 + isqrt(8k - 7), 2)
     i = k - div((j - 1) * j, 2)
-    @assert 0 < j <= set.side_dimension
+    d = MOI.side_dimension(set)
+    @assert 0 < j <= d
     @assert 0 < i <= j
-    k = MOI.Utilities.trimap(set.side_dimension - j + 1, set.side_dimension - i + 1)
+    k = MOI.Utilities.trimap(d - j + 1, d - i + 1)
     if moi_to_mosek
         k = MOI.dimension(set) - k + 1
     end
     return k
 end
-function reorder(x::AbstractVector, ::Type{<:Union{MOI.ScaledPositiveSemidefiniteConeTriangle,MOI.PositiveSemidefiniteConeTriangle}}, moi_to_mosek::Bool)
+function reorder(x::AbstractVector, ::Type{<:Union{MOI.Scaled{MOI.PositiveSemidefiniteConeTriangle},MOI.PositiveSemidefiniteConeTriangle}}, moi_to_mosek::Bool)
     n = MOI.Utilities.side_dimension_for_vectorized_dimension(length(x))
     @assert length(x) == MOI.dimension(MOI.PositiveSemidefiniteConeTriangle(n))
     y = similar(x)

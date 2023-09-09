@@ -19,7 +19,7 @@ const VectorConeDomain = Union{MOI.SecondOrderCone,
                                MOI.DualPowerCone,
                                MOI.ExponentialCone,
                                MOI.DualExponentialCone,
-                               MOI.ScaledPositiveSemidefiniteConeTriangle,}
+                               MOI.Scaled{MOI.PositiveSemidefiniteConeTriangle},}
 
 function allocateconstraints(m::Optimizer, N::Int)
     numcon = getnumcon(m.task)
@@ -187,7 +187,7 @@ function get_bound(m::Optimizer,
     # elseif dt == MSK_DOMAIN_PRIMAL_GEO_MEAN_CONE
     # elseif dt == MSK_DOMAIN_DUAL_GEO_MEAN_CONE
     elseif dt == MSK_DOMAIN_SVEC_PSD_CONE
-        return MOI.ScaledPositiveSemidefiniteConeTriangle(MOI.Utilities.side_dimension_for_vectorized_dimension(solsize(m, ci)))
+        return MOI.Scaled{MOI.PositiveSemidefiniteConeTriangle}(MOI.Utilities.side_dimension_for_vectorized_dimension(solsize(m, ci)))
     else
         error("Incompatible cone detected")
     end
@@ -351,7 +351,7 @@ appendconedomain(t::Mosek.Task,::Int,dom::MOI.PowerCone{Float64})     = Mosek.ap
 appendconedomain(t::Mosek.Task,::Int,dom::MOI.DualPowerCone{Float64}) = Mosek.appenddualpowerconedomain(t,3,Float64[dom.exponent,1.0-dom.exponent])
 appendconedomain(t::Mosek.Task,n::Int,::MOI.SecondOrderCone)        = Mosek.appendquadraticconedomain(t,n)
 appendconedomain(t::Mosek.Task,n::Int,::MOI.RotatedSecondOrderCone) = Mosek.appendrquadraticconedomain(t,n)
-appendconedomain(t::Mosek.Task,n::Int,::MOI.ScaledPositiveSemidefiniteConeTriangle) = Mosek.appendsvecpsdconedomain(t,n)
+appendconedomain(t::Mosek.Task,n::Int,::MOI.Scaled{MOI.PositiveSemidefiniteConeTriangle}) = Mosek.appendsvecpsdconedomain(t,n)
 
 # Two `SingleVariable`-in-`S` cannot be set to the same variable if
 # the two constraints
@@ -569,7 +569,7 @@ function MOI.add_constrained_variables(
     m  ::Optimizer,
     dom::MOI.PositiveSemidefiniteConeTriangle
 )
-    N = dom.side_dimension
+    N = MOI.side_dimension(dom)
     if N < 1
         error("Invalid dimension for semidefinite constraint, got $N which is ",
               "smaller than the minimum dimension 1.")
@@ -767,7 +767,7 @@ function MOI.is_valid(model::Optimizer,
               (dt == MSK_DOMAIN_DUAL_EXP_CONE     && S == MOI.DualExponentialCone) ||
               (dt == MSK_DOMAIN_PRIMAL_POWER_CONE && S == MOI.PowerCone{Float64}) ||
               (dt == MSK_DOMAIN_DUAL_POWER_CONE   && S == MOI.DualPowerCone{Float64}) ||
-              (dt == MSK_DOMAIN_SVEC_PSD_CONE     && S == MOI.ScaledPositiveSemidefiniteConeTriangle) )
+              (dt == MSK_DOMAIN_SVEC_PSD_CONE     && S == MOI.Scaled{MOI.PositiveSemidefiniteConeTriangle}) )
         end
     end
 end
