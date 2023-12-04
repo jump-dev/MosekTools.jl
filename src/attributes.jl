@@ -300,6 +300,42 @@ function MOI.get(m::Optimizer, attr::MOI.VariablePrimal,
     return output
 end
 
+#### Variable basis status
+
+function _basis_status(x::Stakey)
+    if x == MSK_SK_BAS
+        return BASIC
+    elseif x == MSK_SK_SUPBAS
+        return SUPER_BASIC
+    elseif x == MSK_SK_LOW
+        return NONBASIC_AT_LOWER
+    elseif x == MSK_SK_UPR
+        return NONBASIC_AT_UPPER
+        # FIXME which one is `NONBASIC` ?
+    elseif x == MSK_SK_UNK
+        msg = "The status for the constraint or variable is unknown"
+    elseif x == MSK_SK_FIX
+        msg = "The constraint or variable is fixed"
+    else
+        @assert x == MSK_SK_INF
+        msg = "The constraint or variable is infeasible in the bounds"
+    end
+    error("Mosek basic status `$msg` has no equivalent in the `MOI.BasisStatusCode` enum.")
+end
+
+function MOI.get(m::Optimizer, attr::MOI.VariableBasisStatus, col::ColumnIndex)
+    return _basis_status(m.solutions[attr.result_index].xxstatus[col.value])
+end
+
+function MOI.get(::Optimizer, attr::MOI.VariableBasisStatus, mat::MOI.VariableIndex)
+    error("$attr not supported for PSD variable $mat")
+end
+
+function MOI.get(m::Optimizer, attr::MOI.VariableBasisStatus, vi::MOI.VariableIndex)
+    MOI.check_result_index_bounds(m, attr)
+    return MOI.get(m, attr, mosek_index(m, vi))
+end
+
 #### Constraint solution values
 
 function MOI.get(
