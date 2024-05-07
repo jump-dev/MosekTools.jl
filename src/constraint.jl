@@ -51,29 +51,46 @@ function split_scalar_matrix(m::Optimizer, terms::Vector{MOI.ScalarAffineTerm{Fl
                              set_sd::Function)
     cols = Int32[]
     values = Float64[]
-    sd_row  = Vector{Int32}[Int32[] for i in 1:length(m.sd_dim)]
-    sd_col  = Vector{Int32}[Int32[] for i in 1:length(m.sd_dim)]
-    sd_coef = Vector{Float64}[Float64[] for i in 1:length(m.sd_dim)]
+    # `terms` is in canonical form so the variables belonging to the same
+    # matrix appear adjacent to each other so we can reuse the vector for all
+    # matrices. Allocating one vector for each matrix can cause performance
+    # issues; see https://github.com/jump-dev/MosekTools.jl/issues/135
+    current_matrix = -1
+    sd_row  = Int32[]
+    sd_col  = Int32[]
+    sd_coef = Float64[]
     function add(col::ColumnIndex, coefficient::Float64)
-	push!(cols, col.value)
-	push!(values, coefficient)
+        push!(cols, col.value)
+        push!(values, coefficient)
+    end
+    function add_sd()
+        if current_matrix != -1
+            @assert !isempty(sd_row)
+            id = appendsparsesymmat(
+                m.task,
+                m.sd_dim[current_matrix],
+                sd_row,
+                sd_col,
+                sd_coef,
+            )
+            set_sd(current_matrix, [id], [1.0])
+        end
     end
     function add(mat::MatrixIndex, coefficient::Float64)
+        @assert mat.matrix != -1
+        if current_matrix != mat.matrix
+            add_sd()
+            current_matrix = mat.matrix
+        end
         coef = mat.row == mat.column ? coefficient : coefficient / 2
-        push!(sd_row[mat.matrix], mat.row)
-        push!(sd_col[mat.matrix], mat.column)
-        push!(sd_coef[mat.matrix], coef)
+        push!(sd_row, mat.row)
+        push!(sd_col, mat.column)
+        push!(sd_coef, coef)
     end
     for term in terms
         add(mosek_index(m, term.variable), term.coefficient)
     end
-    for j in 1:length(m.sd_dim)
-        if !isempty(sd_row[j])
-            id = appendsparsesymmat(m.task, m.sd_dim[j], sd_row[j],
-                                    sd_col[j], sd_coef[j])
-            set_sd(j, [id], [1.0])
-        end
-    end
+    add_sd()
     return cols, values
 end
 
