@@ -260,7 +260,7 @@ end
     optimizer = MosekOptimizerWithFallback()
     @test MOI.supports_constraint(optimizer, MOI.VectorAffineFunction{Float64}, MOI.Scaled{MOI.PositiveSemidefiniteConeTriangle})
     bridged = MOI.Bridges.full_bridge_optimizer(optimizer, Float64)
-    @show MOI.Bridges.bridge_type(bridged, MOI.VectorAffineFunction{Float64}, MOI.PositiveSemidefiniteConeTriangle) === MOI.Bridges.Constraint.SymmetricMatrixScalingBridge{Float64}
+    @test MOI.Bridges.bridge_type(bridged, MOI.VectorAffineFunction{Float64}, MOI.PositiveSemidefiniteConeTriangle) === MOI.Bridges.Constraint.SetDotScalingBridge{Float64, MOI.PositiveSemidefiniteConeTriangle, MOI.VectorAffineFunction{Float64}, MOI.VectorAffineFunction{Float64}}
 end
 
 function _test_symmetric_reorder(lower, n)
