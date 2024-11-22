@@ -19,7 +19,6 @@ function MosekOptimizerWithFallback()
     return optimizer
 end
 
-
 @testset "SolverName" begin
     @test MOI.get(Mosek.Optimizer(), MOI.SolverName()) == "Mosek"
 end
@@ -284,6 +283,15 @@ function test_symmetric_reorder()
     _test_symmetric_reorder([1, 2, 7, 3, 8, 12, 4, 9, 13, 16, 5, 10, 14, 17, 19, 6, 11, 15, 18, 20, 21], 6)
 end
 
-@testset "test_symmetric_reorder" begin
-    test_symmetric_reorder()
+function test_variable_basis_status()
+    model = Mosek.Optimizer()
+    x, cx = MOI.add_constrained_variables(model, MOI.PositiveSemidefiniteConeTriangle(2))
+    attr = MOI.VariableBasisStatus()
+    index = MosekTools.mosek_index(model, x[1])
+    err = ErrorException("$attr not supported for PSD variable $index")
+    @test_throws err MOI.get(model, attr, index)
+end
+
+@testset "test_variable_basis_status" begin
+    test_variable_basis_status()
 end
