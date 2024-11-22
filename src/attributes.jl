@@ -327,7 +327,7 @@ function MOI.get(m::Optimizer, attr::MOI.VariableBasisStatus, col::ColumnIndex)
     return _basis_status(m.solutions[attr.result_index].xxstatus[col.value])
 end
 
-function MOI.get(::Optimizer, attr::MOI.VariableBasisStatus, mat::MOI.VariableIndex)
+function MOI.get(::Optimizer, attr::MOI.VariableBasisStatus, mat::MatrixIndex)
     error("$attr not supported for PSD variable $mat")
 end
 
