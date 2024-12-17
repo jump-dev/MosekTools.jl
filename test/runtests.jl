@@ -204,6 +204,43 @@ end
     )
 end
 
+# See https://github.com/jump-dev/MosekTools.jl/issues/139
+# TODO add to MOI
+@testset "Multiple PSD matrix in same constraint" begin
+    model = MOI.Bridges.full_bridge_optimizer(
+        MosekOptimizerWithFallback(),
+        Float64,
+    )
+    x, _ = MOI.add_constrained_variables(model, MOI.PositiveSemidefiniteConeTriangle(2))
+    y, _ = MOI.add_constrained_variables(model, MOI.PositiveSemidefiniteConeTriangle(2))
+    MOI.add_constraint(model, sum(1.0 .* x) - sum(1.0 .* y), MOI.EqualTo(0.0))
+    MOI.add_constraint(model, 1.0 * y[1] + 1.0 * y[3], MOI.GreaterThan(1.0))
+    obj = 1.0 * x[1] + 1.0 * x[3]
+    MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+    MOI.set(model, MOI.ObjectiveFunction{typeof(obj)}(), obj)
+    MOI.optimize!(model)
+    @test MOI.get(model, MOI.PrimalStatus()) == MOI.FEASIBLE_POINT
+    @test MOI.get.(model, MOI.VariablePrimal(), x) ≈ ones(3) ./ 6 rtol = 1e-6
+    @test MOI.get.(model, MOI.VariablePrimal(), y) ≈ [1, -1, 1] ./ 2 rtol = 1e-6
+end
+
+@testset "More SDP tests by forced bridging" begin
+    model = MOI.Bridges.full_bridge_optimizer(
+        MOI.Bridges.Constraint.RSOCtoPSD{Float64}( # Forced bridging
+            MOI.Utilities.CachingOptimizer(
+                    MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}()),
+                    #Mosek.Optimizer(),
+                    MosekOptimizerWithFallback(),
+            )
+        ),
+        Float64,
+    )
+    MOI.set(model, MOI.Silent(), true)
+    MOI.Test.runtests(model, config,
+        include=["conic_SecondOrderCone"],
+    )
+end
+
 @testset "Number of variables and deletion" begin
     optimizer = MosekOptimizerWithFallback()
     x = MOI.add_variable(optimizer)
