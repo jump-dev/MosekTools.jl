@@ -81,6 +81,9 @@ function split_scalar_matrix(m::Optimizer, terms::Vector{MOI.ScalarAffineTerm{Fl
         if current_matrix != mat.matrix
             add_sd()
             current_matrix = mat.matrix
+            empty!(sd_row)
+            empty!(sd_col)
+            empty!(sd_coef)
         end
         coef = mat.row == mat.column ? coefficient : coefficient / 2
         push!(sd_row, mat.row)
