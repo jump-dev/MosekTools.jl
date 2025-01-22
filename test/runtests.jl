@@ -312,3 +312,16 @@ end
 @testset "test_variable_basis_status" begin
     test_variable_basis_status()
 end
+
+function test_modify_psd()
+    model = Mosek.Optimizer()
+    x, _ = MOI.add_constrained_variables(model, MOI.PositiveSemidefiniteConeTriangle(2))
+    c = MOI.add_constraint(model, 1.0 * x[1], MOI.LessThan(1.0))
+    change = MOI.ScalarCoefficientChange(x[1], 2.0)
+    err = MOI.ModifyConstraintNotAllowed(c, change, "Modifying the coefficient of the variable correspond to an entry of a PSD matrix is not supported")
+    @test_throws err MOI.modify(model, c, change)
+end
+
+@testset "test_modify_psd" begin
+    test_modify_psd()
+end
