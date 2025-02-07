@@ -38,23 +38,34 @@ See the following table for a summary:
 
 ## Use with JuMP
 
+To use Mosek with JuMP, use `Mosek.Optimizer`:
 ```julia
 using JuMP
-using MosekTools
+import Mosek
+import MosekTools
 model = Model(Mosek.Optimizer)
-set_attribute(model, "QUIET", true)
-set_attribute(model, "INTPNT_CO_TOL_DFEAS", 1e-7)
+set_silent(model)
+set_attribute(model, "MSK_DPAR_INTPNT_CO_TOL_DFEAS", 1e-7)
+set_attribute(model, "MSK_IPAR_OPTIMIZER", Mosek.MSK_OPTIMIZER_INTPNT)
 ```
+Note that even thought the optimizer is `Mosek.Optimizer`, you must additionally
+import `MosekTools`.
 
 ## Options
 
-The parameter `QUIET` is a special parameter that when set to `true`
-disables all Mosek printing output.
+All other parameters can be found in the [Mosek documentation]([https://docs.mosek.com/8.1/capi/param-groups.html#doc-param-groups](https://docs.mosek.com/latest/opt-server/param-groups.html)).
 
-All other parameters can be found in the [Mosek documentation](https://docs.mosek.com/8.1/capi/param-groups.html#doc-param-groups).
-
-Note that the prefix `MSK_IPAR_` (for integer parameters), `MSK_DPAR_` (for
-floating point parameters) or `MSK_SPAR_` (for string parameters) are optional.
-If they are not given, they are inferred from the type of the value. For
-example, in the example above, as `1e-7` is a floating point number, the
-parameters name used is `MSK_DPAR_INTPNT_CO_TOL_DFEAS`.
+For integer parameters, pass either the value, or the correspondng
+constant defined in the `Mosek` package.
+```julia
+using JuMP
+import Mosek
+import MosekTools
+model = Model(Mosek.Optimizer)
+set_attribute(model, "MSK_IPAR_OPTIMIZER", Mosek.MSK_OPTIMIZER_INTPNT)
+set_attribute(model, "MSK_IPAR_OPTIMIZER", 4)
+set_attribute(model, "MSK_IPAR_CACHE_LICENSE", Mosek.MSK_ON)
+set_attribute(model, "MSK_IPAR_CACHE_LICENSE", 1)
+set_attribute(model, "MSK_IPAR_CACHE_LICENSE", Mosek.MSK_OFF)
+set_attribute(model, "MSK_IPAR_CACHE_LICENSE", 0)
+```
