@@ -48,7 +48,7 @@ set_silent(model)
 set_attribute(model, "MSK_DPAR_INTPNT_CO_TOL_DFEAS", 1e-7)
 set_attribute(model, "MSK_IPAR_OPTIMIZER", Mosek.MSK_OPTIMIZER_INTPNT)
 ```
-Note that even thought the optimizer is `Mosek.Optimizer`, you must additionally
+Note that even though the optimizer is `Mosek.Optimizer`, you must additionally
 import `MosekTools`.
 
 ## Options
