@@ -59,6 +59,29 @@ struct MatrixIndex
     end
 end
 
+# Used to avoid reallocation of temporary vectors
+struct Cache
+    # Used in `split_scalar_matrix`
+    cols::Vector{Int32}
+    values::Vector{Float64}
+    sd_row::Vector{Int32}
+    sd_col::Vector{Int32}
+    sd_coef::Vector{Float64}
+    ids::Vector{Int64}
+    weights::Vector{Float64}
+    function Cache()
+        return new(
+            Int32[],
+            Float64[],
+            Int32[],
+            Int32[],
+            Float64[],
+            Int64[],
+            Float64[],
+        )
+    end
+end
+
 """
     Optimizer <: MOI.AbstractOptimizer
 
@@ -141,6 +164,8 @@ mutable struct Optimizer  <: MOI.AbstractOptimizer
     """
     has_objective :: Bool
 
+    cache :: Cache
+
     fallback :: Union{String, Nothing}
 
     function Optimizer(; kws...)
@@ -164,6 +189,7 @@ mutable struct Optimizer  <: MOI.AbstractOptimizer
             MosekSolution[],
             true, # feasibility_sense
             false, # has_objective
+            Cache(),
             nothing,
         )
         Mosek.appendrzerodomain(optimizer.task,0)

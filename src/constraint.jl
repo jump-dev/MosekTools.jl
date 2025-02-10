@@ -49,31 +49,36 @@ end
 # `putbaraij` and `putbarcj` need the whole matrix as a sum of sparse mat at once
 function split_scalar_matrix(m::Optimizer, terms::Vector{MOI.ScalarAffineTerm{Float64}},
                              set_sd::Function)
-    cols = Int32[]
-    values = Float64[]
     # `terms` is in canonical form so the variables belonging to the same
     # matrix appear adjacent to each other so we can reuse the vector for all
     # matrices. Allocating one vector for each matrix can cause performance
     # issues; see https://github.com/jump-dev/MosekTools.jl/issues/135
+    empty!(m.cache.cols)
+    empty!(m.cache.values)
+    empty!(m.cache.sd_row)
+    empty!(m.cache.sd_col)
+    empty!(m.cache.sd_coef)
+    empty!(m.cache.ids)
+    empty!(m.cache.weights)
+    push!(m.cache.ids, 1)
+    push!(m.cache.weights, 1.0)
     current_matrix = -1
-    sd_row  = Int32[]
-    sd_col  = Int32[]
-    sd_coef = Float64[]
     function add(col::ColumnIndex, coefficient::Float64)
-        push!(cols, col.value)
-        push!(values, coefficient)
+        push!(m.cache.cols, col.value)
+        push!(m.cache.values, coefficient)
     end
     function add_sd()
         if current_matrix != -1
-            @assert !isempty(sd_row)
+            @assert !isempty(m.cache.sd_row)
             id = appendsparsesymmat(
                 m.task,
                 m.sd_dim[current_matrix],
-                sd_row,
-                sd_col,
-                sd_coef,
+                m.cache.sd_row,
+                m.cache.sd_col,
+                m.cache.sd_coef,
             )
-            set_sd(current_matrix, [id], [1.0])
+            m.cache.ids[] = id
+            set_sd(current_matrix, m.cache.ids, m.cache.weights)
         end
     end
     function add(mat::MatrixIndex, coefficient::Float64)
@@ -81,20 +86,20 @@ function split_scalar_matrix(m::Optimizer, terms::Vector{MOI.ScalarAffineTerm{Fl
         if current_matrix != mat.matrix
             add_sd()
             current_matrix = mat.matrix
-            empty!(sd_row)
-            empty!(sd_col)
-            empty!(sd_coef)
+            empty!(m.cache.sd_row)
+            empty!(m.cache.sd_col)
+            empty!(m.cache.sd_coef)
         end
         coef = mat.row == mat.column ? coefficient : coefficient / 2
-        push!(sd_row, mat.row)
-        push!(sd_col, mat.column)
-        push!(sd_coef, coef)
+        push!(m.cache.sd_row, mat.row)
+        push!(m.cache.sd_col, mat.column)
+        push!(m.cache.sd_coef, coef)
     end
     for term in terms
         add(mosek_index(m, term.variable), term.coefficient)
     end
     add_sd()
-    return cols, values
+    return
 end
 
 function set_row(task::Mosek.MSKtask, row::Int32, cols::ColumnIndices,
@@ -103,9 +108,9 @@ function set_row(task::Mosek.MSKtask, row::Int32, cols::ColumnIndices,
 end
 function set_row(m::Optimizer, row::Int32,
                  terms::Vector{MOI.ScalarAffineTerm{Float64}})
-    cols, values = split_scalar_matrix(m, terms,
+    split_scalar_matrix(m, terms,
         (j, ids, coefs) -> putbaraij(m.task, row, j, ids, coefs))
-    set_row(m.task, row, ColumnIndices(cols), values)
+    set_row(m.task, row, ColumnIndices(m.cache.cols), m.cache.values)
 end
 
 
@@ -129,6 +134,7 @@ function set_coefficient(task::Mosek.MSKtask, row::Int32, col::ColumnIndex,
                          value::Float64)
     putaij(task, row, col.value, value)
 end
+
 function set_coefficient(m::Optimizer, row::Int32, vi::MOI.VariableIndex,
                          value::Float64)
     set_coefficient(m.task, row, mosek_index(m, vi), value)

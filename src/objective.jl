@@ -23,10 +23,10 @@ MOI.supports(::Optimizer,::MOI.ObjectiveSense) = true
 
 function MOI.set(m::Optimizer, ::MOI.ObjectiveFunction,
                  func::MOI.ScalarAffineFunction{Float64})
-    cols, values = split_scalar_matrix(m, MOI.Utilities.canonical(func).terms,
+    split_scalar_matrix(m, MOI.Utilities.canonical(func).terms,
                                        (j, ids, coefs) -> putbarcj(m.task, j, ids, coefs))
     c = zeros(Float64, getnumvar(m.task))
-    for (col, val) in zip(cols, values)
+    for (col, val) in zip(m.cache.cols, m.cache.values)
         c[col] += val
     end
     putclist(m.task, convert(Vector{Int32}, 1:length(c)), c)
