@@ -69,6 +69,113 @@ end
     @test MOI.supports_incremental_interface(Mosek.Optimizer())
 end
 
+@testset "Number of variables and deletion" begin
+    optimizer = MosekOptimizerWithFallback()
+    x = MOI.add_variable(optimizer)
+    @test MOI.get(optimizer, MOI.NumberOfVariables()) == 1
+    y, cy = MOI.add_constrained_variables(optimizer, MOI.PositiveSemidefiniteConeTriangle(3))
+    @test MOI.get(optimizer, MOI.NumberOfVariables()) == 7
+    MOI.delete(optimizer, x)
+    @test MOI.get(optimizer, MOI.NumberOfVariables()) == 6
+    z, cz = MOI.add_constrained_variables(optimizer, MOI.SecondOrderCone(3))
+    @test MOI.get(optimizer, MOI.NumberOfVariables()) == 9
+    @test_throws MOI.DeleteNotAllowed MOI.delete(optimizer, y[1])
+    @test_throws MOI.DeleteNotAllowed MOI.delete(optimizer, y)
+    @test MOI.get(optimizer, MOI.NumberOfVariables()) == 9
+    @test_throws MOI.DeleteNotAllowed MOI.delete(optimizer, z[1])
+    @test MOI.get(optimizer, MOI.NumberOfVariables()) == 9
+    MOI.delete(optimizer, z)
+    @test MOI.get(optimizer, MOI.NumberOfVariables()) == 6
+end
+
+@testset "Matrix name" begin
+    optimizer = MosekOptimizerWithFallback()
+    x, cx = MOI.add_constrained_variables(optimizer, MOI.PositiveSemidefiniteConeTriangle(3))
+    err = MOI.UnsupportedAttribute{MOI.VariableName}
+    @test_throws err MOI.set(optimizer, MOI.VariableName(), x[1], "a")
+    MOI.empty!(optimizer)
+    model = MOI.Utilities.CachingOptimizer(MOI.Utilities.Model{Float64}(), optimizer)
+    x, cx = MOI.add_constrained_variables(model, MOI.PositiveSemidefiniteConeTriangle(3))
+    MOI.set(model, MOI.VariableName(), x[1], "a")
+    MOI.Utilities.attach_optimizer(model) # Should drop errors silently in the copy
+    @test "a" == MOI.get(model, MOI.VariableName(), x[1])
+end
+
+# See https://github.com/jump-dev/MosekTools.jl/issues/95
+@testset "Mapping enums" begin
+    optimizer = MosekOptimizerWithFallback()
+    # Force variable bridging to test attribute substitution
+    bridged = MOI.Bridges.Variable.Zeros{Float64}(optimizer)
+    cache = MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}())
+    model = MOI.Utilities.CachingOptimizer(cache, bridged)
+    attr = MOI.RawOptimizerAttribute("MSK_IPAR_INTPNT_SOLVE_FORM")
+    value = MosekTools.MSK_SOLVE_DUAL
+    MOI.add_constrained_variables(model, MOI.Zeros(1))
+    MOI.Utilities.attach_optimizer(model)
+    # The function should not be used so we can use anything here as first argument
+    @test MOI.Utilities.substitute_variables(x -> x^2, value) == value
+    MOI.set(model, attr, value)
+    # Currently Mosek returns `value.value` but we don't want the tests to fail if this gets fixed in the future
+    # so we also allow `value`.
+    @test MOI.get(model, attr) == value.value || MOI.get(model, attr) == value
+    @test MOI.get(optimizer, attr) == value.value || MOI.get(model, attr) == value
+end
+
+@testset "LMIs" begin
+    optimizer = MosekOptimizerWithFallback()
+    @test MOI.supports_constraint(optimizer, MOI.VectorAffineFunction{Float64}, MOI.Scaled{MOI.PositiveSemidefiniteConeTriangle})
+    bridged = MOI.Bridges.full_bridge_optimizer(optimizer, Float64)
+    @test MOI.Bridges.bridge_type(bridged, MOI.VectorAffineFunction{Float64}, MOI.PositiveSemidefiniteConeTriangle) === MOI.Bridges.Constraint.SetDotScalingBridge{Float64, MOI.PositiveSemidefiniteConeTriangle, MOI.VectorAffineFunction{Float64}, MOI.VectorAffineFunction{Float64}}
+end
+
+function _test_symmetric_reorder(lower, n)
+    set = MOI.Scaled(MOI.PositiveSemidefiniteConeTriangle(n))
+    N = MOI.dimension(set)
+    @test MosekTools.reorder(lower, MOI.ScaledPositiveSemidefiniteConeTriangle, true) == 1:N
+    @test MosekTools.reorder(1:N, MOI.ScaledPositiveSemidefiniteConeTriangle, false) == lower
+    for (up, low) in enumerate(lower)
+        @test MosekTools.reorder(up, set, true) == low
+        @test MosekTools.reorder(low, set, false) == up
+    end
+end
+
+function test_symmetric_reorder()
+    _test_symmetric_reorder([1], 1)
+    _test_symmetric_reorder([1, 2, 3], 2)
+    _test_symmetric_reorder([1, 2, 4, 3, 5, 6], 3)
+    _test_symmetric_reorder([1, 2, 5, 3, 6, 8, 4, 7, 9, 10], 4)
+    _test_symmetric_reorder([1, 2, 6, 3, 7, 10, 4, 8, 11, 13, 5, 9, 12, 14, 15], 5)
+    _test_symmetric_reorder([1, 2, 7, 3, 8, 12, 4, 9, 13, 16, 5, 10, 14, 17, 19, 6, 11, 15, 18, 20, 21], 6)
+end
+
+function test_variable_basis_status()
+    model = Mosek.Optimizer()
+    x, cx = MOI.add_constrained_variables(model, MOI.PositiveSemidefiniteConeTriangle(2))
+    attr = MOI.VariableBasisStatus()
+    index = MosekTools.mosek_index(model, x[1])
+    err = ErrorException("$attr not supported for PSD variable $index")
+    @test_throws err MOI.get(model, attr, index)
+end
+
+@testset "test_variable_basis_status" begin
+    test_variable_basis_status()
+end
+
+function test_modify_psd()
+    model = Mosek.Optimizer()
+    x, _ = MOI.add_constrained_variables(model, MOI.PositiveSemidefiniteConeTriangle(2))
+    c = MOI.add_constraint(model, 1.0 * x[1], MOI.LessThan(1.0))
+    change = MOI.ScalarCoefficientChange(x[1], 2.0)
+    err = MOI.ModifyConstraintNotAllowed(c, change, "Modifying the coefficient of the variable correspond to an entry of a PSD matrix is not supported")
+    @test_throws err MOI.modify(model, c, change)
+end
+
+@testset "test_modify_psd" begin
+    test_modify_psd()
+end
+
+# We do `MOI.Test.runtests` at the end at the Mosek-specific tests are faster to run and more likely to fail
+# It is also then more likely to see if they fail before `MOI.Test.runtests` hits https://github.com/jump-dev/MosekTools.jl/issues/149
 const config = MOI.Test.Config(
     Float64, atol=1e-3, rtol=1e-3,
     # TODO remove `MOI.delete` once it is implemented for ACC
@@ -219,96 +326,4 @@ end
     MOI.Test.runtests(model, config,
         include=["conic_SecondOrderCone"],
     )
-end
-
-@testset "Number of variables and deletion" begin
-    optimizer = MosekOptimizerWithFallback()
-    x = MOI.add_variable(optimizer)
-    @test MOI.get(optimizer, MOI.NumberOfVariables()) == 1
-    y, cy = MOI.add_constrained_variables(optimizer, MOI.PositiveSemidefiniteConeTriangle(3))
-    @test MOI.get(optimizer, MOI.NumberOfVariables()) == 7
-    MOI.delete(optimizer, x)
-    @test MOI.get(optimizer, MOI.NumberOfVariables()) == 6
-    z, cz = MOI.add_constrained_variables(optimizer, MOI.SecondOrderCone(3))
-    @test MOI.get(optimizer, MOI.NumberOfVariables()) == 9
-    @test_throws MOI.DeleteNotAllowed MOI.delete(optimizer, y[1])
-    @test_throws MOI.DeleteNotAllowed MOI.delete(optimizer, y)
-    @test MOI.get(optimizer, MOI.NumberOfVariables()) == 9
-    @test_throws MOI.DeleteNotAllowed MOI.delete(optimizer, z[1])
-    @test MOI.get(optimizer, MOI.NumberOfVariables()) == 9
-    MOI.delete(optimizer, z)
-    @test MOI.get(optimizer, MOI.NumberOfVariables()) == 6
-end
-
-@testset "Matrix name" begin
-    optimizer = MosekOptimizerWithFallback()
-    x, cx = MOI.add_constrained_variables(optimizer, MOI.PositiveSemidefiniteConeTriangle(3))
-    err = MOI.UnsupportedAttribute{MOI.VariableName}
-    @test_throws err MOI.set(optimizer, MOI.VariableName(), x[1], "a")
-    MOI.empty!(optimizer)
-    model = MOI.Utilities.CachingOptimizer(MOI.Utilities.Model{Float64}(), optimizer)
-    x, cx = MOI.add_constrained_variables(model, MOI.PositiveSemidefiniteConeTriangle(3))
-    MOI.set(model, MOI.VariableName(), x[1], "a")
-    MOI.Utilities.attach_optimizer(model) # Should drop errors silently in the copy
-    @test "a" == MOI.get(model, MOI.VariableName(), x[1])
-end
-
-# See https://github.com/jump-dev/MosekTools.jl/issues/95
-@testset "Mapping enums" begin
-    optimizer = MosekOptimizerWithFallback()
-    # Force variable bridging to test attribute substitution
-    bridged = MOI.Bridges.Variable.Zeros{Float64}(optimizer)
-    cache = MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}())
-    model = MOI.Utilities.CachingOptimizer(cache, bridged)
-    attr = MOI.RawOptimizerAttribute("MSK_IPAR_INTPNT_SOLVE_FORM")
-    value = MosekTools.MSK_SOLVE_DUAL
-    MOI.add_constrained_variables(model, MOI.Zeros(1))
-    MOI.Utilities.attach_optimizer(model)
-    # The function should not be used so we can use anything here as first argument
-    @test MOI.Utilities.substitute_variables(x -> x^2, value) == value
-    MOI.set(model, attr, value)
-    # Currently Mosek returns `value.value` but we don't want the tests to fail if this gets fixed in the future
-    # so we also allow `value`.
-    @test MOI.get(model, attr) == value.value || MOI.get(model, attr) == value
-    @test MOI.get(optimizer, attr) == value.value || MOI.get(model, attr) == value
-end
-
-@testset "LMIs" begin
-    optimizer = MosekOptimizerWithFallback()
-    @test MOI.supports_constraint(optimizer, MOI.VectorAffineFunction{Float64}, MOI.Scaled{MOI.PositiveSemidefiniteConeTriangle})
-    bridged = MOI.Bridges.full_bridge_optimizer(optimizer, Float64)
-    @test MOI.Bridges.bridge_type(bridged, MOI.VectorAffineFunction{Float64}, MOI.PositiveSemidefiniteConeTriangle) === MOI.Bridges.Constraint.SetDotScalingBridge{Float64, MOI.PositiveSemidefiniteConeTriangle, MOI.VectorAffineFunction{Float64}, MOI.VectorAffineFunction{Float64}}
-end
-
-function _test_symmetric_reorder(lower, n)
-    set = MOI.Scaled(MOI.PositiveSemidefiniteConeTriangle(n))
-    N = MOI.dimension(set)
-    @test MosekTools.reorder(lower, MOI.ScaledPositiveSemidefiniteConeTriangle, true) == 1:N
-    @test MosekTools.reorder(1:N, MOI.ScaledPositiveSemidefiniteConeTriangle, false) == lower
-    for (up, low) in enumerate(lower)
-        @test MosekTools.reorder(up, set, true) == low
-        @test MosekTools.reorder(low, set, false) == up
-    end
-end
-
-function test_symmetric_reorder()
-    _test_symmetric_reorder([1], 1)
-    _test_symmetric_reorder([1, 2, 3], 2)
-    _test_symmetric_reorder([1, 2, 4, 3, 5, 6], 3)
-    _test_symmetric_reorder([1, 2, 5, 3, 6, 8, 4, 7, 9, 10], 4)
-    _test_symmetric_reorder([1, 2, 6, 3, 7, 10, 4, 8, 11, 13, 5, 9, 12, 14, 15], 5)
-    _test_symmetric_reorder([1, 2, 7, 3, 8, 12, 4, 9, 13, 16, 5, 10, 14, 17, 19, 6, 11, 15, 18, 20, 21], 6)
-end
-
-function test_variable_basis_status()
-    model = Mosek.Optimizer()
-    x, cx = MOI.add_constrained_variables(model, MOI.PositiveSemidefiniteConeTriangle(2))
-    attr = MOI.VariableBasisStatus()
-    index = MosekTools.mosek_index(model, x[1])
-    err = ErrorException("$attr not supported for PSD variable $index")
-    @test_throws err MOI.get(model, attr, index)
-end
-
-@testset "test_variable_basis_status" begin
-    test_variable_basis_status()
 end
