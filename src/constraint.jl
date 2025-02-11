@@ -737,12 +737,14 @@ function MOI.modify(m   ::Optimizer,
     end
 end
 
+# Is there a way to do this in Mosek API ? I haven't check so here is an error for now:
+const _MODIFY_PSD_VAR_ERROR = "Modifying the coefficient of the variable correspond to an entry of a PSD matrix is not supported"
+
 function MOI.modify(m   ::Optimizer,
                     c   ::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}},
                     func::MOI.ScalarCoefficientChange{Float64})
     if is_matrix(m, func.variable)
-        # Is there a way to do this in Mosek API ? I haven't check so here is an error for now:
-        throw(MOI.ModifyConstraintNotAllowed(c, func, "Modifying the coefficient of the variable correspond to an entry of a PSD matrix is not supported"))
+        throw(MOI.ModifyConstraintNotAllowed(c, func, _MODIFY_PSD_VAR_ERROR))
     end
     set_coefficient(m, row(m, c), func.variable, func.new_coefficient)
 end

@@ -168,6 +168,14 @@ function test_modify_psd()
     change = MOI.ScalarCoefficientChange(x[1], 2.0)
     err = MOI.ModifyConstraintNotAllowed(c, change, "Modifying the coefficient of the variable correspond to an entry of a PSD matrix is not supported")
     @test_throws err MOI.modify(model, c, change)
+    attr = MOI.ObjectiveFunction{typeof(1.0x[1])}()
+    MOI.set(model, attr, 1.0x[1])
+    change = MOI.ScalarCoefficientChange(x[1], 2.0)
+    err = MOI.ModifyObjectiveNotAllowed(change, "Modifying the coefficient of the variable correspond to an entry of a PSD matrix is not supported")
+    err = MOI.SetAttributeNotAllowed(attr, "Cannot set a different objective if a previous objective was set including the contribution of the entry of a PSD variable.")
+    @test_throws err MOI.set(model, attr, 2.0x[1])
+    y = MOI.add_variable(model)
+    @test_throws err MOI.set(model, attr, 1.0y)
 end
 
 @testset "test_modify_psd" begin
