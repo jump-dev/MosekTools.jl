@@ -21,10 +21,18 @@ end
 MOI.supports(::Optimizer,::MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}})  = true
 MOI.supports(::Optimizer,::MOI.ObjectiveSense) = true
 
-function MOI.set(m::Optimizer, ::MOI.ObjectiveFunction,
+function MOI.set(m::Optimizer, attr::MOI.ObjectiveFunction,
                  func::MOI.ScalarAffineFunction{Float64})
-    cols, values = split_scalar_matrix(m, MOI.Utilities.canonical(func).terms,
-                                       (j, ids, coefs) -> putbarcj(m.task, j, ids, coefs))
+    if m.has_psd_in_objective
+        throw(MOI.SetAttributeNotAllowed(attr, "Cannot set a different objective if a previous objective was set including the contribution of the entry of a PSD variable."))
+    end
+    cols, values = split_scalar_matrix(
+        m,
+        MOI.Utilities.canonical(func).terms,
+        (j, ids, coefs) -> begin
+        m.has_psd_in_objective = true
+        putbarcj(m.task, j, ids, coefs)
+    end)
     c = zeros(Float64, getnumvar(m.task))
     for (col, val) in zip(cols, values)
         c[col] += val
@@ -46,6 +54,9 @@ end
 function MOI.modify(m::Optimizer,
                     ::MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}},
                     change :: MOI.ScalarCoefficientChange)
+    if is_matrix(m, change.variable)
+        throw(MOI.ModifyObjectiveNotAllowed(change, _MODIFY_PSD_VAR_ERROR))
+    end
     putcj(m.task, column(m, change.variable).value, change.new_coefficient)
     m.has_objective = true
     return

@@ -140,6 +140,12 @@ mutable struct Optimizer  <: MOI.AbstractOptimizer
     This affects `MOI.ListOfModelAttributesSet`.
     """
     has_objective :: Bool
+    """
+    Indicates whether there was any PSD variables used when setting the objective.
+    When resetting it, I don't know how to remove the contributions from these
+    variables so we need to keep this boolean to throw in that case.
+    """
+    has_psd_in_objective::Bool
 
     fallback :: Union{String, Nothing}
 
@@ -164,6 +170,7 @@ mutable struct Optimizer  <: MOI.AbstractOptimizer
             MosekSolution[],
             true, # feasibility_sense
             false, # has_objective
+            false, # has_psd_in_objective
             nothing,
         )
         Mosek.appendrzerodomain(optimizer.task,0)
@@ -432,6 +439,8 @@ function MOI.empty!(model::Optimizer)
     empty!(model.solutions)
     model.feasibility        = true
     model.has_objective      = false
+    model.has_psd_in_objective = false
+    return
 end
 
 MOI.get(::Optimizer, ::MOI.SolverName) = "Mosek"
