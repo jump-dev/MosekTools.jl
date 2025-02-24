@@ -55,7 +55,7 @@ import `MosekTools`.
 
 All other parameters can be found in the [Mosek documentation](https://docs.mosek.com/latest/opt-server/param-groups.html).
 
-For integer parameters, pass either the value, or the correspondng
+For integer parameters, pass either the value, or the corresponding
 constant defined in the `Mosek` package.
 ```julia
 using JuMP
