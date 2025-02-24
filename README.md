@@ -53,7 +53,7 @@ import `MosekTools`.
 
 ## Options
 
-All other parameters can be found in the [Mosek documentation]([https://docs.mosek.com/8.1/capi/param-groups.html#doc-param-groups](https://docs.mosek.com/latest/opt-server/param-groups.html)).
+All other parameters can be found in the [Mosek documentation](https://docs.mosek.com/latest/opt-server/param-groups.html).
 
 For integer parameters, pass either the value, or the correspondng
 constant defined in the `Mosek` package.
