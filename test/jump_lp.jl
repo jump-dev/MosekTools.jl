@@ -6,7 +6,7 @@ function test_jump_lp(solver)
             # st   x + y <= 1   (x + y - 1 ∈ Nonpositives)
             #       x, y >= 0   (x, y ∈ Nonnegatives)
 
-            m = Model(solver=solver)
+            m = Model(; solver = solver)
             @variable(m, x >= 0.0)
             @variable(m, y >= 0.0)
             @objective(m, Min, -x)
@@ -21,10 +21,9 @@ function test_jump_lp(solver)
             @test JuMP.terminationstatus(m) == MOI.Success
             @test JuMP.primalstatus(m) == MOI.FeasiblePoint
 
-            @test JuMP.resultvalue(x) ≈ 1.0 atol=1e-6
-            @test JuMP.resultvalue(y) ≈ 0.0 atol=1e-6
-            @test JuMP.objectivevalue(m) ≈ -1.0 atol=1e-6
-
+            @test JuMP.resultvalue(x) ≈ 1.0 atol = 1e-6
+            @test JuMP.resultvalue(y) ≈ 0.0 atol = 1e-6
+            @test JuMP.objectivevalue(m) ≈ -1.0 atol = 1e-6
         end
     end
 end

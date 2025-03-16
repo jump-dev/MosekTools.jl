@@ -29,26 +29,32 @@ function test_jump_sdp(solver)
             #      (x1,x2,x3) in C^3_q
             #      X in C_sdp
 
-            m = Model(solver=solver)
+            m = Model(; solver = solver)
 
             @variable(m, x[1:3])
             @constraint(m, x in MOI.SecondOrderCone(3))
             @variable(m, X[1:3, 1:3], PSD)
 
-            C = [2 1 0
-                 1 2 1
-                 0 1 2]
-            A1 = [1 0 0
-                  0 1 0
-                  0 0 1]
-            A2 = [1 1 1
-                  1 1 1
-                  1 1 1]
+            C = [
+                2 1 0
+                1 2 1
+                0 1 2
+            ]
+            A1 = [
+                1 0 0
+                0 1 0
+                0 0 1
+            ]
+            A2 = [
+                1 1 1
+                1 1 1
+                1 1 1
+            ]
 
             @objective(m, Min, vecdot(C, X) + x[1])
 
             @constraint(m, vecdot(A1, X) + x[1] == 1)
-            @constraint(m, vecdot(A2, X) + x[2] + x[3] == 1/2)
+            @constraint(m, vecdot(A2, X) + x[2] + x[3] == 1 / 2)
 
             JuMP.solve(m)
 
@@ -57,27 +63,56 @@ function test_jump_sdp(solver)
             @test JuMP.terminationstatus(m) == MOI.Success
             @test JuMP.primalstatus(m) == MOI.FeasiblePoint
 
-            @test JuMP.objectivevalue(m) ≈ 0.705710509 atol=1e-6
+            @test JuMP.objectivevalue(m) ≈ 0.705710509 atol = 1e-6
 
             xv = JuMP.resultvalue.(x)
             Xv = JuMP.resultvalue.(X)
-            @test vecdot(C, Xv) + xv[1] ≈ 0.705710509 atol=1e-6
+            @test vecdot(C, Xv) + xv[1] ≈ 0.705710509 atol = 1e-6
 
             @test eigmin(Xv) > -1e-6
         end
 
         @testset "Nonsensical SDPs" begin
             m = Model()
-            @test_throws ErrorException @variable(m, unequal[1:5,1:6], PSD)
+            @test_throws ErrorException @variable(m, unequal[1:5, 1:6], PSD)
             # Some of these errors happen at compile time, so we can't use @test_throws
-            @test macroexpand(:(@variable(m, notone[1:5,2:6], PSD))).head == :error
+            @test macroexpand(:(@variable(m, notone[1:5, 2:6], PSD))).head ==
+                  :error
             @test macroexpand(:(@variable(m, oneD[1:5], PSD))).head == :error
-            @test macroexpand(:(@variable(m, threeD[1:5,1:5,1:5], PSD))).head == :error
-            @test macroexpand(:(@variable(m, psd[2] <= rand(2,2), PSD))).head == :error
-            @test macroexpand(:(@variable(m, -ones(3,4) <= foo[1:4,1:4] <= ones(4,4), PSD))).head == :error
-            @test macroexpand(:(@variable(m, -ones(3,4) <= foo[1:4,1:4] <= ones(4,4), Symmetric))).head == :error
-            @test macroexpand(:(@variable(m, -ones(4,4) <= foo[1:4,1:4] <= ones(4,5), Symmetric))).head == :error
-            @test macroexpand(:(@variable(m, -rand(5,5) <= nonsymmetric[1:5,1:5] <= rand(5,5), Symmetric))).head == :error
+            @test macroexpand(
+                :(@variable(m, threeD[1:5, 1:5, 1:5], PSD)),
+            ).head == :error
+            @test macroexpand(
+                :(@variable(m, psd[2] <= rand(2, 2), PSD)),
+            ).head == :error
+            @test macroexpand(
+                :(@variable(
+                    m,
+                    -ones(3, 4) <= foo[1:4, 1:4] <= ones(4, 4),
+                    PSD
+                )),
+            ).head == :error
+            @test macroexpand(
+                :(@variable(
+                    m,
+                    -ones(3, 4) <= foo[1:4, 1:4] <= ones(4, 4),
+                    Symmetric
+                )),
+            ).head == :error
+            @test macroexpand(
+                :(@variable(
+                    m,
+                    -ones(4, 4) <= foo[1:4, 1:4] <= ones(4, 5),
+                    Symmetric
+                )),
+            ).head == :error
+            @test macroexpand(
+                :(@variable(
+                    m,
+                    -rand(5, 5) <= nonsymmetric[1:5, 1:5] <= rand(5, 5),
+                    Symmetric
+                )),
+            ).head == :error
         end
 
         # min o                    max y + X11
@@ -118,10 +153,10 @@ function test_jump_sdp(solver)
         # Example 2.11
         @testset "SDP variable and optimal objective not rational" begin
             #       solver = fixscs(solver, 7000000)
-            m = Model(solver=solver)
-            @variable(m, X[1:2,1:2], PSD)
-            c = @constraint(m, X[1,1]+X[2,2] == 1)
-            @objective(m, Min, 2*X[1,1]+2*X[1,2])
+            m = Model(; solver = solver)
+            @variable(m, X[1:2, 1:2], PSD)
+            c = @constraint(m, X[1, 1] + X[2, 2] == 1)
+            @objective(m, Min, 2 * X[1, 1] + 2 * X[1, 2])
             #       @test all(isnan.(getdual(X)))
 
             JuMP.solve(m)
@@ -129,8 +164,10 @@ function test_jump_sdp(solver)
             @test JuMP.terminationstatus(m) == MOI.Success
             @test JuMP.primalstatus(m) == MOI.FeasiblePoint
 
-            @test JuMP.objectivevalue(m) ≈ 1-sqrt(2) atol=1e-5
-            @test JuMP.resultvalue.(X) ≈ [(2-sqrt(2))/4 -1/(2*sqrt(2)); -1/(2*sqrt(2)) (2+sqrt(2))/4] atol=1e-4
+            @test JuMP.objectivevalue(m) ≈ 1 - sqrt(2) atol = 1e-5
+            @test JuMP.resultvalue.(X) ≈
+                  [(2-sqrt(2))/4 -1/(2*sqrt(2)); -1/(2*sqrt(2)) (2+sqrt(2))/4] atol =
+                1e-4
             #       @test getdual(X) ≈ [1+sqrt(2) 1; 1 sqrt(2)-1] atol=1e-4
             #       @test getdual(c) ≈ 1-sqrt(2) atol=1e-5
         end
@@ -190,34 +227,33 @@ function test_jump_sdp(solver)
 
         @testset "SDP with primal solution not attained" begin
             #       solver = fixscs(solver, 7000000)
-            m = Model(solver=solver)
-            @variable(m, X[1:2,1:2], PSD)
-            c = @constraint(m, 2*X[1,2] == 1)
-            @objective(m, Min, X[1,1])
+            m = Model(; solver = solver)
+            @variable(m, X[1:2, 1:2], PSD)
+            c = @constraint(m, 2 * X[1, 2] == 1)
+            @objective(m, Min, X[1, 1])
             #       @test all(isnan, getdual(X))
             status = solve(m)
 
-            @test JuMP.terminationstatus(m) in [ MOI.Success, MOI.SlowProgress ]
+            @test JuMP.terminationstatus(m) in [MOI.Success, MOI.SlowProgress]
             @test JuMP.primalstatus(m) == MOI.FeasiblePoint
 
-
-            @test JuMP.objectivevalue(m) ≈ 0 atol=1e-5
+            @test JuMP.objectivevalue(m) ≈ 0 atol = 1e-5
             Xval = JuMP.resultvalue.(X)
             #Mosek.writedata(m.solverinstance.task,"jump_sdo_1_stalls.task")
             #showall(m.solverinstance.task)
             #showall(m.solverinstance.task[Sol(Mosek.MSK_SOL_ITR)])
 
-            @test Xval[1,1] ≈ 0 atol=1e-5
-            @test Xval[1,2] ≈ 1/2 atol=1e-5
-            @test Xval[2,1] ≈ 1/2 atol=1e-5
+            @test Xval[1, 1] ≈ 0 atol = 1e-5
+            @test Xval[1, 2] ≈ 1 / 2 atol = 1e-5
+            @test Xval[2, 1] ≈ 1 / 2 atol = 1e-5
 
             #       @test isapprox(getdual(X), [1 0; 0 0], atol=1e-4)
             #       @test isapprox(getdual(c), 0, atol=1e-5)
         end
 
         @testset "No constraint" begin
-            m = Model(solver=solver)
-            @variable(m, X[1:3,1:3], PSD)
+            m = Model(; solver = solver)
+            @variable(m, X[1:3, 1:3], PSD)
             @objective(m, Min, trace(X))
 
             JuMP.solve(m)
@@ -231,6 +267,5 @@ function test_jump_sdp(solver)
             @test norm(JuMP.resultvalue.(X)) < 1e-5
             #@test isapprox(getdual(X), eye(3), atol=1e-5)
         end
-
     end
 end
