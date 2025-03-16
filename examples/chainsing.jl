@@ -1,3 +1,8 @@
+# Copyright (c) 2017: Ulf Worsøe, Mosek ApS
+#
+# Use of this source code is governed by an MIT-style license that can be found
+# in the LICENSE.md file or at https://opensource.org/licenses/MIT.
+
 using JuMP
 using MosekTools
 import MathOptInterface as MOI
@@ -7,13 +12,13 @@ Formulate the problem
 
       min.  sum_{j=0,...,(n-2)/2} s[j] + t[j] + p[j] + q[j]
 
-      s.t.  (1/2, s[j], x[i]+10x[i+1]) \in Qr, 
+      s.t.  (1/2, s[j], x[i]+10x[i+1]) \in Qr,
             (1/2, t[j], 5^{1/2}*(x[i+2]-x[i+3])) \in Qr
             (1/2, r[j], (x[i+1]-2x[i+2])) \in Qr
 	    (1/2, u[j], 10^{1/4}*(x[i]-10x[i+3])) \in Qr
 	    (1/2, p[j], r[j]) \in Qr
 	    (1/2, q[j], u[j]) \in Qr,                       j=0,...,(n-2)/2, i = 2j
-        
+
 	    0.1 <= x[i] <= 1.1,                             i=0,2,...,n-2
 
 """
@@ -98,7 +103,7 @@ function chainsing2(M::Model, n::Int)
     for j in 1:m
         i = ((j - 1) << 1) + 1
 
-        # r[j] >= (x[i+1] - 2*x[i+2])^2        
+        # r[j] >= (x[i+1] - 2*x[i+2])^2
         @constraint(
             M,
             [0.5, r[j], x[i+1] - 2 * x[i+2]] in MOI.RotatedSecondOrderCone(3)
@@ -239,7 +244,7 @@ function main(argv::Vector{String})
     #println("\ttimefile : $timefile")
     #println("\ttaskfile : $taskfile")
     #println("\toptimize : $opt")
-    #println("\tbackend  : $backend")    
+    #println("\tbackend  : $backend")
 
     T = 0.0
 
