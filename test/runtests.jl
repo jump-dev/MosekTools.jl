@@ -27,40 +27,99 @@ end
     optimizer = MosekOptimizerWithFallback()
     MOI.set(optimizer, MOI.RawOptimizerAttribute("fallback"), FALLBACK_URL)
     @testset "Double Parameter" begin
-        MOI.set(optimizer, MOI.RawOptimizerAttribute("INTPNT_CO_TOL_DFEAS"), 1e-7)
-        @test MOI.get(optimizer, MOI.RawOptimizerAttribute("MSK_DPAR_INTPNT_CO_TOL_DFEAS")) == 1e-7
-        MOI.set(optimizer, MOI.RawOptimizerAttribute("MSK_DPAR_INTPNT_CO_TOL_DFEAS"), 1e-8)
-        @test MOI.get(optimizer, MOI.RawOptimizerAttribute("MSK_DPAR_INTPNT_CO_TOL_DFEAS")) == 1e-8
+        MOI.set(
+            optimizer,
+            MOI.RawOptimizerAttribute("INTPNT_CO_TOL_DFEAS"),
+            1e-7,
+        )
+        @test MOI.get(
+            optimizer,
+            MOI.RawOptimizerAttribute("MSK_DPAR_INTPNT_CO_TOL_DFEAS"),
+        ) == 1e-7
+        MOI.set(
+            optimizer,
+            MOI.RawOptimizerAttribute("MSK_DPAR_INTPNT_CO_TOL_DFEAS"),
+            1e-8,
+        )
+        @test MOI.get(
+            optimizer,
+            MOI.RawOptimizerAttribute("MSK_DPAR_INTPNT_CO_TOL_DFEAS"),
+        ) == 1e-8
         @testset "with integer value" begin
-            MOI.set(optimizer, MOI.RawOptimizerAttribute("MSK_DPAR_INTPNT_CO_TOL_DFEAS"), 1)
-            @test MOI.get(optimizer, MOI.RawOptimizerAttribute("MSK_DPAR_INTPNT_CO_TOL_DFEAS")) == 1
+            MOI.set(
+                optimizer,
+                MOI.RawOptimizerAttribute("MSK_DPAR_INTPNT_CO_TOL_DFEAS"),
+                1,
+            )
+            @test MOI.get(
+                optimizer,
+                MOI.RawOptimizerAttribute("MSK_DPAR_INTPNT_CO_TOL_DFEAS"),
+            ) == 1
         end
     end
     @testset "Integer Parameter" begin
-        MOI.set(optimizer, MOI.RawOptimizerAttribute("MSK_IPAR_INTPNT_MAX_ITERATIONS"), 100)
-        @test MOI.get(optimizer, MOI.RawOptimizerAttribute("MSK_IPAR_INTPNT_MAX_ITERATIONS")) == 100
-        MOI.set(optimizer, MOI.RawOptimizerAttribute("INTPNT_MAX_ITERATIONS"), 200)
-        @test MOI.get(optimizer, MOI.RawOptimizerAttribute("MSK_IPAR_INTPNT_MAX_ITERATIONS")) == 200
+        MOI.set(
+            optimizer,
+            MOI.RawOptimizerAttribute("MSK_IPAR_INTPNT_MAX_ITERATIONS"),
+            100,
+        )
+        @test MOI.get(
+            optimizer,
+            MOI.RawOptimizerAttribute("MSK_IPAR_INTPNT_MAX_ITERATIONS"),
+        ) == 100
+        MOI.set(
+            optimizer,
+            MOI.RawOptimizerAttribute("INTPNT_MAX_ITERATIONS"),
+            200,
+        )
+        @test MOI.get(
+            optimizer,
+            MOI.RawOptimizerAttribute("MSK_IPAR_INTPNT_MAX_ITERATIONS"),
+        ) == 200
         @testset "with enum value" begin
-            MOI.set(optimizer, MOI.RawOptimizerAttribute("MSK_IPAR_OPTIMIZER"), MosekTools.Mosek.MSK_OPTIMIZER_DUAL_SIMPLEX)
-            @test MOI.get(optimizer, MOI.RawOptimizerAttribute("MSK_IPAR_OPTIMIZER")) == convert(Int32, MosekTools.Mosek.MSK_OPTIMIZER_DUAL_SIMPLEX)
+            MOI.set(
+                optimizer,
+                MOI.RawOptimizerAttribute("MSK_IPAR_OPTIMIZER"),
+                MosekTools.Mosek.MSK_OPTIMIZER_DUAL_SIMPLEX,
+            )
+            @test MOI.get(
+                optimizer,
+                MOI.RawOptimizerAttribute("MSK_IPAR_OPTIMIZER"),
+            ) == convert(Int32, MosekTools.Mosek.MSK_OPTIMIZER_DUAL_SIMPLEX)
         end
     end
     @testset "String Parameter" begin
-        MOI.set(optimizer, MOI.RawOptimizerAttribute("PARAM_WRITE_FILE_NAME"), "foo.txt")
+        MOI.set(
+            optimizer,
+            MOI.RawOptimizerAttribute("PARAM_WRITE_FILE_NAME"),
+            "foo.txt",
+        )
         # Needs https://github.com/JuliaOpt/Mosek.jl/pull/174
         #@test MOI.get(optimizer, MOI.RawOptimizerAttribute("MSK_SPAR_PARAM_WRITE_FILE_NAME")) == "foo.txt"
-        MOI.set(optimizer, MOI.RawOptimizerAttribute("MSK_SPAR_PARAM_WRITE_FILE_NAME"), "bar.txt")
+        MOI.set(
+            optimizer,
+            MOI.RawOptimizerAttribute("MSK_SPAR_PARAM_WRITE_FILE_NAME"),
+            "bar.txt",
+        )
         #@test MOI.get(optimizer, MOI.RawOptimizerAttribute("MSK_SPAR_PARAM_WRITE_FILE_NAME")) == "bar.txt"
     end
     @testset "TimeLimitSec" begin
-        @test MOI.get(optimizer, MOI.RawOptimizerAttribute("MSK_DPAR_OPTIMIZER_MAX_TIME")) == -1
+        @test MOI.get(
+            optimizer,
+            MOI.RawOptimizerAttribute("MSK_DPAR_OPTIMIZER_MAX_TIME"),
+        ) == -1
         @test MOI.get(optimizer, MOI.TimeLimitSec()) === nothing
         MOI.set(optimizer, MOI.TimeLimitSec(), 1.0)
-        @test MOI.get(optimizer, MOI.RawOptimizerAttribute("MSK_DPAR_OPTIMIZER_MAX_TIME")) == 1.0
+        @test MOI.get(
+            optimizer,
+            MOI.RawOptimizerAttribute("MSK_DPAR_OPTIMIZER_MAX_TIME"),
+        ) == 1.0
         @test MOI.get(optimizer, MOI.TimeLimitSec()) === 1.0
         MOI.set(optimizer, MOI.TimeLimitSec(), nothing)
-        @test MOI.get(optimizer, MOI.RawOptimizerAttribute("MSK_DPAR_OPTIMIZER_MAX_TIME")) == -1
+        @test MOI.get(
+            optimizer,
+            MOI.RawOptimizerAttribute("MSK_DPAR_OPTIMIZER_MAX_TIME"),
+        ) == -1
         @test MOI.get(optimizer, MOI.TimeLimitSec()) === nothing
     end
 end
@@ -73,7 +132,10 @@ end
     optimizer = MosekOptimizerWithFallback()
     x = MOI.add_variable(optimizer)
     @test MOI.get(optimizer, MOI.NumberOfVariables()) == 1
-    y, cy = MOI.add_constrained_variables(optimizer, MOI.PositiveSemidefiniteConeTriangle(3))
+    y, cy = MOI.add_constrained_variables(
+        optimizer,
+        MOI.PositiveSemidefiniteConeTriangle(3),
+    )
     @test MOI.get(optimizer, MOI.NumberOfVariables()) == 7
     MOI.delete(optimizer, x)
     @test MOI.get(optimizer, MOI.NumberOfVariables()) == 6
@@ -90,12 +152,21 @@ end
 
 @testset "Matrix name" begin
     optimizer = MosekOptimizerWithFallback()
-    x, cx = MOI.add_constrained_variables(optimizer, MOI.PositiveSemidefiniteConeTriangle(3))
+    x, cx = MOI.add_constrained_variables(
+        optimizer,
+        MOI.PositiveSemidefiniteConeTriangle(3),
+    )
     err = MOI.UnsupportedAttribute{MOI.VariableName}
     @test_throws err MOI.set(optimizer, MOI.VariableName(), x[1], "a")
     MOI.empty!(optimizer)
-    model = MOI.Utilities.CachingOptimizer(MOI.Utilities.Model{Float64}(), optimizer)
-    x, cx = MOI.add_constrained_variables(model, MOI.PositiveSemidefiniteConeTriangle(3))
+    model = MOI.Utilities.CachingOptimizer(
+        MOI.Utilities.Model{Float64}(),
+        optimizer,
+    )
+    x, cx = MOI.add_constrained_variables(
+        model,
+        MOI.PositiveSemidefiniteConeTriangle(3),
+    )
     MOI.set(model, MOI.VariableName(), x[1], "a")
     MOI.Utilities.attach_optimizer(model) # Should drop errors silently in the copy
     @test "a" == MOI.get(model, MOI.VariableName(), x[1])
@@ -118,21 +189,43 @@ end
     # Currently Mosek returns `value.value` but we don't want the tests to fail if this gets fixed in the future
     # so we also allow `value`.
     @test MOI.get(model, attr) == value.value || MOI.get(model, attr) == value
-    @test MOI.get(optimizer, attr) == value.value || MOI.get(model, attr) == value
+    @test MOI.get(optimizer, attr) == value.value ||
+          MOI.get(model, attr) == value
 end
 
 @testset "LMIs" begin
     optimizer = MosekOptimizerWithFallback()
-    @test MOI.supports_constraint(optimizer, MOI.VectorAffineFunction{Float64}, MOI.Scaled{MOI.PositiveSemidefiniteConeTriangle})
+    @test MOI.supports_constraint(
+        optimizer,
+        MOI.VectorAffineFunction{Float64},
+        MOI.Scaled{MOI.PositiveSemidefiniteConeTriangle},
+    )
     bridged = MOI.Bridges.full_bridge_optimizer(optimizer, Float64)
-    @test MOI.Bridges.bridge_type(bridged, MOI.VectorAffineFunction{Float64}, MOI.PositiveSemidefiniteConeTriangle) === MOI.Bridges.Constraint.SetDotScalingBridge{Float64, MOI.PositiveSemidefiniteConeTriangle, MOI.VectorAffineFunction{Float64}, MOI.VectorAffineFunction{Float64}}
+    @test MOI.Bridges.bridge_type(
+        bridged,
+        MOI.VectorAffineFunction{Float64},
+        MOI.PositiveSemidefiniteConeTriangle,
+    ) === MOI.Bridges.Constraint.SetDotScalingBridge{
+        Float64,
+        MOI.PositiveSemidefiniteConeTriangle,
+        MOI.VectorAffineFunction{Float64},
+        MOI.VectorAffineFunction{Float64},
+    }
 end
 
 function _test_symmetric_reorder(lower, n)
     set = MOI.Scaled(MOI.PositiveSemidefiniteConeTriangle(n))
     N = MOI.dimension(set)
-    @test MosekTools.reorder(lower, MOI.ScaledPositiveSemidefiniteConeTriangle, true) == 1:N
-    @test MosekTools.reorder(1:N, MOI.ScaledPositiveSemidefiniteConeTriangle, false) == lower
+    @test MosekTools.reorder(
+        lower,
+        MOI.ScaledPositiveSemidefiniteConeTriangle,
+        true,
+    ) == 1:N
+    @test MosekTools.reorder(
+        1:N,
+        MOI.ScaledPositiveSemidefiniteConeTriangle,
+        false,
+    ) == lower
     for (up, low) in enumerate(lower)
         @test MosekTools.reorder(up, set, true) == low
         @test MosekTools.reorder(low, set, false) == up
@@ -144,13 +237,44 @@ function test_symmetric_reorder()
     _test_symmetric_reorder([1, 2, 3], 2)
     _test_symmetric_reorder([1, 2, 4, 3, 5, 6], 3)
     _test_symmetric_reorder([1, 2, 5, 3, 6, 8, 4, 7, 9, 10], 4)
-    _test_symmetric_reorder([1, 2, 6, 3, 7, 10, 4, 8, 11, 13, 5, 9, 12, 14, 15], 5)
-    _test_symmetric_reorder([1, 2, 7, 3, 8, 12, 4, 9, 13, 16, 5, 10, 14, 17, 19, 6, 11, 15, 18, 20, 21], 6)
+    _test_symmetric_reorder(
+        [1, 2, 6, 3, 7, 10, 4, 8, 11, 13, 5, 9, 12, 14, 15],
+        5,
+    )
+    return _test_symmetric_reorder(
+        [
+            1,
+            2,
+            7,
+            3,
+            8,
+            12,
+            4,
+            9,
+            13,
+            16,
+            5,
+            10,
+            14,
+            17,
+            19,
+            6,
+            11,
+            15,
+            18,
+            20,
+            21,
+        ],
+        6,
+    )
 end
 
 function test_variable_basis_status()
     model = Mosek.Optimizer()
-    x, cx = MOI.add_constrained_variables(model, MOI.PositiveSemidefiniteConeTriangle(2))
+    x, cx = MOI.add_constrained_variables(
+        model,
+        MOI.PositiveSemidefiniteConeTriangle(2),
+    )
     attr = MOI.VariableBasisStatus()
     index = MosekTools.mosek_index(model, x[1])
     err = ErrorException("$attr not supported for PSD variable $index")
@@ -163,16 +287,29 @@ end
 
 function test_modify_psd()
     model = Mosek.Optimizer()
-    x, _ = MOI.add_constrained_variables(model, MOI.PositiveSemidefiniteConeTriangle(2))
+    x, _ = MOI.add_constrained_variables(
+        model,
+        MOI.PositiveSemidefiniteConeTriangle(2),
+    )
     c = MOI.add_constraint(model, 1.0 * x[1], MOI.LessThan(1.0))
     change = MOI.ScalarCoefficientChange(x[1], 2.0)
-    err = MOI.ModifyConstraintNotAllowed(c, change, "Modifying the coefficient of the variable correspond to an entry of a PSD matrix is not supported")
+    err = MOI.ModifyConstraintNotAllowed(
+        c,
+        change,
+        "Modifying the coefficient of the variable correspond to an entry of a PSD matrix is not supported",
+    )
     @test_throws err MOI.modify(model, c, change)
     attr = MOI.ObjectiveFunction{typeof(1.0x[1])}()
     MOI.set(model, attr, 1.0x[1])
     change = MOI.ScalarCoefficientChange(x[1], 2.0)
-    err = MOI.ModifyObjectiveNotAllowed(change, "Modifying the coefficient of the variable correspond to an entry of a PSD matrix is not supported")
-    err = MOI.SetAttributeNotAllowed(attr, "Cannot set a different objective if a previous objective was set including the contribution of the entry of a PSD variable.")
+    err = MOI.ModifyObjectiveNotAllowed(
+        change,
+        "Modifying the coefficient of the variable correspond to an entry of a PSD matrix is not supported",
+    )
+    err = MOI.SetAttributeNotAllowed(
+        attr,
+        "Cannot set a different objective if a previous objective was set including the contribution of the entry of a PSD variable.",
+    )
     @test_throws err MOI.set(model, attr, 2.0x[1])
     y = MOI.add_variable(model)
     @test_throws err MOI.set(model, attr, 1.0y)
@@ -185,15 +322,19 @@ end
 # We do `MOI.Test.runtests` at the end at the Mosek-specific tests are faster to run and more likely to fail
 # It is also then more likely to see if they fail before `MOI.Test.runtests` hits https://github.com/jump-dev/MosekTools.jl/issues/149
 const config = MOI.Test.Config(
-    Float64, atol=1e-3, rtol=1e-3,
+    Float64;
+    atol = 1e-3,
+    rtol = 1e-3,
     # TODO remove `MOI.delete` once it is implemented for ACC
-    exclude=Any[MOI.ConstraintName, MOI.ConstraintBasisStatus, MOI.delete], # result in errors for now
+    exclude = Any[MOI.ConstraintName, MOI.ConstraintBasisStatus, MOI.delete], # result in errors for now
 )
 
 @testset "Direct optimizer tests" begin
     optimizer = MosekOptimizerWithFallback()
-    MOI.Test.runtests(optimizer, config,
-        exclude=[
+    MOI.Test.runtests(
+        optimizer,
+        config;
+        exclude = [
             # FIXME
             # Expression: MOI.add_constraint(model, x, set2)
             #   Expected: MathOptInterface.LowerBoundAlreadySet{MathOptInterface.EqualTo{Float64}, MathOptInterface.GreaterThan{Float64}}(MathOptInterface.VariableIndex(1))
@@ -219,11 +360,14 @@ end
 
 @testset "Bridge{Mosek}" begin
     #model = MOI.Bridges.full_bridge_optimizer(Mosek.Optimizer(), Float64)
-    model = MOI.Bridges.full_bridge_optimizer(MosekOptimizerWithFallback(), Float64)
+    model =
+        MOI.Bridges.full_bridge_optimizer(MosekOptimizerWithFallback(), Float64)
     MOI.set(model, MOI.Silent(), true)
 
-    MOI.Test.runtests(model, config,
-        exclude=[
+    MOI.Test.runtests(
+        model,
+        config;
+        exclude = [
             "test_basic_VectorAffineFunction_PositiveSemidefiniteConeSquare", # AssertionError: (m.x_sd[ref2id(vi)]).matrix == -1 src/variable.jl:173
             "test_basic_VectorOfVariables_PositiveSemidefiniteConeSquare",
             "test_basic_VectorAffineFunction_NormNuclearCone",
@@ -278,16 +422,18 @@ end
 @testset "Bridge{Cache{Mosek}}" begin
     model = MOI.Bridges.full_bridge_optimizer(
         MOI.Utilities.CachingOptimizer(
-                MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}()),
-                #Mosek.Optimizer(),
-                MosekOptimizerWithFallback(),
+            MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}()),
+            #Mosek.Optimizer(),
+            MosekOptimizerWithFallback(),
         ),
         Float64,
     )
     MOI.set(model, MOI.Silent(), true)
 
-    MOI.Test.runtests(model, config,
-        exclude=[
+    MOI.Test.runtests(
+        model,
+        config;
+        exclude = [
             # FIXME Mosek.MosekError(1307, "Variable '' (1) is a member of cone '' (0).") src/msk_functions.jl:477
             "test_conic_LogDetConeTriangle_VectorOfVariables",
             "test_conic_LogDetConeSquare_VectorOfVariables",
@@ -317,15 +463,13 @@ end
     model = MOI.Bridges.full_bridge_optimizer(
         MOI.Bridges.Constraint.RSOCtoPSD{Float64}( # Forced bridging
             MOI.Utilities.CachingOptimizer(
-                    MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}()),
-                    #Mosek.Optimizer(),
-                    MosekOptimizerWithFallback(),
-            )
+                MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}()),
+                #Mosek.Optimizer(),
+                MosekOptimizerWithFallback(),
+            ),
         ),
         Float64,
     )
     MOI.set(model, MOI.Silent(), true)
-    MOI.Test.runtests(model, config,
-        include=["conic_SecondOrderCone"],
-    )
+    MOI.Test.runtests(model, config; include = ["conic_SecondOrderCone"])
 end
