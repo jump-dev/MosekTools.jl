@@ -1,3 +1,8 @@
+# Copyright (c) 2017: Ulf Worsøe, Mosek ApS
+#
+# Use of this source code is governed by an MIT-style license that can be found
+# in the LICENSE.md file or at https://opensource.org/licenses/MIT.
+
 ###############################################################################
 # TASK ########################################################################
 ###### The `task` field should not be accessed outside this section. ##########

@@ -1,8 +1,7 @@
-# To ensure that tests can run on travis we have to do a little
-# hackadoodle here. The tests require a license file. We include
-# a license file that is only valid for one day (the day when
-# change is submitted).
-# If there is no valid license file, we default to that file.
+# Copyright (c) 2017: Ulf Worsøe, Mosek ApS
+#
+# Use of this source code is governed by an MIT-style license that can be found
+# in the LICENSE.md file or at https://opensource.org/licenses/MIT.
 
 using Test
 
