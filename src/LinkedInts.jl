@@ -83,12 +83,10 @@ function Base.show(f::IO, s::LinkedInts)
         p = s.prev[p]
     end
     print(f, "  Free: $freelst\n")
-
     println(f, "  free_ptr = $(s.free_ptr)")
     println(f, "  root     = $(s.root)")
     println(f, "  next     = $(s.next)")
     println(f, "  prev     = $(s.prev)")
-
     return print(f, ")")
 end
 
@@ -100,15 +98,12 @@ Ensure that there are at least `N` elements free, and allocate as necessary.
 function ensurefree(s::LinkedInts, N::Int)
     if s.free_cap < N
         num = N - s.free_cap
-
         cap = length(s.next)
         first = cap + 1
         last = cap + num
-
         append!(s.next, Int[i + 1 for i in first:last])
         append!(s.prev, Int[i - 1 for i in first:last])
         append!(s.back, zeros(Int, num))
-
         s.next[last] = 0
         s.prev[first] = s.free_ptr
         if s.prev[first] > 0
@@ -116,7 +111,6 @@ function ensurefree(s::LinkedInts, N::Int)
         end
         s.free_ptr = last
         s.free_cap += num
-
         return num
     else
         return 0
@@ -137,28 +131,22 @@ function allocate_block(s::LinkedInts, N::Int, id::Integer)
     s.back[ptrb] = id
     s.block[id] = ptrb
     # ptrb is the first index
-
     prev = s.prev[ptrb]
-
     if prev > 0
         s.next[prev] = 0
     end
-
     s.free_ptr = s.prev[ptrb]
     s.free_cap -= N
-
     # insert into list `idx`
     s.prev[ptrb] = s.root
     if s.root > 0
         s.next[s.root] = ptrb
     end
     s.root = ptre
-
     #if ! checkconsistency(s)
     #    println("List = ",s)
     #    assert(false)
     #end
-
     return id
 end
 
@@ -218,9 +206,9 @@ function deleteblock(s::LinkedInts, id::Int)
         s.prev[ptrb] = s.free_ptr
         s.free_ptr = ptre
         s.next[ptre] = 0
-
         s.free_cap += N
     end
+    return
 end
 
 # TODO merge getoneindex and getindex
@@ -229,7 +217,6 @@ function getoneindex(s::LinkedInts, id::Int)
     if N < 1
         error("No values at id")
     end
-
     return s.block[i]
 end
 
@@ -320,25 +307,20 @@ function checkconsistency(s::LinkedInts)::Bool
     if length(s.prev) != length(s.next)
         return false
     end
-
     N = length(s.prev)
-
     if !(
         all(i -> s.prev[i] == 0 || s.next[s.prev[i]] == i, 1:N) &&
         all(i -> s.next[i] == 0 || s.prev[s.next[i]] == i, 1:N)
     )
         @assert(false)
     end
-
     mark = fill(false, length(s.prev))
-
     p = s.free_ptr
     while p != 0
         @assert iszero(s.back[ptr])
         mark[p] = true
         p = s.prev[p]
     end
-
     p = s.root
     while p != 0
         @assert(!mark[p])
@@ -346,12 +328,10 @@ function checkconsistency(s::LinkedInts)::Bool
         mark[p] = true
         p = s.prev[p]
     end
-
     if !all(mark)
         println(s)
         println(mark)
         @assert(all(mark))
     end
-
     return true
 end

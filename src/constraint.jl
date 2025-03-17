@@ -34,7 +34,6 @@ function allocateconstraints(m::Optimizer, N::Int)
     numcon = Mosek.getnumcon(m.task)
     alloced = ensurefree(m.c_block, N)
     id = newblock(m.c_block, N)
-
     if alloced > 0
         Mosek.appendcons(m.task, alloced)
     end
@@ -488,6 +487,7 @@ function delete_name(m::Optimizer, ci::MOI.ConstraintIndex)
         cis = m.constrnames[name]
         deleteat!(cis, findfirst(isequal(ci), cis))
     end
+    return
 end
 
 ###############################################################################
@@ -658,18 +658,14 @@ function MOI.add_constraint(
             ),
         )
     end
-
     # Duplicate indices not supported
     axb = MOI.Utilities.canonical(axb)
-
     N = 1
     conid = allocateconstraints(m, N)
     ci = MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D}(conid)
     r = row(m, ci)
     set_row(m, r, axb.terms)
-
     add_bound(m, r, dom)
-
     return ci
 end
 
@@ -704,15 +700,11 @@ function MOI.add_constraint(
     if !(msk_idx isa ColumnIndex)
         error("Cannot add $D constraint on a matrix variable")
     end
-
     if !iszero(incompatible_mask(D) & m.x_constraints[xs.value])
         error("Cannot put multiple bound sets of the same type on a variable")
     end
-
     set_flag(m, xs, D)
-
     add_variable_constraint(m, msk_idx, dom)
-
     return MOI.ConstraintIndex{MOI.VariableIndex,D}(xs.value)
 end
 
@@ -725,23 +717,19 @@ function MOI.add_constraint(
         error("Cannot add $D constraint on a matrix variable")
     end
     cols = ColumnIndices(reorder(columns(m, xs.variables).values, D, true))
-
     if !all(
         vi -> iszero(incompatible_mask(D) & m.x_constraints[vi.value]),
         xs.variables,
     )
         error("Cannot multiple bound sets of the same type to a variable")
     end
-
     id = add_cone(m, cols, dom)
     idx = first(xs.variables).value
     for vi in xs.variables
         m.variable_to_vector_constraint_id[vi.value] = -idx
     end
     m.variable_to_vector_constraint_id[idx] = id
-
-    ci = MOI.ConstraintIndex{MOI.VectorOfVariables,D}(idx)
-    return ci
+    return MOI.ConstraintIndex{MOI.VectorOfVariables,D}(idx)
 end
 
 function MOI.add_constraint(
@@ -759,18 +747,15 @@ function MOI.add_constraint(
         num = length(axbs.constants),
         nnz = length(axbs.terms),
         domi = appendconedomain(m.task, num, dom)
-
         m.F_rows[acci] = afei .+ eachindex(b)
         Mosek.appendafes(m.task, num)
         Mosek.appendaccseq(m.task, domi, afei + 1, b)
-
         rsubi = Vector{Int64}()
         sizehint!(rsubi, nnz)
         rsubj = Vector{Int32}()
         sizehint!(rsubj, nnz)
         rcof = Vector{Float64}()
         sizehint!(rcof, nnz)
-
         rbarsubi = Vector{Int64}()
         sizehint!(rbarsubi, nnz)
         rbarsubj = Vector{Int32}()
@@ -781,7 +766,6 @@ function MOI.add_constraint(
         sizehint!(rbarsubl, nnz)
         rbarcof = Vector{Float64}()
         sizehint!(rbarcof, nnz)
-
         function add(row::Int, col::ColumnIndex, coefficient::Float64)
             push!(rsubi, row)
             push!(rsubj, col.value)
@@ -797,7 +781,6 @@ function MOI.add_constraint(
                 mat.row == mat.column ? coefficient : coefficient / 2,
             )
         end
-
         for term in axbs.terms
             add(
                 reorder(term.output_index, dom, true) + afei,
@@ -805,7 +788,6 @@ function MOI.add_constraint(
                 term.scalar_term.coefficient,
             )
         end
-
         if !isempty(rsubi) # Mosek segfaults otherwise, see https://github.com/jump-dev/MosekTools.jl/actions/runs/3243196430/jobs/5317555832#step:7:132
             Mosek.putafefentrylist(m.task, rsubi, rsubj, rcof)
         end
@@ -819,19 +801,15 @@ function MOI.add_constraint(
                 rbarcof,
             )
         end
-
         MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},D}(acci)
     end
-
     # cols = ColumnIndices(reorder(columns(m, xs.variables).values, D))
-
     # id = add_cone(m, cols, dom)
     # idx = first(xs.variables).value
     # for vi in xs.variables
     #     m.variable_to_vector_constraint_id[vi.value] = -idx
     # end
     # m.variable_to_vector_constraint_id[idx] = id
-
     # ci = MOI.ConstraintIndex{MOI.VectorOfVariables, D}(idx)
     # return ci
 end
@@ -998,15 +976,21 @@ function type_cone(ct)
         error("Unrecognized Mosek cone type `$ct`.")
     end
 end
+
 cone(::Type{MOI.ExponentialCone}, conepar, nummem) = MOI.ExponentialCone()
+
 function cone(::Type{MOI.DualExponentialCone}, conepar, nummem)
     return MOI.DualExponentialCone()
 end
+
 cone(::Type{MOI.PowerCone{Float64}}, conepar, nummem) = MOI.PowerCone(conepar)
+
 function cone(::Type{MOI.DualPowerCone{Float64}}, conepar, nummem)
     return MOI.DualPowerCone(conepar)
 end
+
 cone(::Type{MOI.SecondOrderCone}, conepar, nummem) = MOI.SecondOrderCone(nummem)
+
 function cone(::Type{MOI.RotatedSecondOrderCone}, conepar, nummem)
     return MOI.RotatedSecondOrderCone(nummem)
 end
@@ -1135,14 +1119,10 @@ function MOI.transform(
     newdom::D2,
 ) where {D1<:ScalarLinearDomain,D2<:ScalarLinearDomain}
     F = MOI.ScalarAffineFunction{Float64}
-
     cid = ref2id(cref)
-
     r = row(m, cref)
     add_bound(m, r, newdom)
-
-    newcref = MOI.ConstraintIndex{F,D2}(cid)
-    return newcref
+    return MOI.ConstraintIndex{F,D2}(cid)
 end
 
 ## Delete #####################################################################
@@ -1229,18 +1209,14 @@ function MOI.delete(
     cref::MOI.ConstraintIndex{F,D},
 ) where {F<:MOI.ScalarAffineFunction{Float64},D<:ScalarLinearDomain}
     MOI.throw_if_not_valid(m, cref)
-
     delete_name(m, cref)
-
     subi = getindexes(m.c_block, cref.value)
-
     n = length(subi)
     subi_i32 = convert(Vector{Int32}, subi)
     ptr = fill(Int64(0), n)
     Mosek.putarowlist(m.task, subi_i32, ptr, ptr, Int32[], Float64[])
     b = fill(0.0, n)
     Mosek.putconboundlist(m.task, subi_i32, fill(Mosek.MSK_BK_FX, n), b, b)
-
     return deleteblock(m.c_block, cref.value)
 end
 
@@ -1280,7 +1256,6 @@ function MOI.delete(
     ci::MOI.ConstraintIndex{MOI.VectorOfVariables,<:VectorCone},
 )
     id = cone_id(model, ci)
-
     for vi in MOI.get(model, MOI.ConstraintFunction(), ci).variables
         model.variable_to_vector_constraint_id[vi.value] = 0
     end

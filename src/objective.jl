@@ -3,9 +3,13 @@
 # Use of this source code is governed by an MIT-style license that can be found
 # in the LICENSE.md file or at https://opensource.org/licenses/MIT.
 
+# MOI.ObjectiveFunctionType
+
 function MOI.get(::Optimizer, ::MOI.ObjectiveFunctionType)
     return MOI.ScalarAffineFunction{Float64}
 end
+
+# MOI.ObjectiveFunction
 
 function MOI.get(m::Optimizer, ::MOI.ObjectiveFunction{F}) where {F}
     obj = MOI.get(m, MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}())
@@ -34,6 +38,9 @@ function MOI.supports(
 )
     return true
 end
+
+# MOI.ObjectiveSennse
+
 MOI.supports(::Optimizer, ::MOI.ObjectiveSense) = true
 
 function MOI.set(
@@ -42,12 +49,8 @@ function MOI.set(
     func::MOI.ScalarAffineFunction{Float64},
 )
     if m.has_psd_in_objective
-        throw(
-            MOI.SetAttributeNotAllowed(
-                attr,
-                "Cannot set a different objective if a previous objective was set including the contribution of the entry of a PSD variable.",
-            ),
-        )
+        msg = "Cannot set a different objective if a previous objective was set including the contribution of the entry of a PSD variable."
+        throw(MOI.SetAttributeNotAllowed(attr, msg))
     end
     cols, values = split_scalar_matrix(
         m,
