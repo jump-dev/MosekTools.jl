@@ -10,7 +10,24 @@ using Test
 
 import MathOptInterface as MOI
 
+const _MOSEK_API_COUNTER = Ref{Int}(0)
+
+if isdefined(MOI.Test, :_error_handler)
+    @eval function MOI.Test._error_handler(
+        err::Mosek.MosekError,
+        name::String,
+        warn_unsupported::Bool,
+    )
+        if err.rcode == Mosek.MSK_RES_ERR_SERVER_STATUS
+            _MOSEK_API_COUNTER[] += 1
+            return  # Server returned non-ok HTTP status code
+        end
+        return rethrow(err)
+    end
+end
+
 function runtests()
+    _MOSEK_API_COUNTER[] = 0
     for name in names(@__MODULE__; all = true)
         if startswith("$name", "test_")
             @testset "$name" begin
@@ -18,6 +35,8 @@ function runtests()
             end
         end
     end
+    # Test that there are less than 5 API call failures during a test run
+    @test _MOSEK_API_COUNTER[] < 5
     return
 end
 
@@ -493,6 +512,17 @@ function test_more_SDP_tests_by_forced_bridging()
             ),
         ),
         Float64,
+    )
+    config = MOI.Test.Config(
+        Float64;
+        atol = 1e-3,
+        rtol = 1e-3,
+        exclude = Any[
+            MOI.ConstraintName,
+            MOI.ConstraintBasisStatus,
+            # TODO remove `MOI.delete` once it is implemented for ACC
+            MOI.delete,
+        ],
     )
     MOI.Test.runtests(model, config; include = ["conic_SecondOrderCone"])
     return
