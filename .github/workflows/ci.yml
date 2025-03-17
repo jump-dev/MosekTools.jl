@@ -11,16 +11,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - version: '1.6'
-            os: ubuntu-latest
-            arch: x64
-          - version: '1.10'
-            os: ubuntu-latest
-            arch: x64
-          - version: '1'
-            os: ubuntu-latest
-            arch: x64
+        version: ['1.6', '1']
+        os: [ubuntu-latest]
+        arch: [x64]
     steps:
       - name: Install xmllint
         run: sudo apt-get install -y curl
