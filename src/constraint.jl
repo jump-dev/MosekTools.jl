@@ -117,6 +117,7 @@ function set_row(
 )
     return putarow(task, row, cols.values, values)
 end
+
 function set_row(
     m::Optimizer,
     row::Int32,
@@ -154,6 +155,7 @@ function set_coefficients(
         values,
     )
 end
+
 function set_coefficients(
     m::Optimizer,
     rows::Vector{Int32},
@@ -171,6 +173,7 @@ function set_coefficient(
 )
     return putaij(task, row, col.value, value)
 end
+
 function set_coefficient(
     m::Optimizer,
     row::Int32,
@@ -210,6 +213,7 @@ function add_bound(m::Optimizer, row::Int32, dom::MOI.GreaterThan{Float64})
         dom.lower,
     )
 end
+
 function add_bound(m::Optimizer, row::Int32, dom::MOI.LessThan{Float64})
     return putconbound(
         m.task,
@@ -219,6 +223,7 @@ function add_bound(m::Optimizer, row::Int32, dom::MOI.LessThan{Float64})
         dom.upper,
     )
 end
+
 function add_bound(m::Optimizer, row::Int32, dom::MOI.EqualTo{Float64})
     return putconbound(
         m.task,
@@ -228,6 +233,7 @@ function add_bound(m::Optimizer, row::Int32, dom::MOI.EqualTo{Float64})
         dom.value,
     )
 end
+
 function add_bound(m::Optimizer, row::Int32, dom::MOI.Interval{Float64})
     return putconbound(m.task, row, _bounds(dom)...)
 end
@@ -245,6 +251,7 @@ function bounds_to_set(::Type{S}, bk, bl, bu) where {S}
         return S(bl, bu)
     end
 end
+
 function get_bound(
     m::Optimizer,
     ci::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},S},
@@ -322,6 +329,7 @@ function delete_variable_constraint(
 )
     return putvarbound(m.task, col.value, MSK_BK_FR, 0.0, 0.0)
 end
+
 function delete_variable_constraint(
     m::Optimizer,
     col::ColumnIndex,
@@ -329,6 +337,7 @@ function delete_variable_constraint(
 )
     return putvartype(m.task, col.value, MSK_VAR_TYPE_CONT)
 end
+
 function delete_variable_constraint(
     m::Optimizer,
     col::ColumnIndex,
@@ -343,6 +352,7 @@ function delete_variable_constraint(
     end
     return putvarbound(m.task, col.value, bk, lo, 0.0)
 end
+
 function delete_variable_constraint(
     m::Optimizer,
     col::ColumnIndex,
@@ -357,6 +367,7 @@ function delete_variable_constraint(
     end
     return putvarbound(m.task, col.value, bk, 0.0, up)
 end
+
 function add_variable_constraint(
     m::Optimizer,
     col::ColumnIndex,
@@ -364,6 +375,7 @@ function add_variable_constraint(
 )
     return putvarbound(m.task, col.value, _bounds(dom)...)
 end
+
 function add_variable_constraint(
     m::Optimizer,
     col::ColumnIndex,
@@ -371,9 +383,11 @@ function add_variable_constraint(
 )
     return putvarbound(m.task, col.value, MSK_BK_FX, dom.value, dom.value)
 end
+
 function add_variable_constraint(m::Optimizer, col::ColumnIndex, ::MOI.Integer)
     return putvartype(m.task, col.value, MSK_VAR_TYPE_INT)
 end
+
 function add_variable_constraint(
     m::Optimizer,
     col::ColumnIndex,
@@ -388,6 +402,7 @@ function add_variable_constraint(
     end
     return putvarbound(m.task, col.value, bk, lo, dom.upper)
 end
+
 function add_variable_constraint(
     m::Optimizer,
     col::ColumnIndex,
@@ -402,6 +417,7 @@ function add_variable_constraint(
     end
     return putvarbound(m.task, col.value, bk, dom.lower, up)
 end
+
 function get_variable_constraint(
     m::Optimizer,
     col::ColumnIndex,
@@ -409,6 +425,7 @@ function get_variable_constraint(
 ) where {S}
     return bounds_to_set(S, getvarbound(m.task, col.value)...)
 end
+
 function get_variable_constraint(
     m::Optimizer,
     vi::MOI.VariableIndex,
@@ -444,6 +461,7 @@ function set_row_name(
 )
     return set_row_name(m.task, row(m, c), name)
 end
+
 function set_row_name(
     m::Optimizer,
     c::MOI.ConstraintIndex,
@@ -471,6 +489,7 @@ function row(
 )::Int32
     return getindex(m.c_block, c.value)
 end
+
 function columns(m::Optimizer, ci::MOI.ConstraintIndex{MOI.VectorOfVariables})
     coneidx = cone_id(m, ci)
     if coneidx < 1 || coneidx > getnumcone(m.task)
@@ -478,6 +497,7 @@ function columns(m::Optimizer, ci::MOI.ConstraintIndex{MOI.VectorOfVariables})
     end
     return ColumnIndices(getcone(m.task, coneidx)[4])
 end
+
 function rows(
     m::Optimizer,
     ci::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64}},
@@ -491,9 +511,11 @@ end
 function appendconedomain(t::Mosek.Task, ::Int, dom::MOI.ExponentialCone)
     return Mosek.appendprimalexpconedomain(t)
 end
+
 function appendconedomain(t::Mosek.Task, ::Int, dom::MOI.DualExponentialCone)
     return Mosek.appenddualexpconedomain(t)
 end
+
 function appendconedomain(t::Mosek.Task, ::Int, dom::MOI.PowerCone{Float64})
     return Mosek.appendprimalpowerconedomain(
         t,
@@ -501,6 +523,7 @@ function appendconedomain(t::Mosek.Task, ::Int, dom::MOI.PowerCone{Float64})
         Float64[dom.exponent, 1.0-dom.exponent],
     )
 end
+
 function appendconedomain(t::Mosek.Task, ::Int, dom::MOI.DualPowerCone{Float64})
     return Mosek.appenddualpowerconedomain(
         t,
@@ -508,12 +531,15 @@ function appendconedomain(t::Mosek.Task, ::Int, dom::MOI.DualPowerCone{Float64})
         Float64[dom.exponent, 1.0-dom.exponent],
     )
 end
+
 function appendconedomain(t::Mosek.Task, n::Int, ::MOI.SecondOrderCone)
     return Mosek.appendquadraticconedomain(t, n)
 end
+
 function appendconedomain(t::Mosek.Task, n::Int, ::MOI.RotatedSecondOrderCone)
     return Mosek.appendrquadraticconedomain(t, n)
 end
+
 function appendconedomain(
     t::Mosek.Task,
     n::Int,
@@ -544,9 +570,11 @@ incompatible_mask(::Type{<:VectorCone}) = 0x40
 function set_flag(model::Optimizer, vi::MOI.VariableIndex, S::Type)
     return model.x_constraints[vi.value] |= flag(S)
 end
+
 function unset_flag(model::Optimizer, vi::MOI.VariableIndex, S::Type)
     return model.x_constraints[vi.value] &= ~flag(S)
 end
+
 function has_flag(model::Optimizer, vi::MOI.VariableIndex, S::Type)
     return !iszero(model.x_constraints[vi.value] & flag(S))
 end
@@ -572,6 +600,7 @@ function MOI.supports_constraint(
 )
     return true
 end
+
 function MOI.supports_constraint(
     ::Optimizer,
     ::Type{MOI.VectorOfVariables},
@@ -579,6 +608,7 @@ function MOI.supports_constraint(
 )
     return true
 end
+
 function MOI.supports_constraint(
     ::Optimizer,
     ::Type{MOI.VariableIndex},
@@ -586,6 +616,7 @@ function MOI.supports_constraint(
 )
     return true
 end
+
 function MOI.supports_constraint(
     ::Optimizer,
     ::Type{MOI.VectorAffineFunction{Float64}},
@@ -593,6 +624,7 @@ function MOI.supports_constraint(
 )
     return true
 end
+
 function MOI.supports_add_constrained_variables(
     ::Optimizer,
     ::Type{MOI.PositiveSemidefiniteConeTriangle},
@@ -834,6 +866,7 @@ end
 function _variable(ci::MOI.ConstraintIndex{MOI.VariableIndex})
     return MOI.VariableIndex(ci.value)
 end
+
 function MOI.get(
     m::Optimizer,
     ::MOI.ConstraintFunction,
@@ -842,6 +875,7 @@ function MOI.get(
     MOI.throw_if_not_valid(m, ci)
     return _variable(ci)
 end
+
 function MOI.get(
     m::Optimizer,
     ::MOI.ConstraintSet,
@@ -850,6 +884,7 @@ function MOI.get(
     MOI.throw_if_not_valid(m, ci)
     return S()
 end
+
 function MOI.get(
     m::Optimizer,
     ::MOI.ConstraintSet,
@@ -887,6 +922,7 @@ function MOI.get(
     # TODO add matrix terms
     return MOI.ScalarAffineFunction(terms, 0.0)
 end
+
 function MOI.get(
     m::Optimizer,
     ::MOI.ConstraintSet,
@@ -895,6 +931,7 @@ function MOI.get(
     MOI.throw_if_not_valid(m, ci)
     return get_bound(m, ci)
 end
+
 function MOI.get(
     m::Optimizer,
     ::MOI.ConstraintSet,
@@ -962,6 +999,7 @@ cone(::Type{MOI.SecondOrderCone}, conepar, nummem) = MOI.SecondOrderCone(nummem)
 function cone(::Type{MOI.RotatedSecondOrderCone}, conepar, nummem)
     return MOI.RotatedSecondOrderCone(nummem)
 end
+
 function MOI.get(
     m::Optimizer,
     ::MOI.ConstraintSet,
@@ -984,6 +1022,7 @@ function chgbound(
 )
     return bl, dom.upper - k
 end
+
 function chgbound(
     bl::Float64,
     bu::Float64,
@@ -992,6 +1031,7 @@ function chgbound(
 )
     return dom.lower - k, bu
 end
+
 function chgbound(
     bl::Float64,
     bu::Float64,
@@ -1000,6 +1040,7 @@ function chgbound(
 )
     return dom.value - k, dom.value - k
 end
+
 function chgbound(
     bl::Float64,
     bu::Float64,
@@ -1168,6 +1209,7 @@ function MOI.is_valid(
     return allocated(model.c_block, ci.value) &&
            getconbound(model.task, row(model, ci))[1] == bound_key(S)
 end
+
 function MOI.delete(
     m::Optimizer,
     cref::MOI.ConstraintIndex{F,D},
@@ -1195,6 +1237,7 @@ function MOI.is_valid(
     return allocated(model.x_block, ci.value) &&
            has_flag(model, _variable(ci), S)
 end
+
 function MOI.delete(
     m::Optimizer,
     ci::MOI.ConstraintIndex{MOI.VariableIndex,S},
@@ -1205,6 +1248,7 @@ function MOI.delete(
     unset_flag(m, vi, S)
     return delete_variable_constraint(m, column(m, vi), S)
 end
+
 function MOI.is_valid(
     model::Optimizer,
     ci::MOI.ConstraintIndex{MOI.VectorOfVariables,S},
@@ -1216,6 +1260,7 @@ function MOI.is_valid(
     return 1 ≤ id ≤ getnumcone(model.task) &&
            getconeinfo(model.task, id)[1] == cone_type(S)
 end
+
 function MOI.delete(
     model::Optimizer,
     ci::MOI.ConstraintIndex{MOI.VectorOfVariables,<:VectorCone},
@@ -1233,6 +1278,7 @@ function MOI.delete(
         model.variable_to_vector_constraint_id,
     )
 end
+
 function MOI.is_valid(
     model::Optimizer,
     ci::MOI.ConstraintIndex{
@@ -1264,6 +1310,7 @@ function MOI.supports(
 )
     return true
 end
+
 function MOI.set(
     m::Optimizer,
     ::MOI.ConstraintName,
@@ -1277,6 +1324,7 @@ function MOI.set(
     push!(m.constrnames[name], ci)
     return set_row_name(m, ci, name)
 end
+
 function MOI.get(
     m::Optimizer,
     ::MOI.ConstraintName,
@@ -1285,9 +1333,11 @@ function MOI.get(
     # All rows should have same name so we take the first one
     return getconname(m.task, getindexes(m.c_block, ref2id(ci))[1])
 end
+
 function MOI.get(m::Optimizer, ::MOI.ConstraintName, ci::MOI.ConstraintIndex)
     return get(m.con_to_name, ci, "")
 end
+
 function MOI.get(m::Optimizer, CI::Type{<:MOI.ConstraintIndex}, name::String)
     #asgn, row = getconnameindex(m.task, name)
     #if iszero(asgn)

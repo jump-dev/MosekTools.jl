@@ -13,9 +13,11 @@ function set_primal_start(task::Mosek.MSKtask, col::ColumnIndex, value::Float64)
         putxxslice(task, sol, col.value, col.value + Int32(1), xx)
     end
 end
+
 function set_primal_start(m::Optimizer, vi::MOI.VariableIndex, value::Float64)
     return set_primal_start(m.task, mosek_index(m, vi), value)
 end
+
 function set_primal_start(
     task::Mosek.MSKtask,
     cols::ColumnIndices,
@@ -31,6 +33,7 @@ function set_primal_start(
         putxx(task, sol, xx)
     end
 end
+
 function set_primal_start(
     m::Optimizer,
     vis::Vector{MOI.VariableIndex},
@@ -52,6 +55,7 @@ end
 function variable_primal(m::Optimizer, N, col::ColumnIndex)
     return m.solutions[N].xx[col.value]
 end
+
 function variable_primal(m::Optimizer, N, mat::MatrixIndex)
     d = m.sd_dim[mat.matrix]
     r = d - mat.column + 1
@@ -59,6 +63,7 @@ function variable_primal(m::Optimizer, N, mat::MatrixIndex)
     k = div((d + 1) * d, 2) - div((r + 1) * r, 2) + (mat.row - mat.column + 1)
     return m.solutions[N].barxj[mat.matrix][k]
 end
+
 function variable_primal(m::Optimizer, N, vi::MOI.VariableIndex)
     return variable_primal(m, N, mosek_index(m, vi))
 end
@@ -72,6 +77,7 @@ function MOI.get(m::Optimizer, attr::MOI.ObjectiveValue)
     MOI.check_result_index_bounds(m, attr)
     return getprimalobj(m.task, m.solutions[attr.result_index].whichsol)
 end
+
 function MOI.get(m::Optimizer, attr::MOI.DualObjectiveValue)
     MOI.check_result_index_bounds(m, attr)
     return getdualobj(m.task, m.solutions[attr.result_index].whichsol)
@@ -182,6 +188,7 @@ function MOI.get(
         allocatedlist(model.c_block),
     )
 end
+
 function MOI.get(
     model::Optimizer,
     ::MOI.ListOfConstraintIndices{MOI.ScalarAffineFunction{Float64},S},
@@ -193,6 +200,7 @@ function MOI.get(
     )
     return [MOI.ConstraintIndex{F,S}(id) for id in ids]
 end
+
 function MOI.get(
     model::Optimizer,
     ::MOI.NumberOfConstraints{MOI.VariableIndex,S},
@@ -203,6 +211,7 @@ function MOI.get(
         allocatedlist(model.x_block),
     )
 end
+
 function MOI.get(
     model::Optimizer,
     ::MOI.ListOfConstraintIndices{MOI.VariableIndex,S},
@@ -214,6 +223,7 @@ function MOI.get(
     )
     return [MOI.ConstraintIndex{F,S}(id) for id in ids]
 end
+
 function MOI.get(
     model::Optimizer,
     ::MOI.NumberOfConstraints{MOI.VectorOfVariables,S},
@@ -224,6 +234,7 @@ function MOI.get(
         eachindex(model.variable_to_vector_constraint_id),
     )
 end
+
 function MOI.get(
     model::Optimizer,
     ::MOI.NumberOfConstraints{MOI.VectorAffineFunction{Float64},S},
@@ -235,6 +246,7 @@ function MOI.get(
         1:numacc,
     )
 end
+
 function MOI.get(
     model::Optimizer,
     ::MOI.ListOfConstraintIndices{MOI.VectorOfVariables,S},
@@ -246,6 +258,7 @@ function MOI.get(
     )
     return [MOI.ConstraintIndex{F,S}(id) for id in ids]
 end
+
 function MOI.get(
     model::Optimizer,
     ::MOI.NumberOfConstraints{
@@ -256,6 +269,7 @@ function MOI.get(
     # TODO this only works because deletion of PSD constraints is not supported yet
     return length(model.sd_dim)
 end
+
 function MOI.get(
     model::Optimizer,
     ::MOI.ListOfConstraintIndices{
@@ -334,6 +348,7 @@ function MOI.set(
 )
     return set_primal_start(m, v, 0.0)
 end
+
 function MOI.set(
     m::Optimizer,
     ::MOI.VariablePrimalStart,
@@ -374,6 +389,7 @@ function MOI.get(m::Optimizer, attr::MOI.VariablePrimal, vi::MOI.VariableIndex)
     MOI.check_result_index_bounds(m, attr)
     return variable_primal(m, attr.result_index, vi)
 end
+
 function MOI.get!(
     output::Vector{Float64},
     m::Optimizer,
@@ -386,6 +402,7 @@ function MOI.get!(
         output[i] = MOI.get(m, attr, vs[i])
     end
 end
+
 function MOI.get(
     m::Optimizer,
     attr::MOI.VariablePrimal,
@@ -501,6 +518,7 @@ function _variable_constraint_dual(
 )
     return sol.slx[col.value] - sol.sux[col.value]
 end
+
 function _variable_constraint_dual(
     sol::MosekSolution,
     col::ColumnIndex,
@@ -508,6 +526,7 @@ function _variable_constraint_dual(
 )
     return sol.slx[col.value]
 end
+
 function _variable_constraint_dual(
     sol::MosekSolution,
     col::ColumnIndex,
@@ -515,6 +534,7 @@ function _variable_constraint_dual(
 )
     return -sol.sux[col.value]
 end
+
 function MOI.get(
     m::Optimizer,
     attr::MOI.ConstraintDual,
@@ -557,6 +577,7 @@ function reorder(
     end
     return k
 end
+
 function reorder(
     x::AbstractVector,
     ::Type{
@@ -589,6 +610,7 @@ const ExpCones = Union{MOI.ExponentialCone,MOI.DualExponentialCone}
 function reorder(i::Integer, ::ExpCones, ::Bool)
     return (3:-1:1)[i]
 end
+
 function reorder(x::AbstractVector, ::Union{ExpCones,Type{<:ExpCones}}, ::Bool)
     return [x[3], x[2], x[1]]
 end
@@ -690,12 +712,14 @@ solsize(m::Optimizer, ::MOI.ConstraintIndex{<:MOI.AbstractScalarFunction}) = 1
 function solsize(m::Optimizer, ci::MOI.ConstraintIndex{MOI.VectorOfVariables})
     return getconeinfo(m.task, cone_id(m, ci))[3]
 end
+
 function solsize(
     m::Optimizer,
     ci::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64}},
 )
     return length(rows(m, ci))
 end
+
 function solsize(
     m::Optimizer,
     ci::MOI.ConstraintIndex{
@@ -718,6 +742,7 @@ function MOI.get(
     MOI.get!(output, m, attr, ci)
     return output
 end
+
 function MOI.get(
     m::Optimizer, # FIXME does Mosek provide this ?
     attr::MOI.ConstraintPrimal,
@@ -736,6 +761,7 @@ function MOI.get(m::Optimizer, attr::MOI.RawStatusString)
         return Mosek.tostr(m.trm)
     end
 end
+
 function MOI.get(m::Optimizer, attr::MOI.TerminationStatus)
     if m.trm === nothing
         MOI.OPTIMIZE_NOT_CALLED

@@ -199,10 +199,12 @@ end
 struct IntegerParameter <: MOI.AbstractOptimizerAttribute
     name::String
 end
+
 function MOI.set(m::Optimizer, p::IntegerParameter, value)
     m.ipars[p.name] = value
     return Mosek.putnaintparam(m.task, p.name, value)
 end
+
 function MOI.get(m::Optimizer, p::IntegerParameter)
     return Mosek.getnaintparam(m.task, p.name)
 end
@@ -210,10 +212,12 @@ end
 struct DoubleParameter <: MOI.AbstractOptimizerAttribute
     name::String
 end
+
 function MOI.set(m::Optimizer, p::DoubleParameter, value)
     m.dpars[p.name] = value
     return Mosek.putnadouparam(m.task, p.name, value)
 end
+
 function MOI.get(m::Optimizer, p::DoubleParameter)
     return Mosek.getnadouparam(m.task, p.name)
 end
@@ -221,10 +225,12 @@ end
 struct StringParameter <: MOI.AbstractOptimizerAttribute
     name::String
 end
+
 function MOI.set(m::Optimizer, p::StringParameter, value::AbstractString)
     m.spars[p.name] = value
     return Mosek.putnastrparam(m.task, p.name, value)
 end
+
 function MOI.get(m::Optimizer, p::StringParameter)
     # We need to give the maximum length of the value of the parameter.
     # 255 should be ok in most cases.
@@ -300,6 +306,7 @@ MOI.supports(::Optimizer, ::MOI.Silent) = true
 function MOI.set(model::Optimizer, ::MOI.Silent, value::Bool)
     return MOI.set(model, MOI.RawOptimizerAttribute("QUIET"), value)
 end
+
 function MOI.get(model::Optimizer, ::MOI.Silent)
     return MOI.get(model, MOI.RawOptimizerAttribute("QUIET"))
 end
@@ -312,6 +319,7 @@ function MOI.set(model::Optimizer, ::MOI.TimeLimitSec, value::Real)
         value,
     )
 end
+
 function MOI.set(model::Optimizer, ::MOI.TimeLimitSec, ::Nothing)
     return MOI.set(
         model,
@@ -319,6 +327,7 @@ function MOI.set(model::Optimizer, ::MOI.TimeLimitSec, ::Nothing)
         -1.0,
     )
 end
+
 function MOI.get(model::Optimizer, ::MOI.TimeLimitSec)
     value =
         MOI.get(model, MOI.RawOptimizerAttribute("MSK_DPAR_OPTIMIZER_MAX_TIME"))
@@ -424,9 +433,11 @@ MOI.supports(::Optimizer, ::MOI.Name) = true
 function MOI.set(m::Optimizer, ::MOI.Name, name::String)
     return puttaskname(m.task, name)
 end
+
 function MOI.get(m::Optimizer, ::MOI.Name)
     return gettaskname(m.task)
 end
+
 function MOI.get(m::Optimizer, ::MOI.ListOfModelAttributesSet)
     set = MOI.AbstractModelAttribute[]
     if !m.feasibility
