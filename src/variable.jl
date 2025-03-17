@@ -14,9 +14,11 @@
 ###### The `task` field should not be accessed outside this section. ##########
 
 num_columns(task::Mosek.MSKtask) = Mosek.getnumvar(task)
+
 num_columns(m::Optimizer) = num_columns(m.task)
 
 add_column(task::Mosek.MSKtask) = Mosek.appendvars(task, 1)
+
 add_column(m::Optimizer) = add_column(m.task)
 
 """
@@ -32,7 +34,6 @@ function init_columns(task::Mosek.MSKtask, cols::ColumnIndices)
     N = length(cols.values)
     bnd = zeros(Float64, N)
     Mosek.putvarboundlist(task, cols.values, fill(Mosek.MSK_BK_FR, N), bnd, bnd)
-
     if DEBUG
         for col in cols.values
             Mosek.putvarname(task, col, "x$col")
@@ -53,20 +54,18 @@ end
 
 function set_column_name(task::Mosek.MSKtask, mat::MatrixIndex, name::String)
     # Names of matrix index is not supported by Mosek at the moment
-    throw(
-        MOI.UnsupportedAttribute(
-            MOI.VariableName(),
-            "Mosek does not support names for positive semidefinite variables.",
-        ),
-    )
+    msg = "Mosek does not support names for positive semidefinite variables."
+    return throw(MOI.UnsupportedAttribute(MOI.VariableName(), msg))
 end
 
 function set_column_name(m::Optimizer, vi::MOI.VariableIndex, name::String)
     return set_column_name(m.task, mosek_index(m, vi), name)
 end
+
 function column_name(task::Mosek.MSKtask, col::ColumnIndex)
     return Mosek.getvarname(task, col.value)
 end
+
 function column_name(m::Optimizer, vi::MOI.VariableIndex)
     return column_name(m.task, mosek_index(m, vi))
 end
@@ -75,10 +74,10 @@ function column_with_name(task::Mosek.MSKtask, name::String)
     asgn, col = Mosek.getvarnameindex(task, name)
     if iszero(asgn)
         return nothing
-    else
-        return col
     end
+    return col
 end
+
 column_with_name(m::Optimizer, name::String) = column_with_name(m.task, name)
 
 """
@@ -94,7 +93,6 @@ function clear_columns(task::Mosek.MSKtask, cols::ColumnIndices)
     N = length(cols.values)
     # Objective: Clear any non-zeros in `c` vector
     Mosek.putclist(task, cols.values, zeros(Int64, N))
-
     # Constraints: Clear any non-zeros in columns of `A` matrix
     Mosek.putacollist(
         task,
@@ -104,13 +102,11 @@ function clear_columns(task::Mosek.MSKtask, cols::ColumnIndices)
         Int32[],
         Float64[],
     )
-
     # Bounds: Fix the variable to zero to make it have very low footprint for
     #         mosek in case `MOI.optimize!` is called before a new variable is
     #         added to reuse this column.
     bnd = zeros(Float64, N)
     Mosek.putvarboundlist(task, cols.values, fill(Mosek.MSK_BK_FX, N), bnd, bnd)
-
     if DEBUG
         for col in cols.values
             # Rename deleted column to help debugging
@@ -121,7 +117,8 @@ function clear_columns(task::Mosek.MSKtask, cols::ColumnIndices)
 end
 
 function clear_columns(m::Optimizer, vis::Vector{MOI.VariableIndex})
-    return clear_columns(m.task, columns(m, vis))
+    clear_columns(m.task, columns(m, vis))
+    return
 end
 
 ###############################################################################
@@ -140,34 +137,30 @@ function columns(m::Optimizer, vis::Vector{MOI.VariableIndex})
 end
 
 function is_scalar(m::Optimizer, vi::MOI.VariableIndex)
-    if 1 ≤ vi.value ≤ length(m.x_sd)
+    if 1 <= vi.value <= length(m.x_sd)
         matrix_index = m.x_sd[vi.value]
         if matrix_index.matrix >= 0
             return iszero(matrix_index.matrix)
         end
     end
-    throw(MOI.InvalidIndex(vi))
+    return throw(MOI.InvalidIndex(vi))
 end
 
-function is_matrix(m::Optimizer, vi::MOI.VariableIndex)
-    return !is_scalar(m, vi)
-end
+is_matrix(m::Optimizer, vi::MOI.VariableIndex) = !is_scalar(m, vi)
 
 function mosek_index(m::Optimizer, vi::MOI.VariableIndex)
     if is_scalar(m, vi)
         return column(m, vi)
-    else
-        return m.x_sd[vi.value]
     end
+    return m.x_sd[vi.value]
 end
 
 function index_of_column(m::Optimizer, col::Int32)
     id = m.x_block.back[col]
     if iszero(id)
         return nothing
-    else
-        return MOI.VariableIndex(id)
     end
+    return MOI.VariableIndex(id)
 end
 
 """
@@ -232,6 +225,7 @@ function throw_if_cannot_delete(m::Optimizer, vi::MOI.VariableIndex)
             end
         end
     end
+    return
 end
 
 """
@@ -243,7 +237,8 @@ Mosek solver) to free the corresponding column for reuse by another variable.
 See [`allocate_variable`](@ref) which is kind of the reverse operation.
 """
 function clear_variable(m::Optimizer, vi::MOI.VariableIndex)
-    return deleteblock(m.x_block, ref2id(vi))
+    deleteblock(m.x_block, ref2id(vi))
+    return
 end
 
 ###############################################################################
@@ -268,13 +263,9 @@ function MOI.add_variable(m::Optimizer)
     return vi
 end
 
-function MOI.add_variables(m::Optimizer, n::Int)
-    @assert n ≥ 0
-    return MOI.VariableIndex[MOI.add_variable(m) for i in 1:n]
-end
-
 ## Delete #####################################################################
 ###############################################################################
+
 function MOI.is_valid(model::Optimizer, vi::MOI.VariableIndex)
     return allocated(model.x_block, ref2id(vi))
 end
@@ -293,6 +284,7 @@ function delete_vector_of_variables_constraint(
             MOI.delete(m, ci)
         end
     end
+    return
 end
 
 function MOI.delete(m::Optimizer, vis::Vector{MOI.VariableIndex})
@@ -303,10 +295,7 @@ function MOI.delete(m::Optimizer, vis::Vector{MOI.VariableIndex})
     for vi in vis
         MOI.delete(m, vi)
     end
-    #    clear_columns(m, vis)
-    #    for vi in vis
-    #        clear_variable(m, vi)
-    #    end
+    return
 end
 
 function MOI.delete(m::Optimizer, vi::MOI.VariableIndex)
@@ -323,7 +312,9 @@ end
 
 ## List #######################################################################
 ###############################################################################
+
 MOI.get(m::Optimizer, ::MOI.NumberOfVariables) = sum(m.x_block.size)
+
 function MOI.get(m::Optimizer, ::MOI.ListOfVariableIndices)
     ids = allocatedlist(m.x_block)
     return MOI.VariableIndex[MOI.VariableIndex(vid) for vid in ids]
@@ -340,9 +331,11 @@ end
 
 ## Name #######################################################################
 ###############################################################################
+
 # We leave `supports` to `false` because it's not supported by matrix indices
 # See https://github.com/jump-dev/MosekTools.jl/issues/80
 # MOI.supports(::Optimizer, ::MOI.VariableName, ::Type{MOI.VariableIndex}) = true
+
 function MOI.set(
     m::Optimizer,
     ::MOI.VariableName,
@@ -350,7 +343,8 @@ function MOI.set(
     name::String,
 )
     m.has_variable_names = true
-    return set_column_name(m, vi, name)
+    set_column_name(m, vi, name)
+    return
 end
 
 function MOI.get(m::Optimizer, ::MOI.VariableName, vi::MOI.VariableIndex)
@@ -361,7 +355,6 @@ function MOI.get(m::Optimizer, ::Type{MOI.VariableIndex}, name::String)
     col = column_with_name(m, name)
     if col === nothing
         return nothing
-    else
-        return index_of_column(m, col)
     end
+    return index_of_column(m, col)
 end

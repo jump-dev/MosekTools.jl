@@ -12,10 +12,12 @@ function set_primal_start(task::Mosek.MSKtask, col::ColumnIndex, value::Float64)
     for sol in [Mosek.MSK_SOL_BAS, Mosek.MSK_SOL_ITG]
         Mosek.putxxslice(task, sol, col.value, col.value + Int32(1), xx)
     end
+    return
 end
 
 function set_primal_start(m::Optimizer, vi::MOI.VariableIndex, value::Float64)
-    return set_primal_start(m.task, mosek_index(m, vi), value)
+    set_primal_start(m.task, mosek_index(m, vi), value)
+    return
 end
 
 function set_primal_start(
@@ -32,6 +34,7 @@ function set_primal_start(
         xx[cols.values] = values
         Mosek.putxx(task, sol, xx)
     end
+    return
 end
 
 function set_primal_start(
@@ -46,6 +49,7 @@ function set_primal_start(
             set_primal_start(m.task, mosek_index(m, vi), value)
         end
     end
+    return
 end
 
 ###############################################################################
@@ -72,7 +76,6 @@ end
 # MOI #########################################################################
 ###############################################################################
 
-#### objective
 function MOI.get(m::Optimizer, attr::MOI.ObjectiveValue)
     MOI.check_result_index_bounds(m, attr)
     return Mosek.getprimalobj(m.task, m.solutions[attr.result_index].whichsol)
@@ -85,22 +88,20 @@ end
 
 function MOI.get(m::Optimizer, ::MOI.ObjectiveBound)
     if Mosek.solutiondef(m.task, Mosek.MSK_SOL_ITG)
-        Mosek.getdouinf(m.task, Mosek.MSK_DINF_MIO_OBJ_BOUND)
+        return Mosek.getdouinf(m.task, Mosek.MSK_DINF_MIO_OBJ_BOUND)
     elseif Mosek.solutiondef(m.task, Mosek.MSK_SOL_ITR)
-        Mosek.getprimalobj(m.task, Mosek.MSK_SOL_ITR)
+        return Mosek.getprimalobj(m.task, Mosek.MSK_SOL_ITR)
     elseif Mosek.solutiondef(m.task, Mosek.MSK_SOL_BAS)
-        Mosek.getprimalobj(m.task, Mosek.MSK_SOL_BAS)
-    else
-        return 0.0
+        return Mosek.getprimalobj(m.task, Mosek.MSK_SOL_BAS)
     end
+    return 0.0  # TODO(odow): NaN?
 end
 
 function MOI.get(m::Optimizer, ::MOI.RelativeGap)
     if Mosek.solutiondef(m.task, Mosek.MSK_SOL_ITG)
-        Mosek.getdouinf(m.task, Mosek.MSK_DINF_MIO_OBJ_REL_GAP)
-    else
-        0.0
+        return Mosek.getdouinf(m.task, Mosek.MSK_DINF_MIO_OBJ_REL_GAP)
     end
+    return 0.0  # TODO(odow): NaN?
 end
 
 function MOI.get(m::Optimizer, ::MOI.SolveTimeSec)
@@ -111,13 +112,12 @@ end
 function MOI.get(model::Optimizer, ::MOI.ObjectiveSense)
     if model.feasibility
         return MOI.FEASIBILITY_SENSE
+    end
+    sense = Mosek.getobjsense(model.task)
+    if sense == Mosek.MSK_OBJECTIVE_SENSE_MINIMIZE
+        return MOI.MIN_SENSE
     else
-        sense = Mosek.getobjsense(model.task)
-        if sense == Mosek.MSK_OBJECTIVE_SENSE_MINIMIZE
-            MOI.MIN_SENSE
-        else
-            MOI.MAX_SENSE
-        end
+        return MOI.MAX_SENSE
     end
 end
 
@@ -143,38 +143,35 @@ function MOI.set(
             MOI.ScalarAffineFunction(MOI.ScalarAffineTerm{Float64}[], 0.0),
         )
     end
+    return
 end
 
 #### Solver/Solution information
 
-function MOI.get(m::Optimizer, attr::MOI.SimplexIterations)
+function MOI.get(m::Optimizer, ::MOI.SimplexIterations)::Int64
     miosimiter = Mosek.getlintinf(m.task, Mosek.MSK_LIINF_MIO_SIMPLEX_ITER)
     if miosimiter > 0
-        Int(miosimiter)
-    else
-        Int(
-            Mosek.getintinf(m.task, Mosek.MSK_IINF_SIM_PRIMAL_ITER) +
-            Mosek.getintinf(m.task, Mosek.MSK_IINF_SIM_DUAL_ITER),
-        )
+        return miosimiter
     end
+    return Mosek.getintinf(m.task, Mosek.MSK_IINF_SIM_PRIMAL_ITER) +
+           Mosek.getintinf(m.task, Mosek.MSK_IINF_SIM_DUAL_ITER)
 end
 
-function MOI.get(m::Optimizer, attr::MOI.BarrierIterations)
+function MOI.get(m::Optimizer, ::MOI.BarrierIterations)::Int64
     miosimiter = Mosek.getlintinf(m.task, Mosek.MSK_LIINF_MIO_INTPNT_ITER)
     if miosimiter > 0
-        Int(miosimiter)
-    else
-        Int(Mosek.getintinf(m.task, Mosek.MSK_IINF_INTPNT_ITER))
+        return miosimiter
     end
+    return Mosek.getintinf(m.task, Mosek.MSK_IINF_INTPNT_ITER)
 end
 
-function MOI.get(m::Optimizer, attr::MOI.NodeCount)
-    return Int(Mosek.getintinf(m.task, Mosek.MSK_IINF_MIO_NUM_BRANCH))
+function MOI.get(m::Optimizer, ::MOI.NodeCount)::Int64
+    return Mosek.getintinf(m.task, Mosek.MSK_IINF_MIO_NUM_BRANCH)
 end
 
-MOI.get(m::Optimizer, attr::MOI.RawSolver) = m.task
+MOI.get(m::Optimizer, ::MOI.RawSolver) = m.task
 
-MOI.get(m::Optimizer, attr::MOI.ResultCount) = length(m.solutions)
+MOI.get(m::Optimizer, ::MOI.ResultCount) = length(m.solutions)
 
 #### Problem information
 
@@ -344,18 +341,10 @@ function MOI.set(
     m::Optimizer,
     ::MOI.VariablePrimalStart,
     v::MOI.VariableIndex,
-    ::Nothing,
+    val::Union{Nothing,Float64},
 )
-    return set_primal_start(m, v, 0.0)
-end
-
-function MOI.set(
-    m::Optimizer,
-    ::MOI.VariablePrimalStart,
-    v::MOI.VariableIndex,
-    val::Float64,
-)
-    return set_primal_start(m, v, val)
+    set_primal_start(m, v, something(val, 0.0))
+    return
 end
 
 function MOI.set(
@@ -364,7 +353,8 @@ function MOI.set(
     vis::Vector{MOI.VariableIndex},
     values::Vector{Float64},
 )
-    return set_primal_start(m, vis, values)
+    set_primal_start(m, vis, values)
+    return
 end
 
 # function MOI.set(m::Optimizer,attr::MOI.ConstraintDualStart, vs::Vector{MOI.ConstraintIndex}, vals::Vector{Float64})
@@ -401,6 +391,7 @@ function MOI.get!(
     for i in eachindex(output)
         output[i] = MOI.get(m, attr, vs[i])
     end
+    return
 end
 
 function MOI.get(
@@ -496,8 +487,9 @@ function MOI.get!(
 ) where {D}
     MOI.check_result_index_bounds(m, attr)
     cols = columns(m, ci)
-    return output[1:length(output)] =
+    output[1:length(output)] =
         reorder(m.solutions[attr.result_index].xx[cols.values], D, false)
+    return
 end
 
 function MOI.get(
@@ -642,11 +634,12 @@ function MOI.get!(
         MOI.PositiveSemidefiniteConeTriangle,
         false,
     )
-    if (Mosek.getobjsense(m.task) == Mosek.MSK_OBJECTIVE_SENSE_MINIMIZE)
+    if Mosek.getobjsense(m.task) == Mosek.MSK_OBJECTIVE_SENSE_MINIMIZE
         output[1:length(output)] .= dual
     else
         output[1:length(output)] .= -dual
     end
+    return
 end
 
 # Any other domain for variable vector
@@ -657,19 +650,16 @@ function MOI.get!(
     ci::MOI.ConstraintIndex{MOI.VectorOfVariables,D},
 ) where {D}
     MOI.check_result_index_bounds(m, attr)
-
     xcid = ref2id(ci)
-    @assert(xcid > 0)
-
+    @assert xcid > 0
     cols = columns(m, ci)
-
     idx = reorder(1:length(output), D, true)
-
-    if (Mosek.getobjsense(m.task) == Mosek.MSK_OBJECTIVE_SENSE_MINIMIZE)
+    if Mosek.getobjsense(m.task) == Mosek.MSK_OBJECTIVE_SENSE_MINIMIZE
         output[idx] = m.solutions[attr.result_index].snx[cols.values]
     else
         output[idx] = -m.solutions[attr.result_index].snx[cols.values]
     end
+    return
 end
 
 function MOI.get!(
@@ -679,16 +669,14 @@ function MOI.get!(
     ci::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},D},
 ) where {D}
     MOI.check_result_index_bounds(m, attr)
-
     r = rows(m, ci)
-
     idx = reorder(1:length(output), D, true)
-
-    if (Mosek.getobjsense(m.task) == Mosek.MSK_OBJECTIVE_SENSE_MINIMIZE)
+    if Mosek.getobjsense(m.task) == Mosek.MSK_OBJECTIVE_SENSE_MINIMIZE
         output[idx] = m.solutions[attr.result_index].doty[r]
     else
         output[idx] = -m.solutions[attr.result_index].doty[r]
     end
+    return
 end
 
 function MOI.get(
@@ -697,18 +685,17 @@ function MOI.get(
     ci::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D},
 ) where {D}
     MOI.check_result_index_bounds(m, attr)
-
     cid = ref2id(ci)
     subi = getindex(m.c_block, cid)
-
     if Mosek.getobjsense(m.task) == Mosek.MSK_OBJECTIVE_SENSE_MINIMIZE
-        m.solutions[attr.result_index].y[subi]
+        return m.solutions[attr.result_index].y[subi]
     else
-        -m.solutions[attr.result_index].y[subi]
+        return -m.solutions[attr.result_index].y[subi]
     end
 end
 
-solsize(m::Optimizer, ::MOI.ConstraintIndex{<:MOI.AbstractScalarFunction}) = 1
+solsize(::Optimizer, ::MOI.ConstraintIndex{<:MOI.AbstractScalarFunction}) = 1
+
 function solsize(m::Optimizer, ci::MOI.ConstraintIndex{MOI.VectorOfVariables})
     return Mosek.getconeinfo(m.task, cone_id(m, ci))[3]
 end
