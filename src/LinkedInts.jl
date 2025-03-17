@@ -3,8 +3,6 @@
 # Use of this source code is governed by an MIT-style license that can be found
 # in the LICENSE.md file or at https://opensource.org/licenses/MIT.
 
-using Printf                    #
-
 """
     mutable struct LinkedInts
         next :: Vector{Int}
@@ -69,8 +67,8 @@ numblocks(s::LinkedInts) = length(s.block)
 
 function Base.show(f::IO, s::LinkedInts)
     print(f, "LinkedInts(\n")
-    @printf(f, "  Number of blocks: %d\n", length(s.block))
-    @printf(f, "  Number of elements: %d\n", length(s.next))
+    println(f, "  Number of blocks: ", length(s.block))
+    println(f, "  Number of elements: ", length(s.next))
     print(f, "  Blocks:\n")
     for i in 1:length(s.block)
         if s.block[i] > 0
