@@ -7,7 +7,7 @@ module MosekTools
 
 import MathOptInterface as MOI
 
-using Mosek
+import Mosek
 export Mosek
 # Allows the user to use `Mosek.Optimizer` instead of `MosekTools.Optimizer`
 # for convenience and for consitency with other solvers where the syntax is
@@ -21,11 +21,11 @@ include("LinkedInts.jl")
 const DEBUG = false
 
 struct MosekSolution
-    whichsol::Soltype
-    solsta::Solsta
-    prosta::Prosta
+    whichsol::Mosek.Soltype
+    solsta::Mosek.Solsta
+    prosta::Mosek.Prosta
 
-    xxstatus::Vector{Stakey}
+    xxstatus::Vector{Mosek.Stakey}
     xx::Vector{Float64}
     barxj::Vector{Vector{Float64}}
     slx::Vector{Float64}
@@ -33,7 +33,7 @@ struct MosekSolution
     snx::Vector{Float64}
     doty::Vector{Float64}
 
-    cstatus::Vector{Stakey}
+    cstatus::Vector{Mosek.Stakey}
     xc::Vector{Float64}
     slc::Vector{Float64}
     suc::Vector{Float64}
@@ -94,8 +94,8 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     con_to_name::Dict{MOI.ConstraintIndex,String}
 
     # For each MOI index of variables, gives the flags of constraints present
-    # The SingleVariable constraints added cannot just be inferred from getvartype
-    # and getvarbound so we need to keep them here so implement `MOI.is_valid`
+    # The SingleVariable constraints added cannot just be inferred from Mosek.getvartype
+    # and Mosek.getvarbound so we need to keep them here so implement `MOI.is_valid`
     x_constraints::Vector{UInt8}
 
     F_rows::Dict{Int,UnitRange{Int}} # TODO can it be obtained from Mosek ?
@@ -129,7 +129,7 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     variable_to_vector_constraint_id::Vector{Int32}
 
     ###########################
-    trm::Union{Nothing,Rescode}
+    trm::Union{Nothing,Mosek.Rescode}
     solutions::Vector{MosekSolution}
 
     ###########################
@@ -156,7 +156,7 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
 
     function Optimizer(; kws...)
         optimizer = new(
-            maketask(), # task
+            Mosek.maketask(), # task
             false, # be_quiet
             Dict{String,Int32}(), # ipars
             Dict{String,Float64}(), # dpars
@@ -339,91 +339,97 @@ function MOI.get(model::Optimizer, ::MOI.TimeLimitSec)
 end
 
 function matrix_solution(m::Optimizer, sol)
-    return Vector{Float64}[getbarxj(m.task, sol, j) for j in 1:length(m.sd_dim)]
+    return Vector{Float64}[
+        Mosek.getbarxj(m.task, sol, j) for j in 1:length(m.sd_dim)
+    ]
 end
 
 function MOI.optimize!(m::Optimizer)
     # See https://github.com/jump-dev/MosekTools.jl/issues/70
-    putintparam(m.task, Mosek.MSK_IPAR_REMOVE_UNUSED_SOLUTIONS, Mosek.MSK_ON)
+    Mosek.putintparam(
+        m.task,
+        Mosek.MSK_IPAR_REMOVE_UNUSED_SOLUTIONS,
+        Mosek.MSK_ON,
+    )
     m.trm = if m.fallback == nothing
-        optimize(m.task)
+        Mosek.optimize(m.task)
     else
-        optimize(m.task, m.fallback)
+        Mosek.optimize(m.task, m.fallback)
     end
     m.solutions = MosekSolution[]
-    if solutiondef(m.task, MSK_SOL_ITR)
+    if Mosek.solutiondef(m.task, Mosek.MSK_SOL_ITR)
         push!(
             m.solutions,
             MosekSolution(
-                MSK_SOL_ITR,
-                getsolsta(m.task, MSK_SOL_ITR),
-                getprosta(m.task, MSK_SOL_ITR),
-                getskx(m.task, MSK_SOL_ITR),
-                getxx(m.task, MSK_SOL_ITR),
-                matrix_solution(m, MSK_SOL_ITR),
-                getslx(m.task, MSK_SOL_ITR),
-                getsux(m.task, MSK_SOL_ITR),
-                getsnx(m.task, MSK_SOL_ITR),
-                getaccdotys(m.task, MSK_SOL_ITR),
-                getskc(m.task, MSK_SOL_ITR),
-                getxc(m.task, MSK_SOL_ITR),
-                getslc(m.task, MSK_SOL_ITR),
-                getsuc(m.task, MSK_SOL_ITR),
-                gety(m.task, MSK_SOL_ITR),
+                Mosek.MSK_SOL_ITR,
+                Mosek.getsolsta(m.task, Mosek.MSK_SOL_ITR),
+                Mosek.getprosta(m.task, Mosek.MSK_SOL_ITR),
+                Mosek.getskx(m.task, Mosek.MSK_SOL_ITR),
+                Mosek.getxx(m.task, Mosek.MSK_SOL_ITR),
+                matrix_solution(m, Mosek.MSK_SOL_ITR),
+                Mosek.getslx(m.task, Mosek.MSK_SOL_ITR),
+                Mosek.getsux(m.task, Mosek.MSK_SOL_ITR),
+                Mosek.getsnx(m.task, Mosek.MSK_SOL_ITR),
+                Mosek.getaccdotys(m.task, Mosek.MSK_SOL_ITR),
+                Mosek.getskc(m.task, Mosek.MSK_SOL_ITR),
+                Mosek.getxc(m.task, Mosek.MSK_SOL_ITR),
+                Mosek.getslc(m.task, Mosek.MSK_SOL_ITR),
+                Mosek.getsuc(m.task, Mosek.MSK_SOL_ITR),
+                Mosek.gety(m.task, Mosek.MSK_SOL_ITR),
             ),
         )
     end
-    if solutiondef(m.task, MSK_SOL_ITG)
+    if Mosek.solutiondef(m.task, Mosek.MSK_SOL_ITG)
         push!(
             m.solutions,
             MosekSolution(
-                MSK_SOL_ITG,
-                getsolsta(m.task, MSK_SOL_ITG),
-                getprosta(m.task, MSK_SOL_ITG),
-                getskx(m.task, MSK_SOL_ITG),
-                getxx(m.task, MSK_SOL_ITG),
+                Mosek.MSK_SOL_ITG,
+                Mosek.getsolsta(m.task, Mosek.MSK_SOL_ITG),
+                Mosek.getprosta(m.task, Mosek.MSK_SOL_ITG),
+                Mosek.getskx(m.task, Mosek.MSK_SOL_ITG),
+                Mosek.getxx(m.task, Mosek.MSK_SOL_ITG),
                 # See https://github.com/jump-dev/MosekTools.jl/issues/71
-                Float64[], #matrix_solution(m, MSK_SOL_ITG),
+                Float64[], #matrix_solution(m, Mosek.MSK_SOL_ITG),
                 Float64[],
                 Float64[],
                 Float64[],
                 Float64[],
-                getskc(m.task, MSK_SOL_ITG),
-                getxc(m.task, MSK_SOL_ITG),
+                Mosek.getskc(m.task, Mosek.MSK_SOL_ITG),
+                Mosek.getxc(m.task, Mosek.MSK_SOL_ITG),
                 Float64[],
                 Float64[],
                 Float64[],
             ),
         )
     end
-    if solutiondef(m.task, MSK_SOL_BAS)
+    if Mosek.solutiondef(m.task, Mosek.MSK_SOL_BAS)
         push!(
             m.solutions,
             MosekSolution(
-                MSK_SOL_BAS,
-                getsolsta(m.task, MSK_SOL_BAS),
-                getprosta(m.task, MSK_SOL_BAS),
-                getskx(m.task, MSK_SOL_BAS),
-                getxx(m.task, MSK_SOL_BAS),
+                Mosek.MSK_SOL_BAS,
+                Mosek.getsolsta(m.task, Mosek.MSK_SOL_BAS),
+                Mosek.getprosta(m.task, Mosek.MSK_SOL_BAS),
+                Mosek.getskx(m.task, Mosek.MSK_SOL_BAS),
+                Mosek.getxx(m.task, Mosek.MSK_SOL_BAS),
                 # See https://github.com/jump-dev/MosekTools.jl/issues/71
-                Float64[], #matrix_solution(m, MSK_SOL_BAS),
-                getslx(m.task, MSK_SOL_BAS),
-                getsux(m.task, MSK_SOL_BAS),
+                Float64[], #matrix_solution(m, Mosek.MSK_SOL_BAS),
+                Mosek.getslx(m.task, Mosek.MSK_SOL_BAS),
+                Mosek.getsux(m.task, Mosek.MSK_SOL_BAS),
                 Float64[],
                 Float64[],
-                getskc(m.task, MSK_SOL_BAS),
-                getxc(m.task, MSK_SOL_BAS),
-                getslc(m.task, MSK_SOL_BAS),
-                getsuc(m.task, MSK_SOL_BAS),
-                gety(m.task, MSK_SOL_BAS),
+                Mosek.getskc(m.task, Mosek.MSK_SOL_BAS),
+                Mosek.getxc(m.task, Mosek.MSK_SOL_BAS),
+                Mosek.getslc(m.task, Mosek.MSK_SOL_BAS),
+                Mosek.getsuc(m.task, Mosek.MSK_SOL_BAS),
+                Mosek.gety(m.task, Mosek.MSK_SOL_BAS),
             ),
         )
     end
     # We need to sort the solutions, so that an optimal one is first (if it exists).
     sort!(
         m.solutions;
-        by = x ->
-            x.solsta in [MSK_SOL_STA_OPTIMAL, MSK_SOL_STA_INTEGER_OPTIMAL],
+        by = x -> x.solsta in
+        [Mosek.MSK_SOL_STA_OPTIMAL, Mosek.MSK_SOL_STA_INTEGER_OPTIMAL],
         rev = true,
     )
     return
@@ -431,11 +437,11 @@ end
 
 MOI.supports(::Optimizer, ::MOI.Name) = true
 function MOI.set(m::Optimizer, ::MOI.Name, name::String)
-    return puttaskname(m.task, name)
+    return Mosek.puttaskname(m.task, name)
 end
 
 function MOI.get(m::Optimizer, ::MOI.Name)
-    return gettaskname(m.task)
+    return Mosek.gettaskname(m.task)
 end
 
 function MOI.get(m::Optimizer, ::MOI.ListOfModelAttributesSet)
@@ -453,15 +459,15 @@ function MOI.get(m::Optimizer, ::MOI.ListOfModelAttributesSet)
 end
 
 function MOI.is_empty(m::Optimizer)
-    return getnumvar(m.task) == 0 &&
-           getnumcon(m.task) == 0 &&
-           getnumcone(m.task) == 0 &&
-           getnumbarvar(m.task) == 0 &&
+    return Mosek.getnumvar(m.task) == 0 &&
+           Mosek.getnumcon(m.task) == 0 &&
+           Mosek.getnumcone(m.task) == 0 &&
+           Mosek.getnumbarvar(m.task) == 0 &&
            isempty(m.F_rows)
 end
 
 function MOI.empty!(model::Optimizer)
-    model.task = maketask()
+    model.task = Mosek.maketask()
     Mosek.appendrzerodomain(model.task, 0)
     for (name, value) in model.ipars
         Mosek.putnaintparam(model.task, name, value)
@@ -506,8 +512,8 @@ function MOI.copy_to(dest::Optimizer, src::MOI.ModelLike; kws...)
 end
 
 function MOI.write_to_file(m::Optimizer, filename::String)
-    putintparam(m.task, MSK_IPAR_OPF_WRITE_SOLUTIONS, MSK_ON)
-    return writedata(m.task, filename)
+    Mosek.putintparam(m.task, Mosek.MSK_IPAR_OPF_WRITE_SOLUTIONS, Mosek.MSK_ON)
+    return Mosek.writedata(m.task, filename)
 end
 
 # For linear objectives we accept:
