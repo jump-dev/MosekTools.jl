@@ -39,11 +39,7 @@ end
 
 function test_Double_Parameter()
     optimizer = MosekOptimizerWithFallback()
-    MOI.set(
-        optimizer,
-        MOI.RawOptimizerAttribute("INTPNT_CO_TOL_DFEAS"),
-        1e-7,
-    )
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("INTPNT_CO_TOL_DFEAS"), 1e-7)
     @test MOI.get(
         optimizer,
         MOI.RawOptimizerAttribute("MSK_DPAR_INTPNT_CO_TOL_DFEAS"),
@@ -80,11 +76,7 @@ function test_Integer_Parameter()
         optimizer,
         MOI.RawOptimizerAttribute("MSK_IPAR_INTPNT_MAX_ITERATIONS"),
     ) == 100
-    MOI.set(
-        optimizer,
-        MOI.RawOptimizerAttribute("INTPNT_MAX_ITERATIONS"),
-        200,
-    )
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("INTPNT_MAX_ITERATIONS"), 200)
     @test MOI.get(
         optimizer,
         MOI.RawOptimizerAttribute("MSK_IPAR_INTPNT_MAX_ITERATIONS"),
@@ -94,10 +86,8 @@ function test_Integer_Parameter()
         MOI.RawOptimizerAttribute("MSK_IPAR_OPTIMIZER"),
         MosekTools.Mosek.MSK_OPTIMIZER_DUAL_SIMPLEX,
     )
-    @test MOI.get(
-        optimizer,
-        MOI.RawOptimizerAttribute("MSK_IPAR_OPTIMIZER"),
-    ) == convert(Int32, MosekTools.Mosek.MSK_OPTIMIZER_DUAL_SIMPLEX)
+    @test MOI.get(optimizer, MOI.RawOptimizerAttribute("MSK_IPAR_OPTIMIZER")) ==
+          convert(Int32, MosekTools.Mosek.MSK_OPTIMIZER_DUAL_SIMPLEX)
     return
 end
 
@@ -509,6 +499,5 @@ function test_more_SDP_tests_by_forced_bridging()
 end
 
 end  # module
-
 
 TestMosekTools.runtests()
