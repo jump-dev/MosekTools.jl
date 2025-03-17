@@ -6,10 +6,12 @@
 function MOI.get(::Optimizer, ::MOI.ObjectiveFunctionType)
     return MOI.ScalarAffineFunction{Float64}
 end
+
 function MOI.get(m::Optimizer, ::MOI.ObjectiveFunction{F}) where {F}
     obj = MOI.get(m, MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}())
     return convert(F, obj)
 end
+
 function MOI.get(
     m::Optimizer,
     ::MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}},

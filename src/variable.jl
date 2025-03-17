@@ -40,6 +40,7 @@ function init_columns(task::Mosek.MSKtask, cols::ColumnIndices)
     end
     return
 end
+
 function init_columns(m::Optimizer, vis::Vector{MOI.VariableIndex})
     return init_columns(m.task, columns(m, vis))
 end
@@ -49,6 +50,7 @@ end
 function set_column_name(task::Mosek.MSKtask, col::ColumnIndex, name::String)
     return putvarname(task, col.value, name)
 end
+
 function set_column_name(task::Mosek.MSKtask, mat::MatrixIndex, name::String)
     # Names of matrix index is not supported by Mosek at the moment
     throw(
@@ -58,6 +60,7 @@ function set_column_name(task::Mosek.MSKtask, mat::MatrixIndex, name::String)
         ),
     )
 end
+
 function set_column_name(m::Optimizer, vi::MOI.VariableIndex, name::String)
     return set_column_name(m.task, mosek_index(m, vi), name)
 end
@@ -65,6 +68,7 @@ column_name(task::Mosek.MSKtask, col::ColumnIndex) = getvarname(task, col.value)
 function column_name(m::Optimizer, vi::MOI.VariableIndex)
     return column_name(m.task, mosek_index(m, vi))
 end
+
 function column_with_name(task::Mosek.MSKtask, name::String)
     asgn, col = getvarnameindex(task, name)
     if iszero(asgn)
@@ -113,6 +117,7 @@ function clear_columns(task::Mosek.MSKtask, cols::ColumnIndices)
     end
     return
 end
+
 function clear_columns(m::Optimizer, vis::Vector{MOI.VariableIndex})
     return clear_columns(m.task, columns(m, vis))
 end
@@ -125,11 +130,13 @@ function column(m::Optimizer, vi::MOI.VariableIndex)
     @assert iszero(m.x_sd[vi.value].matrix)
     return ColumnIndex(getindex(m.x_block, ref2id(vi)))
 end
+
 function columns(m::Optimizer, vis::Vector{MOI.VariableIndex})
     return ColumnIndices(
         Int32[(mosek_index(m, vi)::ColumnIndex).value for vi in vis],
     )
 end
+
 function is_scalar(m::Optimizer, vi::MOI.VariableIndex)
     if 1 ≤ vi.value ≤ length(m.x_sd)
         matrix_index = m.x_sd[vi.value]
@@ -139,9 +146,11 @@ function is_scalar(m::Optimizer, vi::MOI.VariableIndex)
     end
     throw(MOI.InvalidIndex(vi))
 end
+
 function is_matrix(m::Optimizer, vi::MOI.VariableIndex)
     return !is_scalar(m, vi)
 end
+
 function mosek_index(m::Optimizer, vi::MOI.VariableIndex)
     if is_scalar(m, vi)
         return column(m, vi)
@@ -267,6 +276,7 @@ end
 function MOI.is_valid(model::Optimizer, vi::MOI.VariableIndex)
     return allocated(model.x_block, ref2id(vi))
 end
+
 function delete_vector_of_variables_constraint(
     m::Optimizer,
     vis::Vector{MOI.VariableIndex},
@@ -282,6 +292,7 @@ function delete_vector_of_variables_constraint(
         end
     end
 end
+
 function MOI.delete(m::Optimizer, vis::Vector{MOI.VariableIndex})
     for vi in vis
         throw_if_cannot_delete(m, vi)
@@ -295,6 +306,7 @@ function MOI.delete(m::Optimizer, vis::Vector{MOI.VariableIndex})
     #        clear_variable(m, vi)
     #    end
 end
+
 function MOI.delete(m::Optimizer, vi::MOI.VariableIndex)
     throw_if_cannot_delete(m, vi)
     delete_vector_of_variables_constraint(m, [vi])
@@ -314,6 +326,7 @@ function MOI.get(m::Optimizer, ::MOI.ListOfVariableIndices)
     ids = allocatedlist(m.x_block)
     return MOI.VariableIndex[MOI.VariableIndex(vid) for vid in ids]
 end
+
 function MOI.get(m::Optimizer, ::MOI.ListOfVariableAttributesSet)
     set = MOI.AbstractVariableAttribute[]
     if m.has_variable_names
@@ -337,9 +350,11 @@ function MOI.set(
     m.has_variable_names = true
     return set_column_name(m, vi, name)
 end
+
 function MOI.get(m::Optimizer, ::MOI.VariableName, vi::MOI.VariableIndex)
     return column_name(m, vi)
 end
+
 function MOI.get(m::Optimizer, ::Type{MOI.VariableIndex}, name::String)
     col = column_with_name(m, name)
     if col === nothing
