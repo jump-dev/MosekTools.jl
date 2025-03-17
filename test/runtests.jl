@@ -103,10 +103,10 @@ function test_Integer_Parameter()
     MOI.set(
         optimizer,
         MOI.RawOptimizerAttribute("MSK_IPAR_OPTIMIZER"),
-        MosekTools.Mosek.MSK_OPTIMIZER_DUAL_SIMPLEX,
+        Mosek.MSK_OPTIMIZER_DUAL_SIMPLEX,
     )
     @test MOI.get(optimizer, MOI.RawOptimizerAttribute("MSK_IPAR_OPTIMIZER")) ==
-          convert(Int32, MosekTools.Mosek.MSK_OPTIMIZER_DUAL_SIMPLEX)
+          convert(Int32, Mosek.MSK_OPTIMIZER_DUAL_SIMPLEX)
     return
 end
 
@@ -209,7 +209,7 @@ function test_Mapping_enums()
     cache = MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}())
     model = MOI.Utilities.CachingOptimizer(cache, bridged)
     attr = MOI.RawOptimizerAttribute("MSK_IPAR_INTPNT_SOLVE_FORM")
-    value = MosekTools.MSK_SOLVE_DUAL
+    value = Mosek.MSK_SOLVE_DUAL
     MOI.add_constrained_variables(model, MOI.Zeros(1))
     MOI.Utilities.attach_optimizer(model)
     # The function should not be used so we can use anything here as first argument

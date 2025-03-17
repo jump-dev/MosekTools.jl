@@ -13,10 +13,10 @@
 # TASK ########################################################################
 ###### The `task` field should not be accessed outside this section. ##########
 
-num_columns(task::Mosek.MSKtask) = getnumvar(task)
+num_columns(task::Mosek.MSKtask) = Mosek.getnumvar(task)
 num_columns(m::Optimizer) = num_columns(m.task)
 
-add_column(task::Mosek.MSKtask) = appendvars(task, 1)
+add_column(task::Mosek.MSKtask) = Mosek.appendvars(task, 1)
 add_column(m::Optimizer) = add_column(m.task)
 
 """
@@ -31,11 +31,11 @@ function init_columns(task::Mosek.MSKtask, cols::ColumnIndices)
     # Set each column to a free variable
     N = length(cols.values)
     bnd = zeros(Float64, N)
-    putvarboundlist(task, cols.values, fill(MSK_BK_FR, N), bnd, bnd)
+    Mosek.putvarboundlist(task, cols.values, fill(Mosek.MSK_BK_FR, N), bnd, bnd)
 
     if DEBUG
         for col in cols.values
-            putvarname(task, col, "x$col")
+            Mosek.putvarname(task, col, "x$col")
         end
     end
     return
@@ -48,7 +48,7 @@ end
 ## Name #######################################################################
 ###############################################################################
 function set_column_name(task::Mosek.MSKtask, col::ColumnIndex, name::String)
-    return putvarname(task, col.value, name)
+    return Mosek.putvarname(task, col.value, name)
 end
 
 function set_column_name(task::Mosek.MSKtask, mat::MatrixIndex, name::String)
@@ -64,13 +64,15 @@ end
 function set_column_name(m::Optimizer, vi::MOI.VariableIndex, name::String)
     return set_column_name(m.task, mosek_index(m, vi), name)
 end
-column_name(task::Mosek.MSKtask, col::ColumnIndex) = getvarname(task, col.value)
+function column_name(task::Mosek.MSKtask, col::ColumnIndex)
+    return Mosek.getvarname(task, col.value)
+end
 function column_name(m::Optimizer, vi::MOI.VariableIndex)
     return column_name(m.task, mosek_index(m, vi))
 end
 
 function column_with_name(task::Mosek.MSKtask, name::String)
-    asgn, col = getvarnameindex(task, name)
+    asgn, col = Mosek.getvarnameindex(task, name)
     if iszero(asgn)
         return nothing
     else
@@ -91,10 +93,10 @@ See [`init_columns`](@ref) which is kind of the reverse operation.
 function clear_columns(task::Mosek.MSKtask, cols::ColumnIndices)
     N = length(cols.values)
     # Objective: Clear any non-zeros in `c` vector
-    putclist(task, cols.values, zeros(Int64, N))
+    Mosek.putclist(task, cols.values, zeros(Int64, N))
 
     # Constraints: Clear any non-zeros in columns of `A` matrix
-    putacollist(
+    Mosek.putacollist(
         task,
         cols.values,
         zeros(Int64, N),
@@ -107,12 +109,12 @@ function clear_columns(task::Mosek.MSKtask, cols::ColumnIndices)
     #         mosek in case `MOI.optimize!` is called before a new variable is
     #         added to reuse this column.
     bnd = zeros(Float64, N)
-    putvarboundlist(task, cols.values, fill(MSK_BK_FX, N), bnd, bnd)
+    Mosek.putvarboundlist(task, cols.values, fill(Mosek.MSK_BK_FX, N), bnd, bnd)
 
     if DEBUG
         for col in cols.values
             # Rename deleted column to help debugging
-            putvarname(task, col, "deleted$col")
+            Mosek.putvarname(task, col, "deleted$col")
         end
     end
     return
@@ -284,7 +286,7 @@ function delete_vector_of_variables_constraint(
     i = first(vis).value
     id = m.variable_to_vector_constraint_id[i]
     if id > 0
-        S = type_cone(getconeinfo(m.task, id)[1])
+        S = type_cone(Mosek.getconeinfo(m.task, id)[1])
         ci = MOI.ConstraintIndex{MOI.VectorOfVariables,S}(i)
         if MOI.is_valid(m, ci) &&
            vis == MOI.get(m, MOI.ConstraintFunction(), ci).variables
