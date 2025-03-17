@@ -1,5 +1,8 @@
 # MosekTools.jl
 
+[![Build Status](https://github.com/jump-dev/MosekTools.jl/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/jump-dev/MosekTools.jl/actions?query=workflow%3ACI)
+[![codecov](https://codecov.io/gh/jump-dev/MosekTools.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/jump-dev/MosekTools.jl)
+
 [MosekTools.jl](https://github.com/jump-dev/MosekTools.jl) is the
 [MathOptInterface.jl](https://github.com/jump-dev/MathOptInterface.jl)
 implementation for the MOSEK solver.
@@ -9,8 +12,14 @@ The low-level solver API for MOSEK is found in the package [Mosek.jl](https://gi
 ## Affiliation
 
 MosekTools.jl is maintained by the JuMP community and is not officially
-supported by MOSEK. However, Mosek.jl _is_ an officially supported product of
+supported by MOSEK. However, [Mosek.jl](https://github.com/MOSEK/Mosek.jl) _is_ an officially supported product of
 MOSEK.
+
+## Getting help
+
+If you need help, please ask a question on the [JuMP community forum](https://jump.dev/forum).
+
+If you have a reproducible example of a bug, please [open a GitHub issue](https://github.com/jump-dev/MosekTools.jl/issues/new).
 
 ## License
 
@@ -21,8 +30,17 @@ The underlying solver is a closed-source commercial product for which you must
 
 ## Installation
 
-The latest release of this package and the `master` branch are to be used with
-the latest release of Mosek.jl (which uses MOSEK v10).
+Install MosekTools as follows:
+```julia
+import Pkg
+Pkg.add("MosekTools")
+```
+
+In addition to installing the MosekTools.jl package, this will also download
+and install the latest version of Mosek.jl.
+
+Follow the instructions at [Mosek.jl](https://github.com/MOSEK/Mosek.jl) to
+obtain and install an appropriate license.
 
 To use MOSEK v9 (resp. v8), use the v0.12.x (resp. v0.7.x) releases of this
 package, and the `mosekv9` (resp. `mosekv8`) branch and v1.2.x (resp. v0.9.x)
@@ -32,6 +50,7 @@ See the following table for a summary:
 
 | MOSEK | Mosek.jl | MosekTools.jl release | MosekTools.jl branch |
 |-------|----------|-----------------------|----------------------|
+| v11   | v11      | v0.15.6               | master               |
 | v10   | v10      | v0.13                 | master               |
 | v9    | v0.12    | v0.12                 | mosekv9              |
 | v8    | v0.9     | v0.7                  | mosekv8              |
