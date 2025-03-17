@@ -18,7 +18,7 @@ if isdefined(MOI.Test, :_error_handler)
         name::String,
         warn_unsupported::Bool,
     )
-        if err.rcode == Mosek.MSK_RES_ERR_SERVER_STATUS
+        if err.rcode == Mosek.MSK_RES_ERR_SERVER_STATUS.value
             _MOSEK_API_COUNTER[] += 1
             return  # Server returned non-ok HTTP status code
         end
