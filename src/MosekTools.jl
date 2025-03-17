@@ -450,6 +450,7 @@ MOI.supports(::Optimizer, ::MOI.Name) = true
 
 function MOI.set(m::Optimizer, ::MOI.Name, name::String)
     Mosek.puttaskname(m.task, name)
+    return
 end
 
 function MOI.get(m::Optimizer, ::MOI.Name)

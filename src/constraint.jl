@@ -747,6 +747,7 @@ function MOI.add_constraint(
         num = length(axbs.constants),
         nnz = length(axbs.terms),
         domi = appendconedomain(m.task, num, dom)
+
         m.F_rows[acci] = afei .+ eachindex(b)
         Mosek.appendafes(m.task, num)
         Mosek.appendaccseq(m.task, domi, afei + 1, b)
