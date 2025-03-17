@@ -1,3 +1,8 @@
+# Copyright (c) 2017: Ulf Worsøe, Mosek ApS
+#
+# Use of this source code is governed by an MIT-style license that can be found
+# in the LICENSE.md file or at https://opensource.org/licenses/MIT.
+
 ###############################################################################
 # TASK ########################################################################
 ###### The `task` field should not be accessed outside this section. ##########
@@ -9,10 +14,13 @@ function set_primal_start(task::Mosek.MSKtask, col::ColumnIndex, value::Float64)
     end
 end
 function set_primal_start(m::Optimizer, vi::MOI.VariableIndex, value::Float64)
-    set_primal_start(m.task, mosek_index(m, vi), value)
+    return set_primal_start(m.task, mosek_index(m, vi), value)
 end
-function set_primal_start(task::Mosek.MSKtask, cols::ColumnIndices,
-                          values::Vector{Float64})
+function set_primal_start(
+    task::Mosek.MSKtask,
+    cols::ColumnIndices,
+    values::Vector{Float64},
+)
     for sol in [MSK_SOL_BAS, MSK_SOL_ITG]
         if solutiondef(task, sol)
             xx = getxx(task, sol)
@@ -23,8 +31,11 @@ function set_primal_start(task::Mosek.MSKtask, cols::ColumnIndices,
         putxx(task, sol, xx)
     end
 end
-function set_primal_start(m::Optimizer, vis::Vector{MOI.VariableIndex},
-                          values::Vector{Float64})
+function set_primal_start(
+    m::Optimizer,
+    vis::Vector{MOI.VariableIndex},
+    values::Vector{Float64},
+)
     if all(vi -> is_scalar(m, vi), vis)
         set_primal_start(m.task, columns(m, vis), values)
     else
@@ -66,26 +77,29 @@ function MOI.get(m::Optimizer, attr::MOI.DualObjectiveValue)
     return getdualobj(m.task, m.solutions[attr.result_index].whichsol)
 end
 
-MOI.get(m::Optimizer, ::MOI.ObjectiveBound) =
-    if solutiondef(m.task,MSK_SOL_ITG)
-        getdouinf(m.task,MSK_DINF_MIO_OBJ_BOUND)
-    elseif solutiondef(m.task,MSK_SOL_ITR)
-        getprimalobj(m.task,MSK_SOL_ITR)
-    elseif solutiondef(m.task,MSK_SOL_BAS)
-        getprimalobj(m.task,MSK_SOL_BAS)
+function MOI.get(m::Optimizer, ::MOI.ObjectiveBound)
+    if solutiondef(m.task, MSK_SOL_ITG)
+        getdouinf(m.task, MSK_DINF_MIO_OBJ_BOUND)
+    elseif solutiondef(m.task, MSK_SOL_ITR)
+        getprimalobj(m.task, MSK_SOL_ITR)
+    elseif solutiondef(m.task, MSK_SOL_BAS)
+        getprimalobj(m.task, MSK_SOL_BAS)
     else
         return 0.0
     end
+end
 
-MOI.get(m::Optimizer, ::MOI.RelativeGap) =
-    if solutiondef(m.task,MSK_SOL_ITG)
-        getdouinf(m.task,MSK_DINF_MIO_OBJ_REL_GAP)
+function MOI.get(m::Optimizer, ::MOI.RelativeGap)
+    if solutiondef(m.task, MSK_SOL_ITG)
+        getdouinf(m.task, MSK_DINF_MIO_OBJ_REL_GAP)
     else
         0.0
     end
+end
 
-MOI.get(m::Optimizer, ::MOI.SolveTimeSec) = getdouinf(m.task,MSK_DINF_OPTIMIZER_TIME)
-
+function MOI.get(m::Optimizer, ::MOI.SolveTimeSec)
+    return getdouinf(m.task, MSK_DINF_OPTIMIZER_TIME)
+end
 
 # NOTE: The MOSEK interface currently only supports Min and Max
 function MOI.get(model::Optimizer, ::MOI.ObjectiveSense)
@@ -101,143 +115,201 @@ function MOI.get(model::Optimizer, ::MOI.ObjectiveSense)
     end
 end
 
-function MOI.set(model::Optimizer,
-                 attr::MOI.ObjectiveSense,
-                 sense::MOI.OptimizationSense)
+function MOI.set(
+    model::Optimizer,
+    attr::MOI.ObjectiveSense,
+    sense::MOI.OptimizationSense,
+)
     if sense == MOI.MIN_SENSE
         model.feasibility = false
-        putobjsense(model.task,MSK_OBJECTIVE_SENSE_MINIMIZE)
+        putobjsense(model.task, MSK_OBJECTIVE_SENSE_MINIMIZE)
     elseif sense == MOI.MAX_SENSE
         model.feasibility = false
-        putobjsense(model.task,MSK_OBJECTIVE_SENSE_MAXIMIZE)
+        putobjsense(model.task, MSK_OBJECTIVE_SENSE_MAXIMIZE)
     else
         @assert sense == MOI.FEASIBILITY_SENSE
         model.feasibility = true
         model.has_objective = false
-        putobjsense(model.task,MSK_OBJECTIVE_SENSE_MINIMIZE)
-        MOI.set(model,
-                MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
-                MOI.ScalarAffineFunction(MOI.ScalarAffineTerm{Float64}[], 0.0))
+        putobjsense(model.task, MSK_OBJECTIVE_SENSE_MINIMIZE)
+        MOI.set(
+            model,
+            MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
+            MOI.ScalarAffineFunction(MOI.ScalarAffineTerm{Float64}[], 0.0),
+        )
     end
 end
 
 #### Solver/Solution information
 
-function MOI.get(m::Optimizer,attr::MOI.SimplexIterations)
-    miosimiter = getlintinf(m.task,MSK_LIINF_MIO_SIMPLEX_ITER)
+function MOI.get(m::Optimizer, attr::MOI.SimplexIterations)
+    miosimiter = getlintinf(m.task, MSK_LIINF_MIO_SIMPLEX_ITER)
     if miosimiter > 0
         Int(miosimiter)
     else
-        Int(getintinf(m.task,MSK_IINF_SIM_PRIMAL_ITER) + getintinf(m.task,MSK_IINF_SIM_DUAL_ITER))
+        Int(
+            getintinf(m.task, MSK_IINF_SIM_PRIMAL_ITER) +
+            getintinf(m.task, MSK_IINF_SIM_DUAL_ITER),
+        )
     end
 end
 
-function MOI.get(m::Optimizer,attr::MOI.BarrierIterations)
-    miosimiter = getlintinf(m.task,MSK_LIINF_MIO_INTPNT_ITER)
+function MOI.get(m::Optimizer, attr::MOI.BarrierIterations)
+    miosimiter = getlintinf(m.task, MSK_LIINF_MIO_INTPNT_ITER)
     if miosimiter > 0
         Int(miosimiter)
     else
-        Int(getintinf(m.task,MSK_IINF_INTPNT_ITER))
+        Int(getintinf(m.task, MSK_IINF_INTPNT_ITER))
     end
 end
 
-function MOI.get(m::Optimizer,attr::MOI.NodeCount)
-        Int(getintinf(m.task,MSK_IINF_MIO_NUM_BRANCH))
+function MOI.get(m::Optimizer, attr::MOI.NodeCount)
+    return Int(getintinf(m.task, MSK_IINF_MIO_NUM_BRANCH))
 end
 
-MOI.get(m::Optimizer,attr::MOI.RawSolver) = m.task
+MOI.get(m::Optimizer, attr::MOI.RawSolver) = m.task
 
-MOI.get(m::Optimizer,attr::MOI.ResultCount) = length(m.solutions)
+MOI.get(m::Optimizer, attr::MOI.ResultCount) = length(m.solutions)
 
 #### Problem information
 
-function MOI.get(model::Optimizer,
-                 ::MOI.NumberOfConstraints{MOI.ScalarAffineFunction{Float64},
-                                           S}) where S <: ScalarLinearDomain
+function MOI.get(
+    model::Optimizer,
+    ::MOI.NumberOfConstraints{MOI.ScalarAffineFunction{Float64},S},
+) where {S<:ScalarLinearDomain}
     F = MOI.ScalarAffineFunction{Float64}
-    return count(id -> MOI.is_valid(model, MOI.ConstraintIndex{F, S}(id)),
-                 allocatedlist(model.c_block))
+    return count(
+        id -> MOI.is_valid(model, MOI.ConstraintIndex{F,S}(id)),
+        allocatedlist(model.c_block),
+    )
 end
-function MOI.get(model::Optimizer,
-                 ::MOI.ListOfConstraintIndices{MOI.ScalarAffineFunction{Float64},
-                                               S}) where S <: ScalarLinearDomain
+function MOI.get(
+    model::Optimizer,
+    ::MOI.ListOfConstraintIndices{MOI.ScalarAffineFunction{Float64},S},
+) where {S<:ScalarLinearDomain}
     F = MOI.ScalarAffineFunction{Float64}
-    ids = filter(id -> MOI.is_valid(model, MOI.ConstraintIndex{F, S}(id)),
-                 allocatedlist(model.c_block))
-    return [MOI.ConstraintIndex{F, S}(id) for id in ids]
+    ids = filter(
+        id -> MOI.is_valid(model, MOI.ConstraintIndex{F,S}(id)),
+        allocatedlist(model.c_block),
+    )
+    return [MOI.ConstraintIndex{F,S}(id) for id in ids]
 end
-function MOI.get(model::Optimizer,
-                 ::MOI.NumberOfConstraints{MOI.VariableIndex, S}) where S<:Union{ScalarLinearDomain,
-                                                                                  MOI.Integer}
+function MOI.get(
+    model::Optimizer,
+    ::MOI.NumberOfConstraints{MOI.VariableIndex,S},
+) where {S<:Union{ScalarLinearDomain,MOI.Integer}}
     F = MOI.VariableIndex
-    return count(id -> MOI.is_valid(model, MOI.ConstraintIndex{F, S}(id)),
-                 allocatedlist(model.x_block))
+    return count(
+        id -> MOI.is_valid(model, MOI.ConstraintIndex{F,S}(id)),
+        allocatedlist(model.x_block),
+    )
 end
-function MOI.get(model::Optimizer,
-                 ::MOI.ListOfConstraintIndices{MOI.VariableIndex, S}) where S<:Union{ScalarLinearDomain,
-                                                                                      MOI.Integer}
+function MOI.get(
+    model::Optimizer,
+    ::MOI.ListOfConstraintIndices{MOI.VariableIndex,S},
+) where {S<:Union{ScalarLinearDomain,MOI.Integer}}
     F = MOI.VariableIndex
-    ids = filter(id -> MOI.is_valid(model, MOI.ConstraintIndex{F, S}(id)),
-                 allocatedlist(model.x_block))
-    return [MOI.ConstraintIndex{F, S}(id) for id in ids]
+    ids = filter(
+        id -> MOI.is_valid(model, MOI.ConstraintIndex{F,S}(id)),
+        allocatedlist(model.x_block),
+    )
+    return [MOI.ConstraintIndex{F,S}(id) for id in ids]
 end
-function MOI.get(model::Optimizer,
-                 ::MOI.NumberOfConstraints{MOI.VectorOfVariables, S}) where S<:VectorCone
+function MOI.get(
+    model::Optimizer,
+    ::MOI.NumberOfConstraints{MOI.VectorOfVariables,S},
+) where {S<:VectorCone}
     F = MOI.VectorOfVariables
-    return count(i -> MOI.is_valid(model, MOI.ConstraintIndex{F, S}(i)),
-                 eachindex(model.variable_to_vector_constraint_id))
+    return count(
+        i -> MOI.is_valid(model, MOI.ConstraintIndex{F,S}(i)),
+        eachindex(model.variable_to_vector_constraint_id),
+    )
 end
-function MOI.get(model::Optimizer,
-                 ::MOI.NumberOfConstraints{MOI.VectorAffineFunction{Float64}, S}) where S<:VectorConeDomain
+function MOI.get(
+    model::Optimizer,
+    ::MOI.NumberOfConstraints{MOI.VectorAffineFunction{Float64},S},
+) where {S<:VectorConeDomain}
     F = MOI.VectorAffineFunction{Float64}
     numacc = getnumacc(model.task)
-    return count(i -> MOI.is_valid(model, MOI.ConstraintIndex{F, S}(i)), 1:numacc)
+    return count(
+        i -> MOI.is_valid(model, MOI.ConstraintIndex{F,S}(i)),
+        1:numacc,
+    )
 end
-function MOI.get(model::Optimizer,
-                 ::MOI.ListOfConstraintIndices{MOI.VectorOfVariables, S}) where S<:VectorCone
+function MOI.get(
+    model::Optimizer,
+    ::MOI.ListOfConstraintIndices{MOI.VectorOfVariables,S},
+) where {S<:VectorCone}
     F = MOI.VectorOfVariables
-    ids = filter(i -> MOI.is_valid(model, MOI.ConstraintIndex{F, S}(i)),
-                 eachindex(model.variable_to_vector_constraint_id))
-    return [MOI.ConstraintIndex{F, S}(id) for id in ids]
+    ids = filter(
+        i -> MOI.is_valid(model, MOI.ConstraintIndex{F,S}(i)),
+        eachindex(model.variable_to_vector_constraint_id),
+    )
+    return [MOI.ConstraintIndex{F,S}(id) for id in ids]
 end
-function MOI.get(model::Optimizer,
-                 ::MOI.NumberOfConstraints{MOI.VectorOfVariables,
-                                           MOI.PositiveSemidefiniteConeTriangle})
+function MOI.get(
+    model::Optimizer,
+    ::MOI.NumberOfConstraints{
+        MOI.VectorOfVariables,
+        MOI.PositiveSemidefiniteConeTriangle,
+    },
+)
     # TODO this only works because deletion of PSD constraints is not supported yet
     return length(model.sd_dim)
 end
-function MOI.get(model::Optimizer,
-                 ::MOI.ListOfConstraintIndices{MOI.VectorOfVariables,
-                                               MOI.PositiveSemidefiniteConeTriangle})
+function MOI.get(
+    model::Optimizer,
+    ::MOI.ListOfConstraintIndices{
+        MOI.VectorOfVariables,
+        MOI.PositiveSemidefiniteConeTriangle,
+    },
+)
     # TODO this only works because deletion of PSD constraints is not supported yet
-    return [MOI.ConstraintIndex{MOI.VectorOfVariables,
-                                MOI.PositiveSemidefiniteConeTriangle}(id) for id in 1:length(model.sd_dim)]
+    return [
+        MOI.ConstraintIndex{
+            MOI.VectorOfVariables,
+            MOI.PositiveSemidefiniteConeTriangle,
+        }(
+            id,
+        ) for id in 1:length(model.sd_dim)
+    ]
 end
 
-function MOI.get(model::Optimizer,
-                 ::MOI.ListOfConstraintTypesPresent)
-    list = Tuple{DataType, DataType}[]
+function MOI.get(model::Optimizer, ::MOI.ListOfConstraintTypesPresent)
+    list = Tuple{DataType,DataType}[]
     F = MOI.VariableIndex
-    for D in [MOI.LessThan{Float64}, MOI.GreaterThan{Float64},
-              MOI.EqualTo{Float64}, MOI.Interval{Float64},
-              MOI.Integer]
-        if !iszero(MOI.get(model, MOI.NumberOfConstraints{F, D}()))
+    for D in [
+        MOI.LessThan{Float64},
+        MOI.GreaterThan{Float64},
+        MOI.EqualTo{Float64},
+        MOI.Interval{Float64},
+        MOI.Integer,
+    ]
+        if !iszero(MOI.get(model, MOI.NumberOfConstraints{F,D}()))
             push!(list, (F, D))
         end
     end
     F = MOI.ScalarAffineFunction{Float64}
-    for D in [MOI.LessThan{Float64}, MOI.GreaterThan{Float64},
-              MOI.EqualTo{Float64}, MOI.Interval{Float64}]
-        if !iszero(MOI.get(model, MOI.NumberOfConstraints{F, D}()))
+    for D in [
+        MOI.LessThan{Float64},
+        MOI.GreaterThan{Float64},
+        MOI.EqualTo{Float64},
+        MOI.Interval{Float64},
+    ]
+        if !iszero(MOI.get(model, MOI.NumberOfConstraints{F,D}()))
             push!(list, (F, D))
         end
     end
     F = MOI.VectorOfVariables
-    for D in [MOI.SecondOrderCone, MOI.RotatedSecondOrderCone,
-              MOI.PowerCone{Float64}, MOI.DualPowerCone{Float64},
-              MOI.ExponentialCone, MOI.DualExponentialCone,
-              MOI.PositiveSemidefiniteConeTriangle]
-        if !iszero(MOI.get(model, MOI.NumberOfConstraints{F, D}()))
+    for D in [
+        MOI.SecondOrderCone,
+        MOI.RotatedSecondOrderCone,
+        MOI.PowerCone{Float64},
+        MOI.DualPowerCone{Float64},
+        MOI.ExponentialCone,
+        MOI.DualExponentialCone,
+        MOI.PositiveSemidefiniteConeTriangle,
+    ]
+        if !iszero(MOI.get(model, MOI.NumberOfConstraints{F,D}()))
             push!(list, (F, D))
         end
     end
@@ -246,20 +318,38 @@ end
 
 #### Warm start values
 
-MOI.supports(::Optimizer, ::MOI.VariablePrimalStart, ::Type{MOI.VariableIndex}) = true
-
-function MOI.set(m::Optimizer, ::MOI.VariablePrimalStart,
-                 v::MOI.VariableIndex, ::Nothing)
-    set_primal_start(m, v, 0.0)
-end
-function MOI.set(m::Optimizer, ::MOI.VariablePrimalStart,
-                 v::MOI.VariableIndex, val::Float64)
-    set_primal_start(m, v, val)
+function MOI.supports(
+    ::Optimizer,
+    ::MOI.VariablePrimalStart,
+    ::Type{MOI.VariableIndex},
+)
+    return true
 end
 
-function MOI.set(m::Optimizer, ::MOI.VariablePrimalStart,
-                 vis::Vector{MOI.VariableIndex}, values::Vector{Float64})
-    set_primal_start(m, vis, values)
+function MOI.set(
+    m::Optimizer,
+    ::MOI.VariablePrimalStart,
+    v::MOI.VariableIndex,
+    ::Nothing,
+)
+    return set_primal_start(m, v, 0.0)
+end
+function MOI.set(
+    m::Optimizer,
+    ::MOI.VariablePrimalStart,
+    v::MOI.VariableIndex,
+    val::Float64,
+)
+    return set_primal_start(m, v, val)
+end
+
+function MOI.set(
+    m::Optimizer,
+    ::MOI.VariablePrimalStart,
+    vis::Vector{MOI.VariableIndex},
+    values::Vector{Float64},
+)
+    return set_primal_start(m, vis, values)
 end
 
 # function MOI.set(m::Optimizer,attr::MOI.ConstraintDualStart, vs::Vector{MOI.ConstraintIndex}, vals::Vector{Float64})
@@ -284,16 +374,23 @@ function MOI.get(m::Optimizer, attr::MOI.VariablePrimal, vi::MOI.VariableIndex)
     MOI.check_result_index_bounds(m, attr)
     return variable_primal(m, attr.result_index, vi)
 end
-function MOI.get!(output::Vector{Float64}, m::Optimizer,
-                  attr::MOI.VariablePrimal, vs::Vector{MOI.VariableIndex})
+function MOI.get!(
+    output::Vector{Float64},
+    m::Optimizer,
+    attr::MOI.VariablePrimal,
+    vs::Vector{MOI.VariableIndex},
+)
     MOI.check_result_index_bounds(m, attr)
     @assert eachindex(output) == eachindex(vs)
     for i in eachindex(output)
         output[i] = MOI.get(m, attr, vs[i])
     end
 end
-function MOI.get(m::Optimizer, attr::MOI.VariablePrimal,
-                 vs::Vector{MOI.VariableIndex})
+function MOI.get(
+    m::Optimizer,
+    attr::MOI.VariablePrimal,
+    vs::Vector{MOI.VariableIndex},
+)
     MOI.check_result_index_bounds(m, attr)
     output = Vector{Float64}(undef, length(vs))
     MOI.get!(output, m, attr, vs)
@@ -320,7 +417,9 @@ function _basis_status(x::Stakey)
         @assert x == MSK_SK_INF
         msg = "The constraint or variable is infeasible in the bounds"
     end
-    error("Mosek basic status `$msg` has no equivalent in the `MOI.BasisStatusCode` enum.")
+    return error(
+        "Mosek basic status `$msg` has no equivalent in the `MOI.BasisStatusCode` enum.",
+    )
 end
 
 function MOI.get(m::Optimizer, attr::MOI.VariableBasisStatus, col::ColumnIndex)
@@ -328,10 +427,14 @@ function MOI.get(m::Optimizer, attr::MOI.VariableBasisStatus, col::ColumnIndex)
 end
 
 function MOI.get(::Optimizer, attr::MOI.VariableBasisStatus, mat::MatrixIndex)
-    error("$attr not supported for PSD variable $mat")
+    return error("$attr not supported for PSD variable $mat")
 end
 
-function MOI.get(m::Optimizer, attr::MOI.VariableBasisStatus, vi::MOI.VariableIndex)
+function MOI.get(
+    m::Optimizer,
+    attr::MOI.VariableBasisStatus,
+    vi::MOI.VariableIndex,
+)
     MOI.check_result_index_bounds(m, attr)
     return MOI.get(m, attr, mosek_index(m, vi))
 end
@@ -339,9 +442,10 @@ end
 #### Constraint solution values
 
 function MOI.get(
-    m     ::Optimizer,
-    attr  ::MOI.ConstraintPrimal,
-    ci  ::MOI.ConstraintIndex{MOI.VariableIndex,D}) where D
+    m::Optimizer,
+    attr::MOI.ConstraintPrimal,
+    ci::MOI.ConstraintIndex{MOI.VariableIndex,D},
+) where {D}
     MOI.check_result_index_bounds(m, attr)
     col = column(m, _variable(ci))
     return m.solutions[attr.result_index].xx[col.value]
@@ -350,49 +454,72 @@ end
 # Semidefinite domain for a variable
 function MOI.get!(
     output::Vector{Float64},
-    m     ::Optimizer,
-    attr  ::MOI.ConstraintPrimal,
-    ci  ::MOI.ConstraintIndex{MOI.VectorOfVariables,
-                              MOI.PositiveSemidefiniteConeTriangle})
+    m::Optimizer,
+    attr::MOI.ConstraintPrimal,
+    ci::MOI.ConstraintIndex{
+        MOI.VectorOfVariables,
+        MOI.PositiveSemidefiniteConeTriangle,
+    },
+)
     MOI.check_result_index_bounds(m, attr)
-    whichsol = getsolcode(m,attr.result_index)
-    output[1:length(output)] = reorder(getbarxj(m.task, whichsol, ci.value),
-                                       MOI.PositiveSemidefiniteConeTriangle,
-                                       false)
+    whichsol = getsolcode(m, attr.result_index)
+    return output[1:length(output)] = reorder(
+        getbarxj(m.task, whichsol, ci.value),
+        MOI.PositiveSemidefiniteConeTriangle,
+        false,
+    )
 end
 
 # Any other domain for variable vector
 function MOI.get!(
     output::Vector{Float64},
-    m     ::Optimizer,
-    attr  ::MOI.ConstraintPrimal,
-    ci  ::MOI.ConstraintIndex{MOI.VectorOfVariables,D}) where D
+    m::Optimizer,
+    attr::MOI.ConstraintPrimal,
+    ci::MOI.ConstraintIndex{MOI.VectorOfVariables,D},
+) where {D}
     MOI.check_result_index_bounds(m, attr)
     cols = columns(m, ci)
-    output[1:length(output)] = reorder(m.solutions[attr.result_index].xx[cols.values], D, false)
+    return output[1:length(output)] =
+        reorder(m.solutions[attr.result_index].xx[cols.values], D, false)
 end
 
-function MOI.get(m     ::Optimizer,
-                 attr  ::MOI.ConstraintPrimal,
-                 ci  ::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D}) where D
+function MOI.get(
+    m::Optimizer,
+    attr::MOI.ConstraintPrimal,
+    ci::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D},
+) where {D}
     MOI.check_result_index_bounds(m, attr)
     cid = ref2id(ci)
-    subi = getindex(m.c_block,cid)
+    subi = getindex(m.c_block, cid)
     return m.solutions[attr.result_index].xc[subi]
 end
 
-function _variable_constraint_dual(sol::MosekSolution, col::ColumnIndex,
-                                   ::Type{<:Union{MOI.Interval{Float64}, MOI.EqualTo{Float64}}})
+function _variable_constraint_dual(
+    sol::MosekSolution,
+    col::ColumnIndex,
+    ::Type{<:Union{MOI.Interval{Float64},MOI.EqualTo{Float64}}},
+)
     return sol.slx[col.value] - sol.sux[col.value]
 end
-function _variable_constraint_dual(sol::MosekSolution, col::ColumnIndex, ::Type{MOI.GreaterThan{Float64}})
+function _variable_constraint_dual(
+    sol::MosekSolution,
+    col::ColumnIndex,
+    ::Type{MOI.GreaterThan{Float64}},
+)
     return sol.slx[col.value]
 end
-function _variable_constraint_dual(sol::MosekSolution, col::ColumnIndex, ::Type{MOI.LessThan{Float64}})
+function _variable_constraint_dual(
+    sol::MosekSolution,
+    col::ColumnIndex,
+    ::Type{MOI.LessThan{Float64}},
+)
     return -sol.sux[col.value]
 end
-function MOI.get(m::Optimizer, attr::MOI.ConstraintDual,
-                 ci::MOI.ConstraintIndex{MOI.VariableIndex, S}) where S <: ScalarLinearDomain
+function MOI.get(
+    m::Optimizer,
+    attr::MOI.ConstraintDual,
+    ci::MOI.ConstraintIndex{MOI.VariableIndex,S},
+) where {S<:ScalarLinearDomain}
     MOI.check_result_index_bounds(m, attr)
     col = column(m, _variable(ci))
     dual = _variable_constraint_dual(m.solutions[attr.result_index], col, S)
@@ -407,7 +534,11 @@ getsolcode(m::Optimizer, N) = m.solutions[N].whichsol
 
 # The dual or primal of an SDP variable block is returned in lower triangular
 # form but the constraint is in upper triangular form.
-function reorder(k::Integer, set::MOI.Scaled{MOI.PositiveSemidefiniteConeTriangle}, moi_to_mosek::Bool)
+function reorder(
+    k::Integer,
+    set::MOI.Scaled{MOI.PositiveSemidefiniteConeTriangle},
+    moi_to_mosek::Bool,
+)
     # `i` is the row in columnwise upper triangular form
     # the returned value is in columnwise lower triangular form
     if !moi_to_mosek
@@ -426,7 +557,16 @@ function reorder(k::Integer, set::MOI.Scaled{MOI.PositiveSemidefiniteConeTriangl
     end
     return k
 end
-function reorder(x::AbstractVector, ::Type{<:Union{MOI.Scaled{MOI.PositiveSemidefiniteConeTriangle},MOI.PositiveSemidefiniteConeTriangle}}, moi_to_mosek::Bool)
+function reorder(
+    x::AbstractVector,
+    ::Type{
+        <:Union{
+            MOI.Scaled{MOI.PositiveSemidefiniteConeTriangle},
+            MOI.PositiveSemidefiniteConeTriangle,
+        },
+    },
+    moi_to_mosek::Bool,
+)
     n = MOI.Utilities.side_dimension_for_vectorized_dimension(length(x))
     @assert length(x) == MOI.dimension(MOI.PositiveSemidefiniteConeTriangle(n))
     y = similar(x)
@@ -444,11 +584,7 @@ function reorder(x::AbstractVector, ::Type{<:Union{MOI.Scaled{MOI.PositiveSemide
     return y
 end
 
-
-const ExpCones = Union{
-    MOI.ExponentialCone,
-    MOI.DualExponentialCone,
-}
+const ExpCones = Union{MOI.ExponentialCone,MOI.DualExponentialCone}
 
 function reorder(i::Integer, ::ExpCones, ::Bool)
     return (3:-1:1)[i]
@@ -466,18 +602,24 @@ const NoReorder = Union{
 
 reorder(x, ::Union{NoReorder,Type{<:NoReorder}}, ::Bool) = x
 
-
 # Semidefinite domain for a variable
 function MOI.get!(
     output::Vector{Float64},
-    m     ::Optimizer,
-    attr  ::MOI.ConstraintDual,
-    ci  ::MOI.ConstraintIndex{MOI.VectorOfVariables, MOI.PositiveSemidefiniteConeTriangle})
+    m::Optimizer,
+    attr::MOI.ConstraintDual,
+    ci::MOI.ConstraintIndex{
+        MOI.VectorOfVariables,
+        MOI.PositiveSemidefiniteConeTriangle,
+    },
+)
     MOI.check_result_index_bounds(m, attr)
-    whichsol = getsolcode(m,attr.result_index)
+    whichsol = getsolcode(m, attr.result_index)
     # It is in fact a real constraint and cid is the id of an ordinary constraint
-    dual = reorder(getbarsj(m.task, whichsol, ci.value),
-                   MOI.PositiveSemidefiniteConeTriangle, false)
+    dual = reorder(
+        getbarsj(m.task, whichsol, ci.value),
+        MOI.PositiveSemidefiniteConeTriangle,
+        false,
+    )
     if (getobjsense(m.task) == MSK_OBJECTIVE_SENSE_MINIMIZE)
         output[1:length(output)] .= dual
     else
@@ -488,9 +630,10 @@ end
 # Any other domain for variable vector
 function MOI.get!(
     output::Vector{Float64},
-    m     ::Optimizer,
-    attr  ::MOI.ConstraintDual,
-    ci  ::MOI.ConstraintIndex{MOI.VectorOfVariables,D}) where D
+    m::Optimizer,
+    attr::MOI.ConstraintDual,
+    ci::MOI.ConstraintIndex{MOI.VectorOfVariables,D},
+) where {D}
     MOI.check_result_index_bounds(m, attr)
 
     xcid = ref2id(ci)
@@ -509,9 +652,10 @@ end
 
 function MOI.get!(
     output::Vector{Float64},
-    m     ::Optimizer,
-    attr  ::MOI.ConstraintDual,
-    ci  ::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},D}) where D
+    m::Optimizer,
+    attr::MOI.ConstraintDual,
+    ci::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},D},
+) where {D}
     MOI.check_result_index_bounds(m, attr)
 
     r = rows(m, ci)
@@ -525,9 +669,11 @@ function MOI.get!(
     end
 end
 
-function MOI.get(m     ::Optimizer,
-                 attr  ::MOI.ConstraintDual,
-                 ci  ::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D}) where D
+function MOI.get(
+    m::Optimizer,
+    attr::MOI.ConstraintDual,
+    ci::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D},
+) where {D}
     MOI.check_result_index_bounds(m, attr)
 
     cid = ref2id(ci)
@@ -536,7 +682,7 @@ function MOI.get(m     ::Optimizer,
     if getobjsense(m.task) == MSK_OBJECTIVE_SENSE_MINIMIZE
         m.solutions[attr.result_index].y[subi]
     else
-        - m.solutions[attr.result_index].y[subi]
+        -m.solutions[attr.result_index].y[subi]
     end
 end
 
@@ -544,19 +690,28 @@ solsize(m::Optimizer, ::MOI.ConstraintIndex{<:MOI.AbstractScalarFunction}) = 1
 function solsize(m::Optimizer, ci::MOI.ConstraintIndex{MOI.VectorOfVariables})
     return getconeinfo(m.task, cone_id(m, ci))[3]
 end
-function solsize(m::Optimizer, ci::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64}})
+function solsize(
+    m::Optimizer,
+    ci::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64}},
+)
     return length(rows(m, ci))
 end
-function solsize(m::Optimizer,
-                 ci::MOI.ConstraintIndex{MOI.VectorOfVariables,
-                                         MOI.PositiveSemidefiniteConeTriangle})
+function solsize(
+    m::Optimizer,
+    ci::MOI.ConstraintIndex{
+        MOI.VectorOfVariables,
+        MOI.PositiveSemidefiniteConeTriangle,
+    },
+)
     d = m.sd_dim[ci.value]
     return MOI.dimension(MOI.PositiveSemidefiniteConeTriangle(d))
 end
 
-function MOI.get(m::Optimizer,
-                 attr::Union{MOI.ConstraintPrimal, MOI.ConstraintDual},
-                 ci::MOI.ConstraintIndex{<:MOI.AbstractVectorFunction})
+function MOI.get(
+    m::Optimizer,
+    attr::Union{MOI.ConstraintPrimal,MOI.ConstraintDual},
+    ci::MOI.ConstraintIndex{<:MOI.AbstractVectorFunction},
+)
     MOI.check_result_index_bounds(m, attr)
     cid = ref2id(ci)
     output = Vector{Float64}(undef, solsize(m, ci))
@@ -573,30 +728,39 @@ end
 
 #### Status codes
 function MOI.get(m::Optimizer, attr::MOI.RawStatusString)
-    if     m.trm === nothing
+    if m.trm === nothing
         return "MOI.OPTIMIZE_NOT_CALLED"
     elseif m.trm == MSK_RES_OK
         return join([Mosek.tostr(sol.solsta) for sol in m.solutions], ", ")
     else
         return Mosek.tostr(m.trm)
     end
-
 end
 function MOI.get(m::Optimizer, attr::MOI.TerminationStatus)
-    if     m.trm === nothing
+    if m.trm === nothing
         MOI.OPTIMIZE_NOT_CALLED
     elseif m.trm == MSK_RES_OK
         # checking `any(sol -> sol.solsta == MSK_SOL_STA_PRIM_INFEAS_CER, m.solutions)`
         # doesn't work for MIP as there is not certificate, i.e. the solutions status is
         # `UNKNOWN`, only the problem status is `INFEAS`.
-        if any(sol -> sol.prosta in [ MSK_PRO_STA_PRIM_INFEAS,
-                                      MSK_PRO_STA_ILL_POSED], m.solutions)
+        if any(
+            sol ->
+                sol.prosta in [MSK_PRO_STA_PRIM_INFEAS, MSK_PRO_STA_ILL_POSED],
+            m.solutions,
+        )
             MOI.INFEASIBLE
         elseif any(sol -> sol.prosta == MSK_PRO_STA_DUAL_INFEAS, m.solutions)
             MOI.DUAL_INFEASIBLE
-        elseif any(sol -> sol.prosta == MSK_PRO_STA_PRIM_INFEAS_OR_UNBOUNDED,m.solutions)
+        elseif any(
+            sol -> sol.prosta == MSK_PRO_STA_PRIM_INFEAS_OR_UNBOUNDED,
+            m.solutions,
+        )
             MOI.INFEASIBLE_OR_UNBOUNDED
-        elseif any(sol -> sol.solsta in [ MSK_SOL_STA_OPTIMAL,MSK_SOL_STA_INTEGER_OPTIMAL ], m.solutions)
+        elseif any(
+            sol -> sol.solsta in
+            [MSK_SOL_STA_OPTIMAL, MSK_SOL_STA_INTEGER_OPTIMAL],
+            m.solutions,
+        )
             MOI.OPTIMAL
         else
             MOI.OTHER_ERROR # ??
@@ -635,7 +799,7 @@ function MOI.get(m::Optimizer, attr::MOI.PrimalStatus)
         return MOI.NO_SOLUTION
     end
     solsta = m.solutions[attr.result_index].solsta
-    if     solsta == MSK_SOL_STA_UNKNOWN
+    if solsta == MSK_SOL_STA_UNKNOWN
         MOI.UNKNOWN_RESULT_STATUS
     elseif solsta == MSK_SOL_STA_OPTIMAL
         MOI.FEASIBLE_POINT
@@ -660,12 +824,12 @@ function MOI.get(m::Optimizer, attr::MOI.PrimalStatus)
     end
 end
 
-function MOI.get(m::Optimizer,attr::MOI.DualStatus)
+function MOI.get(m::Optimizer, attr::MOI.DualStatus)
     if attr.result_index > MOI.get(m, MOI.ResultCount())
         return MOI.NO_SOLUTION
     end
     solsta = m.solutions[attr.result_index].solsta
-    if     solsta == MSK_SOL_STA_UNKNOWN
+    if solsta == MSK_SOL_STA_UNKNOWN
         MOI.UNKNOWN_RESULT_STATUS
     elseif solsta == MSK_SOL_STA_OPTIMAL
         MOI.FEASIBLE_POINT

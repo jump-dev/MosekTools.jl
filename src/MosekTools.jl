@@ -1,3 +1,8 @@
+# Copyright (c) 2017: Ulf Worsøe, Mosek ApS
+#
+# Use of this source code is governed by an MIT-style license that can be found
+# in the LICENSE.md file or at https://opensource.org/licenses/MIT.
+
 module MosekTools
 
 import MathOptInterface as MOI
@@ -16,23 +21,23 @@ include("LinkedInts.jl")
 const DEBUG = false
 
 struct MosekSolution
-    whichsol :: Soltype
-    solsta   :: Solsta
-    prosta   :: Prosta
+    whichsol::Soltype
+    solsta::Solsta
+    prosta::Prosta
 
-    xxstatus :: Vector{Stakey}
-    xx       :: Vector{Float64}
-    barxj    :: Vector{Vector{Float64}}
-    slx      :: Vector{Float64}
-    sux      :: Vector{Float64}
-    snx      :: Vector{Float64}
-    doty     :: Vector{Float64}
+    xxstatus::Vector{Stakey}
+    xx::Vector{Float64}
+    barxj::Vector{Vector{Float64}}
+    slx::Vector{Float64}
+    sux::Vector{Float64}
+    snx::Vector{Float64}
+    doty::Vector{Float64}
 
-    cstatus  :: Vector{Stakey}
-    xc       :: Vector{Float64}
-    slc      :: Vector{Float64}
-    suc      :: Vector{Float64}
-    y        :: Vector{Float64}
+    cstatus::Vector{Stakey}
+    xc::Vector{Float64}
+    slc::Vector{Float64}
+    suc::Vector{Float64}
+    y::Vector{Float64}
 end
 
 struct ColumnIndex
@@ -55,7 +60,7 @@ struct MatrixIndex
     function MatrixIndex(matrix::Integer, row::Integer, column::Integer)
         # Since it is in the lower-triangular part:
         @assert column ≤ row
-        new(matrix, row, column)
+        return new(matrix, row, column)
     end
 end
 
@@ -70,23 +75,23 @@ some (currently between 1 and 3) Int64s that a `delete!` will not
 remove. This ensures that Indices (Variable and constraint) that
 are deleted are thereafter invalid.
 """
-mutable struct Optimizer  <: MOI.AbstractOptimizer
-    task :: Mosek.MSKtask
+mutable struct Optimizer <: MOI.AbstractOptimizer
+    task::Mosek.MSKtask
     ## Options passed in `Mosek.Optimizer` that are used to create a new task
     ## in `MOI.empty!`:
     # Should Mosek output be ignored or printed ?
-    be_quiet :: Bool
+    be_quiet::Bool
     # Integer parameters, i.e. parameters starting with `MSK_IPAR_`
-    ipars :: Dict{String, Int32}
+    ipars::Dict{String,Int32}
     # Floating point parameters, i.e. parameters starting with `MSK_DPAR_`
-    dpars :: Dict{String, Float64}
+    dpars::Dict{String,Float64}
     # String parameters, i.e. parameters starting with `MSK_SPAR_`
-    spars :: Dict{String, AbstractString}
+    spars::Dict{String,AbstractString}
     has_variable_names::Bool
-    constrnames :: Dict{String, Vector{MOI.ConstraintIndex}}
+    constrnames::Dict{String,Vector{MOI.ConstraintIndex}}
     # Mosek only support names for `MOI.ScalarAffineFunction` so we need a
     # fallback for `SingleVariable` and `VectorOfVariables`.
-    con_to_name :: Dict{MOI.ConstraintIndex, String}
+    con_to_name::Dict{MOI.ConstraintIndex,String}
 
     # For each MOI index of variables, gives the flags of constraints present
     # The SingleVariable constraints added cannot just be inferred from getvartype
@@ -116,7 +121,7 @@ mutable struct Optimizer  <: MOI.AbstractOptimizer
     One scalar entry per constraint in the underlying task. One block
     per constraint allocated in the Model.
     """
-    c_block :: LinkedInts
+    c_block::LinkedInts
 
     # i -> 0: Not in a VectorOfVariables constraint
     # i -> +j: In `MOI.ConstraintIndex{MOI.VectorOfVariables, ?}(j)`
@@ -124,8 +129,8 @@ mutable struct Optimizer  <: MOI.AbstractOptimizer
     variable_to_vector_constraint_id::Vector{Int32}
 
     ###########################
-    trm :: Union{Nothing, Rescode}
-    solutions :: Vector{MosekSolution}
+    trm::Union{Nothing,Rescode}
+    solutions::Vector{MosekSolution}
 
     ###########################
     """
@@ -133,13 +138,13 @@ mutable struct Optimizer  <: MOI.AbstractOptimizer
     encoded as a MOI.MIN_SENSE with a zero objective internally but this allows
     MOI.get(::Optimizer, ::ObjectiveSense) to still return the right value
     """
-    feasibility :: Bool
+    feasibility::Bool
     """
     Indicates whether there is an objective set.
     If `has_objective` is `false` then Mosek has a zero objective internally.
     This affects `MOI.ListOfModelAttributesSet`.
     """
-    has_objective :: Bool
+    has_objective::Bool
     """
     Indicates whether there was any PSD variables used when setting the objective.
     When resetting it, I don't know how to remove the contributions from these
@@ -147,18 +152,18 @@ mutable struct Optimizer  <: MOI.AbstractOptimizer
     """
     has_psd_in_objective::Bool
 
-    fallback :: Union{String, Nothing}
+    fallback::Union{String,Nothing}
 
     function Optimizer(; kws...)
         optimizer = new(
             maketask(), # task
             false, # be_quiet
-            Dict{String, Int32}(), # ipars
-            Dict{String, Float64}(), # dpars
-            Dict{String, AbstractString}(), # spars
+            Dict{String,Int32}(), # ipars
+            Dict{String,Float64}(), # dpars
+            Dict{String,AbstractString}(), # spars
             false, # has_variable_names
-            Dict{String, Vector{MOI.ConstraintIndex}}(), # constrnames
-            Dict{MOI.ConstraintIndex, String}(), # con_to_name
+            Dict{String,Vector{MOI.ConstraintIndex}}(), # constrnames
+            Dict{MOI.ConstraintIndex,String}(), # con_to_name
             UInt8[], # x_constraints
             Dict{Int,UnitRange{Int}}(),
             LinkedInts(),# x_block
@@ -173,7 +178,7 @@ mutable struct Optimizer  <: MOI.AbstractOptimizer
             false, # has_psd_in_objective
             nothing,
         )
-        Mosek.appendrzerodomain(optimizer.task,0)
+        Mosek.appendrzerodomain(optimizer.task, 0)
         Mosek.putstreamfunc(optimizer.task, Mosek.MSK_STREAM_LOG, m -> print(m))
         if length(kws) > 0
             @warn("""Passing optimizer attributes as keyword arguments to
@@ -196,10 +201,10 @@ struct IntegerParameter <: MOI.AbstractOptimizerAttribute
 end
 function MOI.set(m::Optimizer, p::IntegerParameter, value)
     m.ipars[p.name] = value
-    Mosek.putnaintparam(m.task, p.name, value)
+    return Mosek.putnaintparam(m.task, p.name, value)
 end
 function MOI.get(m::Optimizer, p::IntegerParameter)
-    Mosek.getnaintparam(m.task, p.name)
+    return Mosek.getnaintparam(m.task, p.name)
 end
 
 struct DoubleParameter <: MOI.AbstractOptimizerAttribute
@@ -207,10 +212,10 @@ struct DoubleParameter <: MOI.AbstractOptimizerAttribute
 end
 function MOI.set(m::Optimizer, p::DoubleParameter, value)
     m.dpars[p.name] = value
-    Mosek.putnadouparam(m.task, p.name, value)
+    return Mosek.putnadouparam(m.task, p.name, value)
 end
 function MOI.get(m::Optimizer, p::DoubleParameter)
-    Mosek.getnadouparam(m.task, p.name)
+    return Mosek.getnadouparam(m.task, p.name)
 end
 
 struct StringParameter <: MOI.AbstractOptimizerAttribute
@@ -218,7 +223,7 @@ struct StringParameter <: MOI.AbstractOptimizerAttribute
 end
 function MOI.set(m::Optimizer, p::StringParameter, value::AbstractString)
     m.spars[p.name] = value
-    Mosek.putnastrparam(m.task, p.name, value)
+    return Mosek.putnastrparam(m.task, p.name, value)
 end
 function MOI.get(m::Optimizer, p::StringParameter)
     # We need to give the maximum length of the value of the parameter.
@@ -239,11 +244,13 @@ function MOI.set(m::Optimizer, p::MOI.RawOptimizerAttribute, value)
         if m.be_quiet != convert(Bool, value)
             m.be_quiet = !m.be_quiet
             if m.be_quiet
-                Mosek.putstreamfunc(m.task, Mosek.MSK_STREAM_LOG,
-                                    m -> begin end)
+                Mosek.putstreamfunc(
+                    m.task,
+                    Mosek.MSK_STREAM_LOG,
+                    m -> begin end,
+                )
             else
-                Mosek.putstreamfunc(m.task, Mosek.MSK_STREAM_LOG,
-                                    m -> print(m))
+                Mosek.putstreamfunc(m.task, Mosek.MSK_STREAM_LOG, m -> print(m))
             end
         end
     elseif p.name == "fallback"
@@ -281,7 +288,9 @@ function MOI.get(m::Optimizer, p::MOI.RawOptimizerAttribute)
         elseif startswith(p.name, "MSK_SPAR_")
             par = StringParameter(p.name)
         else
-            error("The parameter $(p.name) should start by `MSK_IPAR_`, `MSK_DPAR_` or `MSK_SPAR_`.")
+            error(
+                "The parameter $(p.name) should start by `MSK_IPAR_`, `MSK_DPAR_` or `MSK_SPAR_`.",
+            )
         end
         MOI.get(m, par)
     end
@@ -289,21 +298,30 @@ end
 
 MOI.supports(::Optimizer, ::MOI.Silent) = true
 function MOI.set(model::Optimizer, ::MOI.Silent, value::Bool)
-    MOI.set(model, MOI.RawOptimizerAttribute("QUIET"), value)
+    return MOI.set(model, MOI.RawOptimizerAttribute("QUIET"), value)
 end
 function MOI.get(model::Optimizer, ::MOI.Silent)
-    MOI.get(model, MOI.RawOptimizerAttribute("QUIET"))
+    return MOI.get(model, MOI.RawOptimizerAttribute("QUIET"))
 end
 
 MOI.supports(::Optimizer, ::MOI.TimeLimitSec) = true
 function MOI.set(model::Optimizer, ::MOI.TimeLimitSec, value::Real)
-    MOI.set(model, MOI.RawOptimizerAttribute("MSK_DPAR_OPTIMIZER_MAX_TIME"), value)
+    return MOI.set(
+        model,
+        MOI.RawOptimizerAttribute("MSK_DPAR_OPTIMIZER_MAX_TIME"),
+        value,
+    )
 end
 function MOI.set(model::Optimizer, ::MOI.TimeLimitSec, ::Nothing)
-    MOI.set(model, MOI.RawOptimizerAttribute("MSK_DPAR_OPTIMIZER_MAX_TIME"), -1.0)
+    return MOI.set(
+        model,
+        MOI.RawOptimizerAttribute("MSK_DPAR_OPTIMIZER_MAX_TIME"),
+        -1.0,
+    )
 end
 function MOI.get(model::Optimizer, ::MOI.TimeLimitSec)
-    value = MOI.get(model, MOI.RawOptimizerAttribute("MSK_DPAR_OPTIMIZER_MAX_TIME"))
+    value =
+        MOI.get(model, MOI.RawOptimizerAttribute("MSK_DPAR_OPTIMIZER_MAX_TIME"))
     if value < 0.0
         return nothing
     else
@@ -317,69 +335,86 @@ end
 
 function MOI.optimize!(m::Optimizer)
     # See https://github.com/jump-dev/MosekTools.jl/issues/70
-    putintparam(m.task,Mosek.MSK_IPAR_REMOVE_UNUSED_SOLUTIONS,Mosek.MSK_ON)
-    m.trm = if m.fallback == nothing; optimize(m.task) else optimize(m.task,m.fallback) end
+    putintparam(m.task, Mosek.MSK_IPAR_REMOVE_UNUSED_SOLUTIONS, Mosek.MSK_ON)
+    m.trm = if m.fallback == nothing
+        optimize(m.task)
+    else
+        optimize(m.task, m.fallback)
+    end
     m.solutions = MosekSolution[]
-    if solutiondef(m.task,MSK_SOL_ITR)
-        push!(m.solutions,
-              MosekSolution(MSK_SOL_ITR,
-                            getsolsta(m.task,MSK_SOL_ITR),
-                            getprosta(m.task,MSK_SOL_ITR),
-                            getskx(m.task,MSK_SOL_ITR),
-                            getxx(m.task,MSK_SOL_ITR),
-                            matrix_solution(m, MSK_SOL_ITR),
-                            getslx(m.task,MSK_SOL_ITR),
-                            getsux(m.task,MSK_SOL_ITR),
-                            getsnx(m.task,MSK_SOL_ITR),
-                            getaccdotys(m.task,MSK_SOL_ITR),
-                            getskc(m.task,MSK_SOL_ITR),
-                            getxc(m.task,MSK_SOL_ITR),
-                            getslc(m.task,MSK_SOL_ITR),
-                            getsuc(m.task,MSK_SOL_ITR),
-                            gety(m.task,MSK_SOL_ITR)))
+    if solutiondef(m.task, MSK_SOL_ITR)
+        push!(
+            m.solutions,
+            MosekSolution(
+                MSK_SOL_ITR,
+                getsolsta(m.task, MSK_SOL_ITR),
+                getprosta(m.task, MSK_SOL_ITR),
+                getskx(m.task, MSK_SOL_ITR),
+                getxx(m.task, MSK_SOL_ITR),
+                matrix_solution(m, MSK_SOL_ITR),
+                getslx(m.task, MSK_SOL_ITR),
+                getsux(m.task, MSK_SOL_ITR),
+                getsnx(m.task, MSK_SOL_ITR),
+                getaccdotys(m.task, MSK_SOL_ITR),
+                getskc(m.task, MSK_SOL_ITR),
+                getxc(m.task, MSK_SOL_ITR),
+                getslc(m.task, MSK_SOL_ITR),
+                getsuc(m.task, MSK_SOL_ITR),
+                gety(m.task, MSK_SOL_ITR),
+            ),
+        )
     end
-    if solutiondef(m.task,MSK_SOL_ITG)
-        push!(m.solutions,
-              MosekSolution(MSK_SOL_ITG,
-                            getsolsta(m.task, MSK_SOL_ITG),
-                            getprosta(m.task, MSK_SOL_ITG),
-                            getskx(m.task, MSK_SOL_ITG),
-                            getxx(m.task, MSK_SOL_ITG),
-                            # See https://github.com/jump-dev/MosekTools.jl/issues/71
-                            Float64[], #matrix_solution(m, MSK_SOL_ITG),
-                            Float64[],
-                            Float64[],
-                            Float64[],
-                            Float64[],
-                            getskc(m.task, MSK_SOL_ITG),
-                            getxc(m.task, MSK_SOL_ITG),
-                            Float64[],
-                            Float64[],
-                            Float64[]))
+    if solutiondef(m.task, MSK_SOL_ITG)
+        push!(
+            m.solutions,
+            MosekSolution(
+                MSK_SOL_ITG,
+                getsolsta(m.task, MSK_SOL_ITG),
+                getprosta(m.task, MSK_SOL_ITG),
+                getskx(m.task, MSK_SOL_ITG),
+                getxx(m.task, MSK_SOL_ITG),
+                # See https://github.com/jump-dev/MosekTools.jl/issues/71
+                Float64[], #matrix_solution(m, MSK_SOL_ITG),
+                Float64[],
+                Float64[],
+                Float64[],
+                Float64[],
+                getskc(m.task, MSK_SOL_ITG),
+                getxc(m.task, MSK_SOL_ITG),
+                Float64[],
+                Float64[],
+                Float64[],
+            ),
+        )
     end
-    if solutiondef(m.task,MSK_SOL_BAS)
-        push!(m.solutions,
-              MosekSolution(MSK_SOL_BAS,
-                            getsolsta(m.task,MSK_SOL_BAS),
-                            getprosta(m.task,MSK_SOL_BAS),
-                            getskx(m.task,MSK_SOL_BAS),
-                            getxx(m.task,MSK_SOL_BAS),
-                            # See https://github.com/jump-dev/MosekTools.jl/issues/71
-                            Float64[], #matrix_solution(m, MSK_SOL_BAS),
-                            getslx(m.task,MSK_SOL_BAS),
-                            getsux(m.task,MSK_SOL_BAS),
-                            Float64[],
-                            Float64[],
-                            getskc(m.task,MSK_SOL_BAS),
-                            getxc(m.task,MSK_SOL_BAS),
-                            getslc(m.task,MSK_SOL_BAS),
-                            getsuc(m.task,MSK_SOL_BAS),
-                            gety(m.task,MSK_SOL_BAS)))
+    if solutiondef(m.task, MSK_SOL_BAS)
+        push!(
+            m.solutions,
+            MosekSolution(
+                MSK_SOL_BAS,
+                getsolsta(m.task, MSK_SOL_BAS),
+                getprosta(m.task, MSK_SOL_BAS),
+                getskx(m.task, MSK_SOL_BAS),
+                getxx(m.task, MSK_SOL_BAS),
+                # See https://github.com/jump-dev/MosekTools.jl/issues/71
+                Float64[], #matrix_solution(m, MSK_SOL_BAS),
+                getslx(m.task, MSK_SOL_BAS),
+                getsux(m.task, MSK_SOL_BAS),
+                Float64[],
+                Float64[],
+                getskc(m.task, MSK_SOL_BAS),
+                getxc(m.task, MSK_SOL_BAS),
+                getslc(m.task, MSK_SOL_BAS),
+                getsuc(m.task, MSK_SOL_BAS),
+                gety(m.task, MSK_SOL_BAS),
+            ),
+        )
     end
     # We need to sort the solutions, so that an optimal one is first (if it exists).
     sort!(
         m.solutions;
-        by = x -> x.solsta in [MSK_SOL_STA_OPTIMAL, MSK_SOL_STA_INTEGER_OPTIMAL],
+        by = x ->
+            x.solsta in [MSK_SOL_STA_OPTIMAL, MSK_SOL_STA_INTEGER_OPTIMAL],
         rev = true,
     )
     return
@@ -387,7 +422,7 @@ end
 
 MOI.supports(::Optimizer, ::MOI.Name) = true
 function MOI.set(m::Optimizer, ::MOI.Name, name::String)
-    puttaskname(m.task, name)
+    return puttaskname(m.task, name)
 end
 function MOI.get(m::Optimizer, ::MOI.Name)
     return gettaskname(m.task)
@@ -407,12 +442,16 @@ function MOI.get(m::Optimizer, ::MOI.ListOfModelAttributesSet)
 end
 
 function MOI.is_empty(m::Optimizer)
-    getnumvar(m.task) == 0 && getnumcon(m.task) == 0 && getnumcone(m.task) == 0 && getnumbarvar(m.task) == 0 && isempty(m.F_rows)
+    return getnumvar(m.task) == 0 &&
+           getnumcon(m.task) == 0 &&
+           getnumcone(m.task) == 0 &&
+           getnumbarvar(m.task) == 0 &&
+           isempty(m.F_rows)
 end
 
 function MOI.empty!(model::Optimizer)
-    model.task               = maketask()
-    Mosek.appendrzerodomain(model.task,0)
+    model.task = maketask()
+    Mosek.appendrzerodomain(model.task, 0)
     for (name, value) in model.ipars
         Mosek.putnaintparam(model.task, name, value)
     end
@@ -430,15 +469,15 @@ function MOI.empty!(model::Optimizer)
     empty!(model.con_to_name)
     empty!(model.F_rows)
     empty!(model.x_constraints)
-    model.x_block            = LinkedInts()
+    model.x_block = LinkedInts()
     empty!(model.x_sd)
     empty!(model.sd_dim)
-    model.c_block            = LinkedInts()
+    model.c_block = LinkedInts()
     empty!(model.variable_to_vector_constraint_id)
-    model.trm                = nothing
+    model.trm = nothing
     empty!(model.solutions)
-    model.feasibility        = true
-    model.has_objective      = false
+    model.feasibility = true
+    model.has_objective = false
     model.has_psd_in_objective = false
     return
 end
@@ -455,9 +494,9 @@ function MOI.copy_to(dest::Optimizer, src::MOI.ModelLike; kws...)
     return MOI.Utilities.default_copy_to(dest, src; kws...)
 end
 
-function MOI.write_to_file(m::Optimizer, filename :: String)
-    putintparam(m.task,MSK_IPAR_OPF_WRITE_SOLUTIONS, MSK_ON)
-    writedata(m.task,filename)
+function MOI.write_to_file(m::Optimizer, filename::String)
+    putintparam(m.task, MSK_IPAR_OPF_WRITE_SOLUTIONS, MSK_ON)
+    return writedata(m.task, filename)
 end
 
 # For linear objectives we accept:
