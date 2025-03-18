@@ -18,8 +18,12 @@ end
 
 function MOI.get(
     m::Optimizer,
-    ::MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}},
+    attr::MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}},
 )
+    if m.has_psd_in_objective
+        msg = "Cannot get objective if it contains the contribution of the entry of a PSD variable."
+        throw(MOI.GetAttributeNotAllowed(attr, msg))
+    end
     cis = MOI.get(m, MOI.ListOfVariableIndices())
     cols = columns(m, cis).values
     coeffs = Mosek.getclist(m.task, cols)
@@ -28,7 +32,6 @@ function MOI.get(
     terms = MOI.ScalarAffineTerm{Float64}[
         MOI.ScalarAffineTerm(coeffs[i], cis[i]) for i in 1:length(cis)
     ]
-    # TODO add matrix terms
     return MOI.ScalarAffineFunction(terms, constant)
 end
 

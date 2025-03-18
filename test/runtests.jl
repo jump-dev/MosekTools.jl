@@ -410,8 +410,6 @@ function test_moi_test_runtests_Bridge_Mosek()
             "test_basic_VectorOfVariables_NormCone",
             # Evaluated: MathOptInterface.OTHER_ERROR in (MathOptInterface.OPTIMAL, MathOptInterface.INVALID_MODEL)
             "test_conic_empty_matrix",
-            # FIXME ConstraintPrimal incorrect, to investigate
-            "test_conic_HermitianPositiveSemidefiniteConeTriangle_1",
             # FIXME ListOfConstraints incorrect
             "test_conic_SecondOrderCone_VectorAffineFunction",
         ],
@@ -439,16 +437,8 @@ function test_moi_test_runtests_Bridge_Cache_Mosek()
             MOI.delete,
         ],
     )
-    MOI.Test.runtests(
-        model,
-        config;
-        exclude = [
-            # Evaluated: MathOptInterface.OTHER_ERROR in (MathOptInterface.OPTIMAL, MathOptInterface.INVALID_MODEL)
-            "test_conic_empty_matrix",
-            # FIXME ConstraintPrimal incorrect, to investigate
-            "test_conic_HermitianPositiveSemidefiniteConeTriangle_1",
-        ],
-    )
+    # Evaluated: MathOptInterface.OTHER_ERROR in (MathOptInterface.OPTIMAL, MathOptInterface.INVALID_MODEL)
+    MOI.Test.runtests(model, config; exclude = ["test_conic_empty_matrix"])
     return
 end
 
@@ -495,6 +485,87 @@ function test_variable_name()
         MOI.UnsupportedAttribute,
         MOI.set(model, MOI.VariableName(), y[1], "y"),
     )
+    return
+end
+
+function test_get_scalar_constraint_function_matrix_terms()
+    model = Mosek.Optimizer()
+    y = MOI.add_variable(model)
+    # No matrix terms
+    c = MOI.add_constraint(model, 1.0 * y, MOI.EqualTo(1.0))
+    @test MOI.get(model, MOI.ConstraintFunction(), c) ≈ 1.0 * y
+    # Add matrix term
+    set = MOI.PositiveSemidefiniteConeTriangle(2)
+    x, _ = MOI.add_constrained_variables(model, set)
+    # Can't get function even though no terms. We could fix this test in future
+    # if needed.
+    @test_throws(
+        MOI.GetAttributeNotAllowed,
+        MOI.get(model, MOI.ConstraintFunction(), c),
+    )
+    f = 1.0 * x[1] + 2.0 * x[2] + 3.0 * x[3] + 4.0 * y
+    c2 = MOI.add_constraint(model, f, MOI.EqualTo(1.0))
+    @test_throws(
+        MOI.GetAttributeNotAllowed,
+        MOI.get(model, MOI.ConstraintFunction(), c2),
+    )
+    return
+end
+
+function test_get_vector_constraint_function_matrix_terms()
+    model = Mosek.Optimizer()
+    y = MOI.add_variables(model, 3)
+    # No matrix terms
+    f = MOI.Utilities.vectorize(1.0 .* y)
+    c_f = MOI.add_constraint(model, f, MOI.SecondOrderCone(3))
+    @test MOI.get(model, MOI.ConstraintFunction(), c_f) ≈ f
+    # Add matrix term
+    set = MOI.PositiveSemidefiniteConeTriangle(2)
+    x, _ = MOI.add_constrained_variables(model, set)
+    # Can't get function even though no terms. We could fix this test in future
+    # if needed.
+    @test_throws(
+        MOI.GetAttributeNotAllowed,
+        MOI.get(model, MOI.ConstraintFunction(), c_f),
+    )
+    g = MOI.Utilities.vectorize(1.0 .* x)
+    c_g = MOI.add_constraint(model, g, MOI.SecondOrderCone(3))
+    @test_throws(
+        MOI.GetAttributeNotAllowed,
+        MOI.get(model, MOI.ConstraintFunction(), c_g),
+    )
+    return
+end
+
+function test_get_objective_function_matrix_terms()
+    attr = MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}()
+    model = Mosek.Optimizer()
+    y = MOI.add_variable(model)
+    set = MOI.PositiveSemidefiniteConeTriangle(2)
+    x, _ = MOI.add_constrained_variables(model, set)
+    MOI.set(model, attr, 1.0 * y)
+    @test MOI.get(model, attr) ≈ 1.0 * y
+    MOI.set(model, attr, 1.0 * x[1] + 2.0 * x[2] + 3.0 * x[3] + 4.0 * y)
+    @test_throws(MOI.GetAttributeNotAllowed, MOI.get(model, attr))
+    return
+end
+
+function test_issue_134()
+    model = MOI.instantiate(
+        MosekOptimizerWithFallback;
+        with_bridge_type = Float64,
+        with_cache_type = Float64,
+    )
+    MOI.set(model, MOI.Silent(), false)
+    set = MOI.PositiveSemidefiniteConeTriangle(2)
+    y, _ = MOI.add_constrained_variables(model, set)
+    MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+    f = 1.0 * y[1] * y[1] + 1.0 * y[3] * y[3]
+    MOI.set(model, MOI.ObjectiveFunction{typeof(f)}(), f)
+    MOI.add_constraint(model, 1.0 * y[1] + 1.0 * y[3], MOI.EqualTo(1.0))
+    MOI.optimize!(model)
+    @test MOI.get(model, MOI.TerminationStatus()) == MOI.OPTIMAL
+    @test ≈(MOI.get(model, MOI.ObjectiveValue()), 0.5; atol = 1e-5)
     return
 end
 
