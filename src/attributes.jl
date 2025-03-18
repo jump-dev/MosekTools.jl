@@ -407,35 +407,30 @@ end
 
 #### Variable basis status
 
-function _basis_status(x::Mosek.Stakey)
-    if x == Mosek.MSK_SK_BAS
-        return BASIC
-    elseif x == Mosek.MSK_SK_SUPBAS
-        return SUPER_BASIC
-    elseif x == Mosek.MSK_SK_LOW
-        return NONBASIC_AT_LOWER
-    elseif x == Mosek.MSK_SK_UPR
-        return NONBASIC_AT_UPPER
-        # FIXME which one is `NONBASIC` ?
-    elseif x == Mosek.MSK_SK_UNK
-        msg = "The status for the constraint or variable is unknown"
-    elseif x == Mosek.MSK_SK_FIX
-        msg = "The constraint or variable is fixed"
-    else
-        @assert x == Mosek.MSK_SK_INF
-        msg = "The constraint or variable is infeasible in the bounds"
-    end
-    return error(
-        "Mosek basic status `$msg` has no equivalent in the `MOI.BasisStatusCode` enum.",
-    )
-end
-
 function MOI.get(m::Optimizer, attr::MOI.VariableBasisStatus, col::ColumnIndex)
-    return _basis_status(m.solutions[attr.result_index].xxstatus[col.value])
+    status = m.solutions[attr.result_index].xxstatus[col.value]
+    if status == Mosek.MSK_SK_UNK           # (0)
+        msg = "The status for the constraint or variable is unknown"
+        throw(MOI.GetAttributeNotAllowed(attr, msg))
+    elseif status == Mosek.MSK_SK_BAS       # (1)
+        return MOI.BASIC
+    elseif status == Mosek.MSK_SK_SUPBAS    # (2)
+        return MOI.SUPER_BASIC
+    elseif status == Mosek.MSK_SK_LOW       # (3)
+        return MOI.NONBASIC_AT_LOWER
+    elseif status == Mosek.MSK_SK_UPR       # (4)
+        return MOI.NONBASIC_AT_UPPER
+    elseif status == Mosek.MSK_SK_FIX       # (5)
+        return MOI.NONBASIC
+    end
+    @assert x == Mosek.MSK_SK_INF       # (6)
+    msg = "The constraint or variable is infeasible in the bounds"
+    return throw(MOI.GetAttributeNotAllowed(attr, msg))
 end
 
 function MOI.get(::Optimizer, attr::MOI.VariableBasisStatus, mat::MatrixIndex)
-    return error("$attr not supported for PSD variable $mat")
+    msg = "$attr not supported for PSD variable $mat"
+    return throw(MOI.GetAttributeNotAllowed(attr, msg))
 end
 
 function MOI.get(

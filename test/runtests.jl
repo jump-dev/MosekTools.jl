@@ -303,14 +303,13 @@ end
 
 function test_variable_basis_status()
     model = Mosek.Optimizer()
-    x, cx = MOI.add_constrained_variables(
-        model,
-        MOI.PositiveSemidefiniteConeTriangle(2),
-    )
+    set = MOI.PositiveSemidefiniteConeTriangle(2)
+    x, _ = MOI.add_constrained_variables(model, set)
     attr = MOI.VariableBasisStatus()
     index = MosekTools.mosek_index(model, x[1])
-    err = ErrorException("$attr not supported for PSD variable $index")
-    @test_throws err MOI.get(model, attr, index)
+    msg = "$attr not supported for PSD variable $index"
+    err = MOI.GetAttributeNotAllowed(attr, msg)
+    @test_throws err MOI.get(model, attr, x[1])
     return
 end
 
