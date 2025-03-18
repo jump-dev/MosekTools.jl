@@ -18,9 +18,11 @@ if isdefined(MOI.Test, :_error_handler)
         name::String,
         warn_unsupported::Bool,
     )
-        if err.rcode == Mosek.MSK_RES_ERR_SERVER_STATUS.value
+        if Mosek.Rescode(err.rcode) == Mosek.MSK_RES_ERR_SERVER_STATUS
             _MOSEK_API_COUNTER[] += 1
             return  # Server returned non-ok HTTP status code
+        elseif Mosek.Rescode(err.rcode) == Mosek.MSK_RES_ERR_CONE_OVERLAP_APPEND
+            return  # Mosek doesn't support this problem formulation
         end
         return rethrow(err)
     end
@@ -361,12 +363,6 @@ function test_moi_test_runtests_Mosek()
         MosekOptimizerWithFallback(),
         config;
         exclude = [
-            # FIXME
-            # Expression: MOI.add_constraint(model, x, set2)
-            #   Expected: MathOptInterface.LowerBoundAlreadySet{MathOptInterface.EqualTo{Float64}, MathOptInterface.GreaterThan{Float64}}(MathOptInterface.VariableIndex(1))
-            #     Thrown: ErrorException("Cannot put multiple bound sets of the same type on a variable")
-            "test_model_LowerBoundAlreadySet",
-            "test_model_UpperBoundAlreadySet",
             # FIXME ArgumentError: MosekTools.Optimizer does not support getting the attribute MathOptInterface.VariablePrimalStart().
             "test_model_VariablePrimalStart",
             # FIXME
@@ -403,49 +399,19 @@ function test_moi_test_runtests_Bridge_Mosek()
         model,
         config;
         exclude = [
-            "test_basic_VectorAffineFunction_PositiveSemidefiniteConeSquare", # AssertionError: (m.x_sd[ref2id(vi)]).matrix == -1 src/variable.jl:173
-            "test_basic_VectorOfVariables_PositiveSemidefiniteConeSquare",
-            "test_basic_VectorAffineFunction_NormNuclearCone",
-            "test_basic_VectorOfVariables_NormNuclearCone",
-            "test_basic_VectorAffineFunction_NormSpectralCone",
-            "test_basic_VectorOfVariables_NormSpectralCone",
-            "test_basic_VectorAffineFunction_PositiveSemidefiniteConeTriangle", # TODO: implement get ConstraintSet for SAF
-            "test_basic_VectorOfVariables_PositiveSemidefiniteConeTriangle",
-            "test_conic_LogDetConeTriangle_VectorOfVariables",
-            "test_variable_solve_ZeroOne_with_0_upper_bound",
-            "test_variable_solve_ZeroOne_with_upper_bound",
             "test_model_ListOfConstraintAttributesSet", # list not properly set
-            "BoundAlreadySet", # TODO throw error if bound already set
             "test_model_duplicate_VariableName",
             "test_model_VariablePrimalStart", # able to set but not to get VariablePrimalStart
-            "test_objective_set_via_modify",
-            # FIXME Mosek.MosekError(1307, "Variable '' (9) is a member of cone '' (0).")
-            "test_basic_VectorQuadraticFunction_LogDetConeTriangle",
-            "test_basic_VectorOfVariables_LogDetConeTriangle",
-            "test_basic_VectorOfVariables_LogDetConeSquare",
-            "test_basic_VectorQuadraticFunction_LogDetConeSquare",
-            "test_conic_LogDetConeSquare_VectorOfVariables",
-            # FIXME Needs https://github.com/jump-dev/MathOptInterface.jl/pull/1787
-            r"^test_constraint_ZeroOne_bounds$",
-            "test_constraint_ZeroOne_bounds_2",
-            "test_constraint_ZeroOne_bounds_3",
-            "test_variable_solve_ZeroOne_with_0_upper_bound",
-            "test_variable_solve_ZeroOne_with_upper_bound",
             # Cannot put multiple bound sets of the same type on a variable
             "test_basic_VectorAffineFunction_Circuit",
             "test_basic_VectorOfVariables_Circuit",
             "test_basic_VectorQuadraticFunction_Circuit",
             "test_cpsat_Circuit",
-            "test_cpsat_ReifiedAllDifferent",
-            "test_variable_solve_ZeroOne_with_1_lower_bound",
-            "test_variable_solve_ZeroOne_with_bounds_then_delete",
             "test_basic_VectorOfVariables_NormCone",
-            "test_conic_NormCone",
             # Evaluated: MathOptInterface.OTHER_ERROR in (MathOptInterface.OPTIMAL, MathOptInterface.INVALID_MODEL)
             "test_conic_empty_matrix",
             # FIXME ConstraintPrimal incorrect, to investigate
             "test_conic_HermitianPositiveSemidefiniteConeTriangle_1",
-            "test_conic_RelativeEntropyCone",
             # FIXME ListOfConstraints incorrect
             "test_conic_SecondOrderCone_VectorAffineFunction",
         ],
@@ -477,27 +443,10 @@ function test_moi_test_runtests_Bridge_Cache_Mosek()
         model,
         config;
         exclude = [
-            # FIXME Mosek.MosekError(1307, "Variable '' (1) is a member of cone '' (0).") src/msk_functions.jl:477
-            "test_conic_LogDetConeTriangle_VectorOfVariables",
-            "test_conic_LogDetConeSquare_VectorOfVariables",
-            "test_conic_NormCone",
-            # FIXME Needs https://github.com/jump-dev/MathOptInterface.jl/pull/1787
-            r"^test_constraint_ZeroOne_bounds$",
-            "test_variable_solve_ZeroOne_with_0_upper_bound",
-            "test_variable_solve_ZeroOne_with_upper_bound",
-            # MathOptInterface.LowerBoundAlreadySet{MathOptInterface.Interval{Float64}, MathOptInterface.Interval{Float64}}: Cannot add `VariableIndex`-in-`MathOptInterface.Interval{Float64}` constraint for variable MathOptInterface.VariableIndex(7) as a `VariableIndex`-in-`MathOptInterface.Interval{Float64}` constraint was already set for this variable and both constraints set a lower bound.
-            "test_basic_VectorQuadraticFunction_Circuit",
-            "test_cpsat_Circuit",
-            "test_cpsat_ReifiedAllDifferent",
-            "test_variable_solve_ZeroOne_with_1_lower_bound",
-            "test_variable_solve_ZeroOne_with_bounds_then_delete",
-            "test_basic_VectorOfVariables_Circuit",
-            "test_basic_VectorAffineFunction_Circuit",
             # Evaluated: MathOptInterface.OTHER_ERROR in (MathOptInterface.OPTIMAL, MathOptInterface.INVALID_MODEL)
             "test_conic_empty_matrix",
             # FIXME ConstraintPrimal incorrect, to investigate
             "test_conic_HermitianPositiveSemidefiniteConeTriangle_1",
-            "test_conic_RelativeEntropyCone",
         ],
     )
     return
