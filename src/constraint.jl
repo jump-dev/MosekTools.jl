@@ -1303,12 +1303,12 @@ end
 
 function MOI.set(
     ::Optimizer,
-    attr::MOI.ConstraintName,
+    ::MOI.ConstraintName,
     ::MOI.ConstraintIndex{MOI.VariableIndex},
     ::AbstractString,
 )
     # Names are not defined for variable constraints
-    return MOI.VariableIndexConstraintNameError()
+    return throw(MOI.VariableIndexConstraintNameError())
 end
 
 function MOI.set(
