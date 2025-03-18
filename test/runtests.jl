@@ -18,9 +18,11 @@ if isdefined(MOI.Test, :_error_handler)
         name::String,
         warn_unsupported::Bool,
     )
-        if err.rcode == Mosek.MSK_RES_ERR_SERVER_STATUS.value
+        if Mosek.Rescode(err.rcode) == Mosek.MSK_RES_ERR_SERVER_STATUS
             _MOSEK_API_COUNTER[] += 1
             return  # Server returned non-ok HTTP status code
+        elseif Mosek.Rescode(err.rcode) == Mosek.MSK_RES_ERR_CONE_OVERLAP_APPEND
+            return  # Mosek doesn't support this problem formulation
         end
         return rethrow(err)
     end
@@ -360,12 +362,6 @@ function test_moi_test_runtests_Mosek()
         MosekOptimizerWithFallback(),
         config;
         exclude = [
-            # FIXME
-            # Expression: MOI.add_constraint(model, x, set2)
-            #   Expected: MathOptInterface.LowerBoundAlreadySet{MathOptInterface.EqualTo{Float64}, MathOptInterface.GreaterThan{Float64}}(MathOptInterface.VariableIndex(1))
-            #     Thrown: ErrorException("Cannot put multiple bound sets of the same type on a variable")
-            "test_model_LowerBoundAlreadySet",
-            "test_model_UpperBoundAlreadySet",
             # FIXME ArgumentError: MosekTools.Optimizer does not support getting the attribute MathOptInterface.VariablePrimalStart().
             "test_model_VariablePrimalStart",
             # FIXME
@@ -402,51 +398,22 @@ function test_moi_test_runtests_Bridge_Mosek()
         model,
         config;
         exclude = [
-            "test_basic_VectorAffineFunction_PositiveSemidefiniteConeSquare", # AssertionError: (m.x_sd[ref2id(vi)]).matrix == -1 src/variable.jl:173
-            "test_basic_VectorOfVariables_PositiveSemidefiniteConeSquare",
-            "test_basic_VectorAffineFunction_NormNuclearCone",
-            "test_basic_VectorOfVariables_NormNuclearCone",
-            "test_basic_VectorAffineFunction_NormSpectralCone",
-            "test_basic_VectorOfVariables_NormSpectralCone",
-            "test_basic_VectorAffineFunction_PositiveSemidefiniteConeTriangle", # TODO: implement get ConstraintSet for SAF
-            "test_basic_VectorOfVariables_PositiveSemidefiniteConeTriangle",
-            "test_conic_LogDetConeTriangle_VectorOfVariables",
-            "test_variable_solve_ZeroOne_with_0_upper_bound",
-            "test_variable_solve_ZeroOne_with_upper_bound",
             "test_model_ListOfConstraintAttributesSet", # list not properly set
-            "BoundAlreadySet", # TODO throw error if bound already set
             "test_model_duplicate_VariableName",
             "test_model_VariablePrimalStart", # able to set but not to get VariablePrimalStart
-            "test_objective_set_via_modify",
-            # FIXME Mosek.MosekError(1307, "Variable '' (9) is a member of cone '' (0).")
-            "test_basic_VectorQuadraticFunction_LogDetConeTriangle",
-            "test_basic_VectorOfVariables_LogDetConeTriangle",
-            "test_basic_VectorOfVariables_LogDetConeSquare",
-            "test_basic_VectorQuadraticFunction_LogDetConeSquare",
-            "test_conic_LogDetConeSquare_VectorOfVariables",
-            # FIXME Needs https://github.com/jump-dev/MathOptInterface.jl/pull/1787
-            r"^test_constraint_ZeroOne_bounds$",
-            "test_constraint_ZeroOne_bounds_2",
-            "test_constraint_ZeroOne_bounds_3",
-            "test_variable_solve_ZeroOne_with_0_upper_bound",
-            "test_variable_solve_ZeroOne_with_upper_bound",
             # Cannot put multiple bound sets of the same type on a variable
             "test_basic_VectorAffineFunction_Circuit",
             "test_basic_VectorOfVariables_Circuit",
             "test_basic_VectorQuadraticFunction_Circuit",
             "test_cpsat_Circuit",
-            "test_cpsat_ReifiedAllDifferent",
-            "test_variable_solve_ZeroOne_with_1_lower_bound",
-            "test_variable_solve_ZeroOne_with_bounds_then_delete",
             "test_basic_VectorOfVariables_NormCone",
-            "test_conic_NormCone",
             # Evaluated: MathOptInterface.OTHER_ERROR in (MathOptInterface.OPTIMAL, MathOptInterface.INVALID_MODEL)
             "test_conic_empty_matrix",
-            # FIXME ConstraintPrimal incorrect, to investigate
-            "test_conic_HermitianPositiveSemidefiniteConeTriangle_1",
-            "test_conic_RelativeEntropyCone",
             # FIXME ListOfConstraints incorrect
             "test_conic_SecondOrderCone_VectorAffineFunction",
+            # Needs a cache to query the ConstraintFunction, and MOI doesn't
+            # catch the error and skip for some reason.
+            "test_conic_HermitianPositiveSemidefiniteConeTriangle_1",
         ],
     )
     @test MOI.supports(model, MOI.VariablePrimalStart(), MOI.VariableIndex)
@@ -472,33 +439,8 @@ function test_moi_test_runtests_Bridge_Cache_Mosek()
             MOI.delete,
         ],
     )
-    MOI.Test.runtests(
-        model,
-        config;
-        exclude = [
-            # FIXME Mosek.MosekError(1307, "Variable '' (1) is a member of cone '' (0).") src/msk_functions.jl:477
-            "test_conic_LogDetConeTriangle_VectorOfVariables",
-            "test_conic_LogDetConeSquare_VectorOfVariables",
-            "test_conic_NormCone",
-            # FIXME Needs https://github.com/jump-dev/MathOptInterface.jl/pull/1787
-            r"^test_constraint_ZeroOne_bounds$",
-            "test_variable_solve_ZeroOne_with_0_upper_bound",
-            "test_variable_solve_ZeroOne_with_upper_bound",
-            # MathOptInterface.LowerBoundAlreadySet{MathOptInterface.Interval{Float64}, MathOptInterface.Interval{Float64}}: Cannot add `VariableIndex`-in-`MathOptInterface.Interval{Float64}` constraint for variable MathOptInterface.VariableIndex(7) as a `VariableIndex`-in-`MathOptInterface.Interval{Float64}` constraint was already set for this variable and both constraints set a lower bound.
-            "test_basic_VectorQuadraticFunction_Circuit",
-            "test_cpsat_Circuit",
-            "test_cpsat_ReifiedAllDifferent",
-            "test_variable_solve_ZeroOne_with_1_lower_bound",
-            "test_variable_solve_ZeroOne_with_bounds_then_delete",
-            "test_basic_VectorOfVariables_Circuit",
-            "test_basic_VectorAffineFunction_Circuit",
-            # Evaluated: MathOptInterface.OTHER_ERROR in (MathOptInterface.OPTIMAL, MathOptInterface.INVALID_MODEL)
-            "test_conic_empty_matrix",
-            # FIXME ConstraintPrimal incorrect, to investigate
-            "test_conic_HermitianPositiveSemidefiniteConeTriangle_1",
-            "test_conic_RelativeEntropyCone",
-        ],
-    )
+    # Evaluated: MathOptInterface.OTHER_ERROR in (MathOptInterface.OPTIMAL, MathOptInterface.INVALID_MODEL)
+    MOI.Test.runtests(model, config; exclude = ["test_conic_empty_matrix"])
     return
 end
 
@@ -550,6 +492,108 @@ function test_VariableBasisStatus()
         MOI.GetAttributeNotAllowed(attr, msg),
         MOI.get(model, attr, x_low),
     )
+    return
+end
+
+function test_variable_name()
+    model = MosekOptimizerWithFallback()
+    x = MOI.add_variable(model)
+    set = MOI.PositiveSemidefiniteConeTriangle(2)
+    y, _ = MOI.add_constrained_variables(model, set)
+    @test !MOI.supports(model, MOI.VariableName(), MOI.VariableIndex)
+    @test MOI.get(model, MOI.VariableIndex, "x") === nothing
+    MOI.set(model, MOI.VariableName(), x, "x")
+    @test MOI.get(model, MOI.VariableIndex, "x") == x
+    @test MOI.get(model, MOI.VariableName(), x) == "x"
+    @test_throws(
+        MOI.UnsupportedAttribute,
+        MOI.get(model, MOI.VariableName(), y[1]),
+    )
+    @test_throws(
+        MOI.UnsupportedAttribute,
+        MOI.set(model, MOI.VariableName(), y[1], "y"),
+    )
+    return
+end
+
+function test_get_scalar_constraint_function_matrix_terms()
+    model = Mosek.Optimizer()
+    y = MOI.add_variable(model)
+    # No matrix terms
+    c = MOI.add_constraint(model, 1.0 * y, MOI.EqualTo(1.0))
+    @test MOI.get(model, MOI.ConstraintFunction(), c) ≈ 1.0 * y
+    # Add matrix term
+    set = MOI.PositiveSemidefiniteConeTriangle(2)
+    x, _ = MOI.add_constrained_variables(model, set)
+    # Can't get function even though no terms. We could fix this test in future
+    # if needed.
+    @test_throws(
+        MOI.GetAttributeNotAllowed,
+        MOI.get(model, MOI.ConstraintFunction(), c),
+    )
+    f = 1.0 * x[1] + 2.0 * x[2] + 3.0 * x[3] + 4.0 * y
+    c2 = MOI.add_constraint(model, f, MOI.EqualTo(1.0))
+    @test_throws(
+        MOI.GetAttributeNotAllowed,
+        MOI.get(model, MOI.ConstraintFunction(), c2),
+    )
+    return
+end
+
+function test_get_vector_constraint_function_matrix_terms()
+    model = Mosek.Optimizer()
+    y = MOI.add_variables(model, 3)
+    # No matrix terms
+    f = MOI.Utilities.vectorize(1.0 .* y)
+    c_f = MOI.add_constraint(model, f, MOI.SecondOrderCone(3))
+    @test MOI.get(model, MOI.ConstraintFunction(), c_f) ≈ f
+    # Add matrix term
+    set = MOI.PositiveSemidefiniteConeTriangle(2)
+    x, _ = MOI.add_constrained_variables(model, set)
+    # Can't get function even though no terms. We could fix this test in future
+    # if needed.
+    @test_throws(
+        MOI.GetAttributeNotAllowed,
+        MOI.get(model, MOI.ConstraintFunction(), c_f),
+    )
+    g = MOI.Utilities.vectorize(1.0 .* x)
+    c_g = MOI.add_constraint(model, g, MOI.SecondOrderCone(3))
+    @test_throws(
+        MOI.GetAttributeNotAllowed,
+        MOI.get(model, MOI.ConstraintFunction(), c_g),
+    )
+    return
+end
+
+function test_get_objective_function_matrix_terms()
+    attr = MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}()
+    model = Mosek.Optimizer()
+    y = MOI.add_variable(model)
+    set = MOI.PositiveSemidefiniteConeTriangle(2)
+    x, _ = MOI.add_constrained_variables(model, set)
+    MOI.set(model, attr, 1.0 * y)
+    @test MOI.get(model, attr) ≈ 1.0 * y
+    MOI.set(model, attr, 1.0 * x[1] + 2.0 * x[2] + 3.0 * x[3] + 4.0 * y)
+    @test_throws(MOI.GetAttributeNotAllowed, MOI.get(model, attr))
+    return
+end
+
+function test_issue_134()
+    model = MOI.instantiate(
+        MosekOptimizerWithFallback;
+        with_bridge_type = Float64,
+        with_cache_type = Float64,
+    )
+    MOI.set(model, MOI.Silent(), false)
+    set = MOI.PositiveSemidefiniteConeTriangle(2)
+    y, _ = MOI.add_constrained_variables(model, set)
+    MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+    f = 1.0 * y[1] * y[1] + 1.0 * y[3] * y[3]
+    MOI.set(model, MOI.ObjectiveFunction{typeof(f)}(), f)
+    MOI.add_constraint(model, 1.0 * y[1] + 1.0 * y[3], MOI.EqualTo(1.0))
+    MOI.optimize!(model)
+    @test MOI.get(model, MOI.TerminationStatus()) == MOI.OPTIMAL
+    @test ≈(MOI.get(model, MOI.ObjectiveValue()), 0.5; atol = 1e-5)
     return
 end
 

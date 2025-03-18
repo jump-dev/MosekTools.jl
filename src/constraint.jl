@@ -896,20 +896,22 @@ end
 
 function MOI.get(
     m::Optimizer,
-    ::MOI.ConstraintFunction,
+    attr::MOI.ConstraintFunction,
     ci::MOI.ConstraintIndex{
         MOI.ScalarAffineFunction{Float64},
         <:ScalarLinearDomain,
     },
 )
     MOI.throw_if_not_valid(m, ci)
+    if length(m.sd_dim) > 0
+        throw(MOI.GetAttributeNotAllowed(attr))
+    end
     nnz, cols, vals = Mosek.getarow(m.task, row(m, ci))
     @assert nnz == length(cols) == length(vals)
     terms = MOI.ScalarAffineTerm{Float64}[
         MOI.ScalarAffineTerm(vals[i], index_of_column(m, cols[i])) for
         i in 1:nnz
     ]
-    # TODO add matrix terms
     return MOI.ScalarAffineFunction(terms, 0.0)
 end
 
@@ -944,9 +946,13 @@ end
 
 function MOI.get(
     m::Optimizer,
-    ::MOI.ConstraintFunction,
+    attr::MOI.ConstraintFunction,
     ci::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},S},
 ) where {S<:VectorConeDomain}
+    if length(m.sd_dim) > 0
+        # Cannot get function if there are matrix variables
+        throw(MOI.GetAttributeNotAllowed(attr))
+    end
     r = rows(m, ci)
     (frow, fcol, fval) = Mosek.getaccftrip(m.task)
     constants = Mosek.getaccb(m.task, ci.value)
