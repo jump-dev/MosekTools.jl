@@ -1302,6 +1302,16 @@ function MOI.supports(
 end
 
 function MOI.set(
+    ::Optimizer,
+    attr::MOI.ConstraintName,
+    ::MOI.ConstraintIndex{MOI.VariableIndex},
+    ::AbstractString,
+)
+    # Names are not defined for variable constraints
+    return throw(MOI.UnsupportedAttribute(attr))
+end
+
+function MOI.set(
     m::Optimizer,
     ::MOI.ConstraintName,
     ci::MOI.ConstraintIndex,
