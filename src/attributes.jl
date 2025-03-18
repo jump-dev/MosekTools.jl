@@ -423,7 +423,7 @@ function MOI.get(m::Optimizer, attr::MOI.VariableBasisStatus, col::ColumnIndex)
     elseif status == Mosek.MSK_SK_FIX       # (5)
         return MOI.NONBASIC
     end
-    @assert x == Mosek.MSK_SK_INF       # (6)
+    @assert status == Mosek.MSK_SK_INF      # (6)
     msg = "The constraint or variable is infeasible in the bounds"
     return throw(MOI.GetAttributeNotAllowed(attr, msg))
 end

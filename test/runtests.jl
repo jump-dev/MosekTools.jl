@@ -527,6 +527,32 @@ function test_more_SDP_tests_by_forced_bridging()
     return
 end
 
+function test_VariableBasisStatus()
+    attr = MOI.VariableBasisStatus()
+    model = MosekOptimizerWithFallback()
+    x_low, _ = MOI.add_constrained_variable(model, MOI.GreaterThan(0.0))
+    x_upr, _ = MOI.add_constrained_variable(model, MOI.LessThan(0.0))
+    x_fix, _ = MOI.add_constrained_variable(model, MOI.EqualTo(0.0))
+    x_supbas = MOI.add_variable(model)
+    x_bas, _ = MOI.add_constrained_variable(model, MOI.Interval(0.0, 2.0))
+    MOI.add_constraint(model, 1.0 * x_bas, MOI.GreaterThan(1.0))
+    MOI.optimize!(model)
+    @test MOI.get(model, attr, x_low) == MOI.NONBASIC_AT_LOWER
+    @test MOI.get(model, attr, x_upr) == MOI.NONBASIC_AT_UPPER
+    @test MOI.get(model, attr, x_fix) == MOI.NONBASIC
+    @test MOI.get(model, attr, x_supbas) == MOI.SUPER_BASIC
+    # Mosek reports SUPER_BASIC?
+    @test MOI.get(model, attr, x_bas) in (MOI.BASIC, MOI.SUPER_BASIC)
+    MOI.add_constraint(model, x_low, MOI.LessThan(-1.0))
+    MOI.optimize!(model)
+    msg = "The constraint or variable is infeasible in the bounds"
+    @test_throws(
+        MOI.GetAttributeNotAllowed(attr, msg),
+        MOI.get(model, attr, x_low),
+    )
+    return
+end
+
 end  # module
 
 TestMosekTools.runtests()
