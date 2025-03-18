@@ -309,7 +309,7 @@ function test_variable_basis_status()
     index = MosekTools.mosek_index(model, x[1])
     msg = "$attr not supported for PSD variable $index"
     err = MOI.GetAttributeNotAllowed(attr, msg)
-    @test_throws err MOI.get(model, attr, x[1])
+    @test_throws err MOI.get(model, attr, index)
     return
 end
 
