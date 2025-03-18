@@ -1308,7 +1308,7 @@ function MOI.set(
     ::AbstractString,
 )
     # Names are not defined for variable constraints
-    return throw(MOI.UnsupportedAttribute(attr))
+    return MOI.VariableIndexConstraintNameError()
 end
 
 function MOI.set(
