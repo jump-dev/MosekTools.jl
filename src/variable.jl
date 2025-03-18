@@ -48,37 +48,6 @@ end
 
 ## Name #######################################################################
 ###############################################################################
-function set_column_name(task::Mosek.MSKtask, col::ColumnIndex, name::String)
-    return Mosek.putvarname(task, col.value, name)
-end
-
-function set_column_name(task::Mosek.MSKtask, mat::MatrixIndex, name::String)
-    # Names of matrix index is not supported by Mosek at the moment
-    msg = "Mosek does not support names for positive semidefinite variables."
-    return throw(MOI.UnsupportedAttribute(MOI.VariableName(), msg))
-end
-
-function set_column_name(m::Optimizer, vi::MOI.VariableIndex, name::String)
-    return set_column_name(m.task, mosek_index(m, vi), name)
-end
-
-function column_name(task::Mosek.MSKtask, col::ColumnIndex)
-    return Mosek.getvarname(task, col.value)
-end
-
-function column_name(m::Optimizer, vi::MOI.VariableIndex)
-    return column_name(m.task, mosek_index(m, vi))
-end
-
-function column_with_name(task::Mosek.MSKtask, name::String)
-    asgn, col = Mosek.getvarnameindex(task, name)
-    if iszero(asgn)
-        return nothing
-    end
-    return col
-end
-
-column_with_name(m::Optimizer, name::String) = column_with_name(m.task, name)
 
 """
     function clear_columns(task::Mosek.MSKtask, cols::Vector{Int32})
@@ -334,7 +303,16 @@ end
 
 # We leave `supports` to `false` because it's not supported by matrix indices
 # See https://github.com/jump-dev/MosekTools.jl/issues/80
-# MOI.supports(::Optimizer, ::MOI.VariableName, ::Type{MOI.VariableIndex}) = true
+# We still implement the methods for people that knowingly set names of scalar
+# variables though.
+MOI.supports(::Optimizer, ::MOI.VariableName, ::Type{MOI.VariableIndex}) = false
+
+_throw_if_matrix(::ColumnIndex) = nothing
+
+function _throw_if_matrix(::MatrixIndex)
+    msg = "Mosek does not support names for positive semidefinite variables."
+    return throw(MOI.UnsupportedAttribute(MOI.VariableName(), msg))
+end
 
 function MOI.set(
     m::Optimizer,
@@ -343,18 +321,22 @@ function MOI.set(
     name::String,
 )
     m.has_variable_names = true
-    set_column_name(m, vi, name)
+    col = mosek_index(m, vi)
+    _throw_if_matrix(col)
+    Mosek.putvarname(m.task, col.value, name)
     return
 end
 
 function MOI.get(m::Optimizer, ::MOI.VariableName, vi::MOI.VariableIndex)
-    return column_name(m, vi)
+    col = mosek_index(m, vi)
+    _throw_if_matrix(col)
+    return Mosek.getvarname(m.task, col.value)
 end
 
 function MOI.get(m::Optimizer, ::Type{MOI.VariableIndex}, name::String)
-    col = column_with_name(m, name)
-    if col === nothing
+    asgn, index = Mosek.getvarnameindex(m.task, name)
+    if iszero(asgn)
         return nothing
     end
-    return index_of_column(m, col)
+    return index_of_column(m, index)
 end

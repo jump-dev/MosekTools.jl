@@ -528,6 +528,27 @@ function test_more_SDP_tests_by_forced_bridging()
     return
 end
 
+function test_variable_name()
+    model = MosekOptimizerWithFallback()
+    x = MOI.add_variable(model)
+    set = MOI.PositiveSemidefiniteConeTriangle(2)
+    y, _ = MOI.add_constrained_variables(model, set)
+    @test !MOI.supports(model, MOI.VariableName(), MOI.VariableIndex)
+    @test MOI.get(model, MOI.VariableIndex, "x") === nothing
+    MOI.set(model, MOI.VariableName(), x, "x")
+    @test MOI.get(model, MOI.VariableIndex, "x") == x
+    @test MOI.get(model, MOI.VariableName(), x) == "x"
+    @test_throws(
+        MOI.UnsupportedAttribute,
+        MOI.get(model, MOI.VariableName(), y[1]),
+    )
+    @test_throws(
+        MOI.UnsupportedAttribute,
+        MOI.set(model, MOI.VariableName(), y[1], "y"),
+    )
+    return
+end
+
 end  # module
 
 TestMosekTools.runtests()
