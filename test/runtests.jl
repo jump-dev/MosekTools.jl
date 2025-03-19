@@ -366,8 +366,6 @@ function test_moi_test_runtests_Mosek()
             "test_model_VariablePrimalStart",
             # FIXME
             "test_model_duplicate_VariableName",
-            # FIXME `MOI.ListOfConstraintAttributesSet` incorrect
-            "test_model_ListOfConstraintAttributesSet",
             # Expression: status in (config.optimal_status, MOI.INVALID_MODEL)
             # Evaluated: MathOptInterface.OTHER_ERROR in (MathOptInterface.OPTIMAL, MathOptInterface.INVALID_MODEL)
             "test_conic_empty_matrix",
@@ -394,7 +392,6 @@ function test_moi_test_runtests_Bridge_Mosek()
         model,
         config;
         exclude = [
-            "test_model_ListOfConstraintAttributesSet", # list not properly set
             "test_model_duplicate_VariableName",
             "test_model_VariablePrimalStart", # able to set but not to get VariablePrimalStart
             # Cannot put multiple bound sets of the same type on a variable

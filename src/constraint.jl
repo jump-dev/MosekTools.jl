@@ -1288,12 +1288,19 @@ end
 
 ## List #######################################################################
 ###############################################################################
-function MOI.get(m::Optimizer, ::MOI.ListOfConstraintAttributesSet)
+function MOI.get(
+    m::Optimizer,
+    ::MOI.ListOfConstraintAttributesSet{F,S},
+) where {F,S}
     set = MOI.AbstractConstraintAttribute[]
-    if !isempty(m.constrnames)
-        push!(set, MOI.ConstraintName())
+    for (_, v) in m.constrnames
+        for ci in v
+            if ci isa MOI.ConstraintIndex{F,S}
+                push!(set, MOI.ConstraintName())
+                return set
+            end
+        end
     end
-    # TODO add VariablePrimalStart when get is implemented on it
     return set
 end
 
