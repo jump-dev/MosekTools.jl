@@ -312,8 +312,7 @@ end
 
 #### Variable basis status
 
-function MOI.get(m::Optimizer, attr::MOI.VariableBasisStatus, col::ColumnIndex)
-    status = m.solutions[attr.result_index].xxstatus[col.value]
+function _basis_status_code(status, attr)
     if status == Mosek.MSK_SK_UNK           # (0)
         msg = "The status for the constraint or variable is unknown"
         throw(MOI.GetAttributeNotAllowed(attr, msg))
@@ -331,6 +330,11 @@ function MOI.get(m::Optimizer, attr::MOI.VariableBasisStatus, col::ColumnIndex)
     @assert status == Mosek.MSK_SK_INF      # (6)
     msg = "The constraint or variable is infeasible in the bounds"
     return throw(MOI.GetAttributeNotAllowed(attr, msg))
+end
+
+function MOI.get(m::Optimizer, attr::MOI.VariableBasisStatus, col::ColumnIndex)
+    status = m.solutions[attr.result_index].xxstatus[col.value]
+    return _basis_status_code(status, attr)
 end
 
 function MOI.get(::Optimizer, attr::MOI.VariableBasisStatus, mat::MatrixIndex)
@@ -359,7 +363,8 @@ function MOI.get(
     subi = getindex(m.c_block, cid)
     # FIXME(odow): MOI assumes that thhe first solution is basic. But often
     # Mosek's first solution is an interior point, and the second is basic.
-    return m.solutions[attr.result_index].cstatus[subi]
+    status = m.solutions[attr.result_index].cstatus[subi]
+    return _basis_status_code(status, attr)
 end
 
 #### Constraint solution values
