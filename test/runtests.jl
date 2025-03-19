@@ -369,10 +369,6 @@ function test_moi_test_runtests_Mosek()
             "test_model_duplicate_VariableName",
             # FIXME `MOI.ListOfConstraintAttributesSet` incorrect
             "test_model_ListOfConstraintAttributesSet",
-            #  Expression: MOI.set(model, MOI.ConstraintName(), c, "c1")
-            #    Expected: MathOptInterface.UnsupportedAttribute{MathOptInterface.ConstraintName}(MathOptInterface.ConstraintName(), "`ConstraintName`s are not supported for `VariableIndex` constraints.")
-            #  No exception thrown
-            "test_model_VariableIndex_ConstraintName",
             # Expression: status in (config.optimal_status, MOI.INVALID_MODEL)
             # Evaluated: MathOptInterface.OTHER_ERROR in (MathOptInterface.OPTIMAL, MathOptInterface.INVALID_MODEL)
             "test_conic_empty_matrix",
