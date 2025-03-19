@@ -457,39 +457,6 @@ function add_cone(m::Optimizer, cols::ColumnIndices, set)
     return id
 end
 
-## Name #######################################################################
-###############################################################################
-
-function set_row_name(task::Mosek.MSKtask, row::Int32, name::String)
-    return Mosek.putconname(task, row, name)
-end
-
-function set_row_name(
-    m::Optimizer,
-    c::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}},
-    name::AbstractString,
-)
-    return set_row_name(m.task, row(m, c), name)
-end
-
-function set_row_name(
-    m::Optimizer,
-    c::MOI.ConstraintIndex,
-    name::AbstractString,
-)
-    # Fallback for `SingleVariable` and `VectorOfVariables`.
-    return m.con_to_name[c] = name
-end
-
-function delete_name(m::Optimizer, ci::MOI.ConstraintIndex)
-    name = MOI.get(m, MOI.ConstraintName(), ci)
-    if !isempty(name)
-        cis = m.constrnames[name]
-        deleteat!(cis, findfirst(isequal(ci), cis))
-    end
-    return
-end
-
 ###############################################################################
 # INDEXING ####################################################################
 ###############################################################################
@@ -1216,7 +1183,8 @@ function MOI.delete(
     cref::MOI.ConstraintIndex{F,D},
 ) where {F<:MOI.ScalarAffineFunction{Float64},D<:ScalarLinearDomain}
     MOI.throw_if_not_valid(m, cref)
-    delete_name(m, cref)
+    delete!(m.con_to_name, cref)
+    m.name_to_con = nothing
     subi = getindexes(m.c_block, cref.value)
     n = length(subi)
     subi_i32 = convert(Vector{Int32}, subi)
@@ -1240,10 +1208,10 @@ function MOI.delete(
     ci::MOI.ConstraintIndex{MOI.VariableIndex,S},
 ) where {S<:Union{ScalarLinearDomain,MOI.Integer}}
     MOI.throw_if_not_valid(m, ci)
-    delete_name(m, ci)
     vi = _variable(ci)
     unset_flag(m, vi, S)
-    return delete_variable_constraint(m, column(m, vi), S)
+    delete_variable_constraint(m, column(m, vi), S)
+    return
 end
 
 function MOI.is_valid(
@@ -1288,17 +1256,34 @@ end
 
 ## List #######################################################################
 ###############################################################################
-function MOI.get(m::Optimizer, ::MOI.ListOfConstraintAttributesSet)
+function MOI.get(
+    m::Optimizer,
+    ::MOI.ListOfConstraintAttributesSet{F,S},
+) where {F,S}
     set = MOI.AbstractConstraintAttribute[]
-    if !isempty(m.constrnames)
-        push!(set, MOI.ConstraintName())
+    for ci in keys(m.con_to_name)
+        if ci isa MOI.ConstraintIndex{F,S}
+            push!(set, MOI.ConstraintName())
+            break
+        end
     end
-    # TODO add VariablePrimalStart when get is implemented on it
     return set
 end
 
 ## Name #######################################################################
 ###############################################################################
+
+function _putconname(
+    m::Optimizer,
+    c::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}},
+    name::AbstractString,
+)
+    Mosek.putconname(m.task, row(m, c), name)
+    return
+end
+
+_putconname(::Optimizer, ::MOI.ConstraintIndex, ::AbstractString) = nothing
+
 function MOI.supports(
     ::Optimizer,
     ::MOI.ConstraintName,
@@ -1323,47 +1308,46 @@ function MOI.set(
     ci::MOI.ConstraintIndex,
     name::AbstractString,
 )
-    delete_name(m, ci)
-    if !haskey(m.constrnames, name)
-        m.constrnames[name] = MOI.ConstraintIndex[]
-    end
-    push!(m.constrnames[name], ci)
-    return set_row_name(m, ci, name)
-end
-
-function MOI.get(
-    m::Optimizer,
-    ::MOI.ConstraintName,
-    ci::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}},
-)
-    # All rows should have same name so we take the first one
-    return Mosek.getconname(m.task, getindexes(m.c_block, ref2id(ci))[1])
+    m.con_to_name[ci] = name
+    m.name_to_con = nothing
+    _putconname(m, ci, name)
+    return
 end
 
 function MOI.get(m::Optimizer, ::MOI.ConstraintName, ci::MOI.ConstraintIndex)
     return get(m.con_to_name, ci, "")
 end
 
-function MOI.get(m::Optimizer, CI::Type{<:MOI.ConstraintIndex}, name::String)
-    #asgn, row = Mosek.getconnameindex(m.task, name)
-    #if iszero(asgn)
-    #    return nothing
-    #else
-    #    # TODO how to recover function and constraint type ?
-    #end
-    if !haskey(m.constrnames, name)
-        return nothing
+function _rebuild_name_to_constraint_index(model::Optimizer)
+    model.name_to_con = Dict{String,Union{Nothing,MOI.ConstraintIndex}}()
+    for (con, name) in model.con_to_name
+        if isempty(name)
+            continue
+        end
+        if haskey(m.name_to_con, name)
+            m.name_to_con[name] = nothing
+        else
+            m.name_to_con[name] = con
+        end
     end
-    cis = m.constrnames[name]
-    if isempty(cis)
-        return nothing
+    return
+end
+
+function MOI.get(
+    m::Optimizer,
+    ::Type{CI},
+    name::String,
+) where {C<:MOI.ConstraintIndex}
+    if m.name_to_con === nothing
+        _rebuild_name_to_constraint_index(m)
     end
-    if !isone(length(cis))
-        error("Multiple constraints have the name $name.")
+    index = get(m.name_to_con, name, missing)
+    if ismissing(index)
+        return nothing  # No name exists
+    elseif isnothing(index)
+        error("Multiple constraints have the name: $name")
+    elseif !(index isa CI)
+        return nothing  # A name exists, but not for this type
     end
-    ci = first(cis)
-    if !(ci isa CI)
-        return nothing
-    end
-    return ci
+    return index
 end
