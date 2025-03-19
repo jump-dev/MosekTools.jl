@@ -177,151 +177,85 @@ MOI.get(m::Optimizer, ::MOI.ResultCount) = length(m.solutions)
 
 function MOI.get(
     model::Optimizer,
-    ::MOI.NumberOfConstraints{MOI.ScalarAffineFunction{Float64},S},
-) where {S<:ScalarLinearDomain}
-    F = MOI.ScalarAffineFunction{Float64}
-    return count(
-        id -> MOI.is_valid(model, MOI.ConstraintIndex{F,S}(id)),
-        allocatedlist(model.c_block),
-    )
+    ::MOI.NumberOfConstraints{F,S},
+) where {F<:MOI.AbstractFunction,S<:MOI.AbstractSet}
+    return length(MOI.get(model, MOI.ListOfConstraintIndices{F,S}()))
 end
 
 function MOI.get(
     model::Optimizer,
-    ::MOI.ListOfConstraintIndices{MOI.ScalarAffineFunction{Float64},S},
-) where {S<:ScalarLinearDomain}
-    F = MOI.ScalarAffineFunction{Float64}
-    ids = filter(
-        id -> MOI.is_valid(model, MOI.ConstraintIndex{F,S}(id)),
-        allocatedlist(model.c_block),
-    )
-    return [MOI.ConstraintIndex{F,S}(id) for id in ids]
+    ::MOI.ListOfConstraintIndices{F,S},
+) where {F<:MOI.ScalarAffineFunction{Float64},S<:ScalarLinearDomain}
+    ret = MOI.ConstraintIndex{F,S}.(allocatedlist(model.c_block))
+    filter!(Base.Fix1(MOI.is_valid, model), ret)
+    return ret
 end
 
 function MOI.get(
     model::Optimizer,
-    ::MOI.NumberOfConstraints{MOI.VariableIndex,S},
-) where {S<:Union{ScalarLinearDomain,MOI.Integer}}
-    F = MOI.VariableIndex
-    return count(
-        id -> MOI.is_valid(model, MOI.ConstraintIndex{F,S}(id)),
-        allocatedlist(model.x_block),
-    )
+    ::MOI.ListOfConstraintIndices{F,S},
+) where {F<:MOI.VariableIndex,S<:Union{ScalarLinearDomain,MOI.Integer}}
+    ret = MOI.ConstraintIndex{F,S}.(allocatedlist(model.x_block))
+    filter!(Base.Fix1(MOI.is_valid, model), ret)
+    return ret
 end
 
 function MOI.get(
     model::Optimizer,
-    ::MOI.ListOfConstraintIndices{MOI.VariableIndex,S},
-) where {S<:Union{ScalarLinearDomain,MOI.Integer}}
-    F = MOI.VariableIndex
-    ids = filter(
-        id -> MOI.is_valid(model, MOI.ConstraintIndex{F,S}(id)),
-        allocatedlist(model.x_block),
-    )
-    return [MOI.ConstraintIndex{F,S}(id) for id in ids]
+    ::MOI.ListOfConstraintIndices{F,S},
+) where {F<:MOI.VectorOfVariables,S<:VectorCone}
+    ids = eachindex(model.variable_to_vector_constraint_id)
+    ret = MOI.ConstraintIndex{F,S}.(ids)
+    filter!(Base.Fix1(MOI.is_valid, model), ret)
+    return ret
 end
 
 function MOI.get(
     model::Optimizer,
-    ::MOI.NumberOfConstraints{MOI.VectorOfVariables,S},
-) where {S<:VectorCone}
-    F = MOI.VectorOfVariables
-    return count(
-        i -> MOI.is_valid(model, MOI.ConstraintIndex{F,S}(i)),
-        eachindex(model.variable_to_vector_constraint_id),
-    )
+    attr::MOI.ListOfConstraintIndices{F,S},
+) where {F<:MOI.VectorAffineFunction{Float64},S<:VectorConeDomain}
+    ret = MOI.ConstraintIndex{F,S}.(1:Mosek.getnumacc(model.task))
+    filter!(Base.Fix1(MOI.is_valid, model), ret)
+    return ret
 end
 
 function MOI.get(
     model::Optimizer,
-    ::MOI.NumberOfConstraints{MOI.VectorAffineFunction{Float64},S},
-) where {S<:VectorConeDomain}
-    F = MOI.VectorAffineFunction{Float64}
-    numacc = Mosek.getnumacc(model.task)
-    return count(
-        i -> MOI.is_valid(model, MOI.ConstraintIndex{F,S}(i)),
-        1:numacc,
-    )
-end
-
-function MOI.get(
-    model::Optimizer,
-    ::MOI.ListOfConstraintIndices{MOI.VectorOfVariables,S},
-) where {S<:VectorCone}
-    F = MOI.VectorOfVariables
-    ids = filter(
-        i -> MOI.is_valid(model, MOI.ConstraintIndex{F,S}(i)),
-        eachindex(model.variable_to_vector_constraint_id),
-    )
-    return [MOI.ConstraintIndex{F,S}(id) for id in ids]
-end
-
-function MOI.get(
-    model::Optimizer,
-    ::MOI.NumberOfConstraints{
-        MOI.VectorOfVariables,
-        MOI.PositiveSemidefiniteConeTriangle,
-    },
-)
-    # TODO this only works because deletion of PSD constraints is not supported yet
-    return length(model.sd_dim)
-end
-
-function MOI.get(
-    model::Optimizer,
-    ::MOI.ListOfConstraintIndices{
-        MOI.VectorOfVariables,
-        MOI.PositiveSemidefiniteConeTriangle,
-    },
-)
-    # TODO this only works because deletion of PSD constraints is not supported yet
-    return [
-        MOI.ConstraintIndex{
-            MOI.VectorOfVariables,
-            MOI.PositiveSemidefiniteConeTriangle,
-        }(
-            id,
-        ) for id in 1:length(model.sd_dim)
-    ]
+    ::MOI.ListOfConstraintIndices{F,S}
+) where {F<:MOI.VectorOfVariables,S<:MOI.PositiveSemidefiniteConeTriangle}
+    # TODO this only works because deletion of PSD constraints is not supported
+    # yet
+    return MOI.ConstraintIndex{F,S}.(1:length(model.sd_dim))
 end
 
 function MOI.get(model::Optimizer, ::MOI.ListOfConstraintTypesPresent)
-    list = Tuple{DataType,DataType}[]
-    F = MOI.VariableIndex
-    for D in [
-        MOI.LessThan{Float64},
-        MOI.GreaterThan{Float64},
-        MOI.EqualTo{Float64},
-        MOI.Interval{Float64},
-        MOI.Integer,
-    ]
-        if !iszero(MOI.get(model, MOI.NumberOfConstraints{F,D}()))
-            push!(list, (F, D))
+    list = Tuple{Type,Type}[]
+    for F in (MOI.VariableIndex, MOI.ScalarAffineFunction{Float64})
+        for S in (
+            MOI.LessThan{Float64},
+            MOI.GreaterThan{Float64},
+            MOI.EqualTo{Float64},
+            MOI.Interval{Float64},
+            MOI.Integer,
+        )
+            if MOI.get(model, MOI.NumberOfConstraints{F,S}()) > 0
+                push!(list, (F, S))
+            end
         end
     end
-    F = MOI.ScalarAffineFunction{Float64}
-    for D in [
-        MOI.LessThan{Float64},
-        MOI.GreaterThan{Float64},
-        MOI.EqualTo{Float64},
-        MOI.Interval{Float64},
-    ]
-        if !iszero(MOI.get(model, MOI.NumberOfConstraints{F,D}()))
-            push!(list, (F, D))
-        end
-    end
-    F = MOI.VectorOfVariables
-    for D in [
-        MOI.SecondOrderCone,
-        MOI.RotatedSecondOrderCone,
-        MOI.PowerCone{Float64},
-        MOI.DualPowerCone{Float64},
-        MOI.ExponentialCone,
-        MOI.DualExponentialCone,
-        MOI.PositiveSemidefiniteConeTriangle,
-    ]
-        if !iszero(MOI.get(model, MOI.NumberOfConstraints{F,D}()))
-            push!(list, (F, D))
+    for F in (MOI.VectorOfVariables, MOI.VectorAffineFunction{Float64})
+        for S in (
+            MOI.SecondOrderCone,
+            MOI.RotatedSecondOrderCone,
+            MOI.PowerCone{Float64},
+            MOI.DualPowerCone{Float64},
+            MOI.ExponentialCone,
+            MOI.DualExponentialCone,
+            MOI.PositiveSemidefiniteConeTriangle,
+        )
+            if MOI.get(model, MOI.NumberOfConstraints{F,S}()) > 0
+                push!(list, (F, S))
+            end
         end
     end
     return list

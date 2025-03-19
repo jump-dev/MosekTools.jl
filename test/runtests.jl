@@ -405,8 +405,6 @@ function test_moi_test_runtests_Bridge_Mosek()
             "test_basic_VectorOfVariables_NormCone",
             # Evaluated: MathOptInterface.OTHER_ERROR in (MathOptInterface.OPTIMAL, MathOptInterface.INVALID_MODEL)
             "test_conic_empty_matrix",
-            # FIXME ListOfConstraints incorrect
-            "test_conic_SecondOrderCone_VectorAffineFunction",
             # Needs a cache to query the ConstraintFunction, and MOI doesn't
             # catch the error and skip for some reason.
             "test_conic_HermitianPositiveSemidefiniteConeTriangle_1",
