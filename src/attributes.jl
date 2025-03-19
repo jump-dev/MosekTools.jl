@@ -258,11 +258,7 @@ function MOI.set(
     return
 end
 
-function MOI.get(
-    m::Optimizer,
-    ::MOI.VariablePrimalStart,
-    v::MOI.VariableIndex,
-)
+function MOI.get(m::Optimizer, ::MOI.VariablePrimalStart, v::MOI.VariableIndex)
     return get(m.variable_primal_start, v, nothing)
 end
 
