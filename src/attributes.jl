@@ -312,8 +312,7 @@ end
 
 #### Variable basis status
 
-function MOI.get(m::Optimizer, attr::MOI.VariableBasisStatus, col::ColumnIndex)
-    status = m.solutions[attr.result_index].xxstatus[col.value]
+function _basis_status_code(status, attr)
     if status == Mosek.MSK_SK_UNK           # (0)
         msg = "The status for the constraint or variable is unknown"
         throw(MOI.GetAttributeNotAllowed(attr, msg))
@@ -333,6 +332,11 @@ function MOI.get(m::Optimizer, attr::MOI.VariableBasisStatus, col::ColumnIndex)
     return throw(MOI.GetAttributeNotAllowed(attr, msg))
 end
 
+function MOI.get(m::Optimizer, attr::MOI.VariableBasisStatus, col::ColumnIndex)
+    status = m.solutions[attr.result_index].xxstatus[col.value]
+    return _basis_status_code(status, attr)
+end
+
 function MOI.get(::Optimizer, attr::MOI.VariableBasisStatus, mat::MatrixIndex)
     msg = "$attr not supported for PSD variable $mat"
     return throw(MOI.GetAttributeNotAllowed(attr, msg))
@@ -345,6 +349,31 @@ function MOI.get(
 )
     MOI.check_result_index_bounds(m, attr)
     return MOI.get(m, attr, mosek_index(m, vi))
+end
+
+#### ConstraintBasisStatus
+
+function _adjust_nonbasic(status, ::Type{S}) where {S}
+    if status == MOI.NONBASIC_AT_LOWER
+        return MOI.NONBASIC
+    elseif status == MOI.NONBASIC_AT_UPPER
+        return MOI.NONBASIC
+    end
+    return status
+end
+
+_adjust_nonbasic(status, ::Type{MOI.Interval{Float64}}) = status
+
+function MOI.get(
+    m::Optimizer,
+    attr::MOI.ConstraintBasisStatus,
+    ci::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},S},
+) where {S}
+    MOI.check_result_index_bounds(m, attr)
+    cid = ref2id(ci)
+    subi = getindex(m.c_block, cid)
+    status = m.solutions[attr.result_index].cstatus[subi]
+    return _adjust_nonbasic(_basis_status_code(status, attr), S)
 end
 
 #### Constraint solution values
