@@ -372,8 +372,6 @@ function MOI.get(
     MOI.check_result_index_bounds(m, attr)
     cid = ref2id(ci)
     subi = getindex(m.c_block, cid)
-    # FIXME(odow): MOI assumes that thhe first solution is basic. But often
-    # Mosek's first solution is an interior point, and the second is basic.
     status = m.solutions[attr.result_index].cstatus[subi]
     return _adjust_nonbasic(_basis_status_code(status, attr), S)
 end
