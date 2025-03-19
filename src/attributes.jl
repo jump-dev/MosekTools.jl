@@ -221,7 +221,7 @@ end
 
 function MOI.get(
     model::Optimizer,
-    ::MOI.ListOfConstraintIndices{F,S}
+    ::MOI.ListOfConstraintIndices{F,S},
 ) where {F<:MOI.VectorOfVariables,S<:MOI.PositiveSemidefiniteConeTriangle}
     # TODO this only works because deletion of PSD constraints is not supported
     # yet
