@@ -7,51 +7,6 @@
 # TASK ########################################################################
 ###### The `task` field should not be accessed outside this section. ##########
 
-function set_primal_start(task::Mosek.MSKtask, col::ColumnIndex, value::Float64)
-    xx = Float64[value]
-    for sol in [Mosek.MSK_SOL_BAS, Mosek.MSK_SOL_ITG]
-        Mosek.putxxslice(task, sol, col.value, col.value + Int32(1), xx)
-    end
-    return
-end
-
-function set_primal_start(m::Optimizer, vi::MOI.VariableIndex, value::Float64)
-    set_primal_start(m.task, mosek_index(m, vi), value)
-    return
-end
-
-function set_primal_start(
-    task::Mosek.MSKtask,
-    cols::ColumnIndices,
-    values::Vector{Float64},
-)
-    for sol in [Mosek.MSK_SOL_BAS, Mosek.MSK_SOL_ITG]
-        if Mosek.solutiondef(task, sol)
-            xx = Mosek.getxx(task, sol)
-        else
-            xx = zeros(Float64, Mosek.getnumvar(task))
-        end
-        xx[cols.values] = values
-        Mosek.putxx(task, sol, xx)
-    end
-    return
-end
-
-function set_primal_start(
-    m::Optimizer,
-    vis::Vector{MOI.VariableIndex},
-    values::Vector{Float64},
-)
-    if all(vi -> is_scalar(m, vi), vis)
-        set_primal_start(m.task, columns(m, vis), values)
-    else
-        for (vi, value) in zip(vis, values)
-            set_primal_start(m.task, mosek_index(m, vi), value)
-        end
-    end
-    return
-end
-
 ###############################################################################
 ## INDEXING ###################################################################
 ###############################################################################
@@ -271,24 +226,44 @@ function MOI.supports(
     return true
 end
 
+function _putxxslice(task::Mosek.MSKtask, col::ColumnIndex, value::Float64)
+    for sol in [Mosek.MSK_SOL_BAS, Mosek.MSK_SOL_ITG]
+        Mosek.putxxslice(task, sol, col.value, col.value + Int32(1), [value])
+    end
+    return
+end
+
+# TODO(odow): I'm not sure how to warm-start PSD matrices
+_putxxslice(::Mosek.MSKtask, ::MatrixIndex, ::Float64) = nothing
+
 function MOI.set(
     m::Optimizer,
     ::MOI.VariablePrimalStart,
     v::MOI.VariableIndex,
-    val::Union{Nothing,Float64},
+    val::Real,
 )
-    set_primal_start(m, v, something(val, 0.0))
+    _putxxslice(m.task, mosek_index(m, v), convert(Float64, val))
+    m.variable_primal_start[v] = convert(Float64, val)
     return
 end
 
 function MOI.set(
     m::Optimizer,
     ::MOI.VariablePrimalStart,
-    vis::Vector{MOI.VariableIndex},
-    values::Vector{Float64},
+    v::MOI.VariableIndex,
+    ::Nothing,
 )
-    set_primal_start(m, vis, values)
+    _putxxslice(m.task, mosek_index(m, v), 0.0)
+    delete!(m.variable_primal_start, v)
     return
+end
+
+function MOI.get(
+    m::Optimizer,
+    ::MOI.VariablePrimalStart,
+    v::MOI.VariableIndex,
+)
+    return get(m.variable_primal_start, v, nothing)
 end
 
 # function MOI.set(m::Optimizer,attr::MOI.ConstraintDualStart, vs::Vector{MOI.ConstraintIndex}, vals::Vector{Float64})

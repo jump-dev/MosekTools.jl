@@ -361,8 +361,6 @@ function test_moi_test_runtests_Mosek()
         MosekOptimizerWithFallback(),
         config;
         exclude = [
-            # FIXME ArgumentError: MosekTools.Optimizer does not support getting the attribute MathOptInterface.VariablePrimalStart().
-            "test_model_VariablePrimalStart",
             # FIXME
             "test_model_duplicate_VariableName",
             # Expression: status in (config.optimal_status, MOI.INVALID_MODEL)
@@ -391,7 +389,6 @@ function test_moi_test_runtests_Bridge_Mosek()
         config;
         exclude = [
             "test_model_duplicate_VariableName",
-            "test_model_VariablePrimalStart", # able to set but not to get VariablePrimalStart
             # Cannot put multiple bound sets of the same type on a variable
             "test_basic_VectorAffineFunction_Circuit",
             "test_basic_VectorOfVariables_Circuit",
@@ -405,7 +402,6 @@ function test_moi_test_runtests_Bridge_Mosek()
             "test_conic_HermitianPositiveSemidefiniteConeTriangle_1",
         ],
     )
-    @test MOI.supports(model, MOI.VariablePrimalStart(), MOI.VariableIndex)
     return
 end
 

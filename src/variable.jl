@@ -290,12 +290,14 @@ function MOI.get(m::Optimizer, ::MOI.ListOfVariableIndices)
 end
 
 function MOI.get(m::Optimizer, ::MOI.ListOfVariableAttributesSet)
-    set = MOI.AbstractVariableAttribute[]
+    ret = MOI.AbstractVariableAttribute[]
     if m.has_variable_names
-        push!(set, MOI.VariableName())
+        push!(ret, MOI.VariableName())
     end
-    # TODO add VariablePrimalStart when get is implemented on it
-    return set
+    if !isempty(m.variable_primal_start)
+        push!(ret, MOI.VariablePrimalStart())
+    end
+    return ret
 end
 
 ## Name #######################################################################
