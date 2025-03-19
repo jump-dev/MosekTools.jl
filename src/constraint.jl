@@ -1293,16 +1293,6 @@ function MOI.supports(
 end
 
 function MOI.set(
-    ::Optimizer,
-    ::MOI.ConstraintName,
-    ::MOI.ConstraintIndex{MOI.VariableIndex},
-    ::AbstractString,
-)
-    # Names are not defined for variable constraints
-    return throw(MOI.VariableIndexConstraintNameError())
-end
-
-function MOI.set(
     m::Optimizer,
     ::MOI.ConstraintName,
     ci::MOI.ConstraintIndex,
@@ -1350,4 +1340,23 @@ function MOI.get(
         return nothing  # A name exists, but not for this type
     end
     return index
+end
+
+function MOI.supports(
+    ::Optimizer,
+    ::MOI.ConstraintName,
+    ::Type{<:MOI.ConstraintIndex{MOI.VariableIndex}},
+)
+    # Names are not defined for variable constraints
+    return throw(MOI.VariableIndexConstraintNameError())
+end
+
+function MOI.set(
+    ::Optimizer,
+    ::MOI.ConstraintName,
+    ::MOI.ConstraintIndex{MOI.VariableIndex},
+    ::AbstractString,
+)
+    # Names are not defined for variable constraints
+    return throw(MOI.VariableIndexConstraintNameError())
 end
