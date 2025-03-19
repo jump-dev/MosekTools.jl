@@ -384,21 +384,21 @@ function MOI.optimize!(m::Optimizer)
         push!(
             m.solutions,
             MosekSolution(
-                Mosek.MSK_SOL_ITR,
-                Mosek.getsolsta(m.task, Mosek.MSK_SOL_ITR),
-                Mosek.getprosta(m.task, Mosek.MSK_SOL_ITR),
-                Mosek.getskx(m.task, Mosek.MSK_SOL_ITR),
-                Mosek.getxx(m.task, Mosek.MSK_SOL_ITR),
-                matrix_solution(m, Mosek.MSK_SOL_ITR),
-                Mosek.getslx(m.task, Mosek.MSK_SOL_ITR),
-                Mosek.getsux(m.task, Mosek.MSK_SOL_ITR),
-                Mosek.getsnx(m.task, Mosek.MSK_SOL_ITR),
-                Mosek.getaccdotys(m.task, Mosek.MSK_SOL_ITR),
-                Mosek.getskc(m.task, Mosek.MSK_SOL_ITR),
-                Mosek.getxc(m.task, Mosek.MSK_SOL_ITR),
-                Mosek.getslc(m.task, Mosek.MSK_SOL_ITR),
-                Mosek.getsuc(m.task, Mosek.MSK_SOL_ITR),
-                Mosek.gety(m.task, Mosek.MSK_SOL_ITR),
+                Mosek.MSK_SOL_ITR,                             # whichsol
+                Mosek.getsolsta(m.task, Mosek.MSK_SOL_ITR),    # solsta
+                Mosek.getprosta(m.task, Mosek.MSK_SOL_ITR),    # prosta
+                Mosek.getskx(m.task, Mosek.MSK_SOL_ITR),       # xxstatus
+                Mosek.getxx(m.task, Mosek.MSK_SOL_ITR),        # xx
+                matrix_solution(m, Mosek.MSK_SOL_ITR),         # barxk
+                Mosek.getslx(m.task, Mosek.MSK_SOL_ITR),       # slx
+                Mosek.getsux(m.task, Mosek.MSK_SOL_ITR),       # sux
+                Mosek.getsnx(m.task, Mosek.MSK_SOL_ITR),       # snx
+                Mosek.getaccdotys(m.task, Mosek.MSK_SOL_ITR),  # doty
+                Mosek.getskc(m.task, Mosek.MSK_SOL_ITR),       # cstatus
+                Mosek.getxc(m.task, Mosek.MSK_SOL_ITR),        # xc
+                Mosek.getslc(m.task, Mosek.MSK_SOL_ITR),       # slc
+                Mosek.getsuc(m.task, Mosek.MSK_SOL_ITR),       # suc
+                Mosek.gety(m.task, Mosek.MSK_SOL_ITR),         # y
             ),
         )
     end
@@ -406,22 +406,24 @@ function MOI.optimize!(m::Optimizer)
         push!(
             m.solutions,
             MosekSolution(
-                Mosek.MSK_SOL_ITG,
-                Mosek.getsolsta(m.task, Mosek.MSK_SOL_ITG),
-                Mosek.getprosta(m.task, Mosek.MSK_SOL_ITG),
-                Mosek.getskx(m.task, Mosek.MSK_SOL_ITG),
-                Mosek.getxx(m.task, Mosek.MSK_SOL_ITG),
+                Mosek.MSK_SOL_ITG,                             # whichsol
+                Mosek.getsolsta(m.task, Mosek.MSK_SOL_ITG),    # solsta
+                Mosek.getprosta(m.task, Mosek.MSK_SOL_ITG),    # prosta
+                Mosek.getskx(m.task, Mosek.MSK_SOL_ITG),       # xxstatus
+                Mosek.getxx(m.task, Mosek.MSK_SOL_ITG),        # xx
+                # MSK_SOL_ITG means integer solution. It cannot have PSD
+                # matrices, and it does not have dual variables.
                 # See https://github.com/jump-dev/MosekTools.jl/issues/71
-                Float64[], #matrix_solution(m, Mosek.MSK_SOL_ITG),
-                Float64[],
-                Float64[],
-                Float64[],
-                Float64[],
-                Mosek.getskc(m.task, Mosek.MSK_SOL_ITG),
-                Mosek.getxc(m.task, Mosek.MSK_SOL_ITG),
-                Float64[],
-                Float64[],
-                Float64[],
+                Float64[],                                     # barxk
+                Float64[],                                     # slx
+                Float64[],                                     # sux
+                Float64[],                                     # snx
+                Float64[],                                     # doty
+                Mosek.getskc(m.task, Mosek.MSK_SOL_ITG),       # cstatus
+                Mosek.getxc(m.task, Mosek.MSK_SOL_ITG),        # xc
+                Float64[],                                     # slc
+                Float64[],                                     # suc
+                Float64[],                                     # y
             ),
         )
     end
@@ -429,32 +431,46 @@ function MOI.optimize!(m::Optimizer)
         push!(
             m.solutions,
             MosekSolution(
-                Mosek.MSK_SOL_BAS,
-                Mosek.getsolsta(m.task, Mosek.MSK_SOL_BAS),
-                Mosek.getprosta(m.task, Mosek.MSK_SOL_BAS),
-                Mosek.getskx(m.task, Mosek.MSK_SOL_BAS),
-                Mosek.getxx(m.task, Mosek.MSK_SOL_BAS),
+                Mosek.MSK_SOL_BAS,                              # whichsol
+                Mosek.getsolsta(m.task, Mosek.MSK_SOL_BAS),     # solsta
+                Mosek.getprosta(m.task, Mosek.MSK_SOL_BAS),     # prosta
+                Mosek.getskx(m.task, Mosek.MSK_SOL_BAS),        # xxstatus
+                Mosek.getxx(m.task, Mosek.MSK_SOL_BAS),         # xx
+                # MSK_SOL_BAS means a basic solution. It cannot have PSD
+                # matrices.
                 # See https://github.com/jump-dev/MosekTools.jl/issues/71
-                Float64[], #matrix_solution(m, Mosek.MSK_SOL_BAS),
-                Mosek.getslx(m.task, Mosek.MSK_SOL_BAS),
-                Mosek.getsux(m.task, Mosek.MSK_SOL_BAS),
-                Float64[],
-                Float64[],
-                Mosek.getskc(m.task, Mosek.MSK_SOL_BAS),
-                Mosek.getxc(m.task, Mosek.MSK_SOL_BAS),
-                Mosek.getslc(m.task, Mosek.MSK_SOL_BAS),
-                Mosek.getsuc(m.task, Mosek.MSK_SOL_BAS),
-                Mosek.gety(m.task, Mosek.MSK_SOL_BAS),
+                Float64[],                                      # barxk
+                Mosek.getslx(m.task, Mosek.MSK_SOL_BAS),        # slx
+                Mosek.getsux(m.task, Mosek.MSK_SOL_BAS),        # sux
+                Float64[],                                      # snx
+                Float64[],                                      # doty
+                Mosek.getskc(m.task, Mosek.MSK_SOL_BAS),        # cstatus
+                Mosek.getxc(m.task, Mosek.MSK_SOL_BAS),         # xc
+                Mosek.getslc(m.task, Mosek.MSK_SOL_BAS),        # slc
+                Mosek.getsuc(m.task, Mosek.MSK_SOL_BAS),        # suc
+                Mosek.gety(m.task, Mosek.MSK_SOL_BAS),          # y
             ),
         )
     end
-    # We need to sort the solutions, so that an optimal one is first (if it exists).
-    sort!(
-        m.solutions;
-        by = x -> x.solsta in
-        [Mosek.MSK_SOL_STA_OPTIMAL, Mosek.MSK_SOL_STA_INTEGER_OPTIMAL],
-        rev = true,
-    )
+    # We need to sort the solutions, so that an optimal one is first (if it
+    # exists). The priority is:
+    #  1. MSK_SOL_STA_INTEGER_OPTIMAL or MSK_SOL_STA_OPTIMAL
+    #  2. MSK_SOL_ITG, MSK_SOL_BAS, MSK_SOL_ITR
+    function solution_priority(sol)
+        solsta_priority =
+            sol.solsta == Mosek.MSK_SOL_STA_INTEGER_OPTIMAL ||
+            sol.solsta == Mosek.MSK_SOL_STA_OPTIMAL
+        if sol.whichsol == Mosek.MSK_SOL_ITG
+            return (3, solsta_priority)
+        elseif sol.whichsol == Mosek.MSK_SOL_BAS
+            return (2, solsta_priority)
+        else
+            @assert sol.whichsol == Mosek.MSK_SOL_ITR
+            return (1, solsta_priority)
+        end
+    end
+    # Sort solutions largest priority to smallest
+    sort!(m.solutions; by = solution_priority, rev = true)
     return
 end
 

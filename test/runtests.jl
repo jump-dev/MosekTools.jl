@@ -452,7 +452,7 @@ function test_VariableBasisStatus()
     @test MOI.get(model, attr, x_fix) == MOI.NONBASIC
     @test MOI.get(model, attr, x_supbas) == MOI.SUPER_BASIC
     # Mosek reports SUPER_BASIC?
-    @test MOI.get(model, attr, x_bas) in (MOI.BASIC, MOI.SUPER_BASIC)
+    @test MOI.get(model, attr, x_bas) == MOI.BASIC
     MOI.add_constraint(model, x_low, MOI.LessThan(-1.0))
     MOI.optimize!(model)
     msg = "The constraint or variable is infeasible in the bounds"
