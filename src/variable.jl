@@ -276,6 +276,8 @@ function MOI.delete(m::Optimizer, vi::MOI.VariableIndex)
     clear_columns(m, [vi])
     clear_variable(m, vi)
     m.x_sd[vi.value] = MatrixIndex(-1, 0, 0)
+    delete!(m.variable_to_name, vi)
+    m.name_to_variable = nothing
     return
 end
 
@@ -291,7 +293,7 @@ end
 
 function MOI.get(m::Optimizer, ::MOI.ListOfVariableAttributesSet)
     ret = MOI.AbstractVariableAttribute[]
-    if m.has_variable_names
+    if !isempty(m.variable_to_name)
         push!(ret, MOI.VariableName())
     end
     if !isempty(m.variable_primal_start)
@@ -303,18 +305,14 @@ end
 ## Name #######################################################################
 ###############################################################################
 
-# We leave `supports` to `false` because it's not supported by matrix indices
-# See https://github.com/jump-dev/MosekTools.jl/issues/80
-# We still implement the methods for people that knowingly set names of scalar
-# variables though.
-MOI.supports(::Optimizer, ::MOI.VariableName, ::Type{MOI.VariableIndex}) = false
+MOI.supports(::Optimizer, ::MOI.VariableName, ::Type{MOI.VariableIndex}) = true
 
-_throw_if_matrix(::ColumnIndex) = nothing
-
-function _throw_if_matrix(::MatrixIndex)
-    msg = "Mosek does not support names for positive semidefinite variables."
-    return throw(MOI.UnsupportedAttribute(MOI.VariableName(), msg))
+function _putvarname(m::Optimizer, col::ColumnIndex, name::AbstractString)
+    Mosek.putvarname(m.task, col.value, name)
+    return
 end
+
+_putvarname(::Optimizer, ::MatrixIndex, ::AbstractString) = nothing
 
 function MOI.set(
     m::Optimizer,
@@ -322,23 +320,40 @@ function MOI.set(
     vi::MOI.VariableIndex,
     name::String,
 )
-    m.has_variable_names = true
-    col = mosek_index(m, vi)
-    _throw_if_matrix(col)
-    Mosek.putvarname(m.task, col.value, name)
+    m.variable_to_name[vi] = name
+    m.name_to_variable = nothing
+    _putvarname(m, mosek_index(m, vi), name)
     return
 end
 
 function MOI.get(m::Optimizer, ::MOI.VariableName, vi::MOI.VariableIndex)
-    col = mosek_index(m, vi)
-    _throw_if_matrix(col)
-    return Mosek.getvarname(m.task, col.value)
+    return get(m.variable_to_name, vi, "")
+end
+
+function _rebuild_name_to_variable_index(m::Optimizer)
+    m.name_to_variable = Dict{String,Union{Nothing,MOI.VariableIndex}}()
+    for (x, name) in m.variable_to_name
+        if isempty(name)
+            continue
+        end
+        if haskey(m.name_to_variable, name)
+            m.name_to_variable[name] = nothing
+        else
+            m.name_to_variable[name] = x
+        end
+    end
+    return
 end
 
 function MOI.get(m::Optimizer, ::Type{MOI.VariableIndex}, name::String)
-    asgn, index = Mosek.getvarnameindex(m.task, name)
-    if iszero(asgn)
-        return nothing
+    if m.name_to_variable === nothing
+        _rebuild_name_to_variable_index(m)
     end
-    return index_of_column(m, index)
+    index = get(m.name_to_variable, name, missing)
+    if ismissing(index)
+        return nothing  # No name exists
+    elseif isnothing(index)
+        error("Multiple variables have the name: $name")
+    end
+    return index
 end

@@ -186,8 +186,8 @@ function test_Matrix_name()
         optimizer,
         MOI.PositiveSemidefiniteConeTriangle(3),
     )
-    err = MOI.UnsupportedAttribute{MOI.VariableName}
-    @test_throws err MOI.set(optimizer, MOI.VariableName(), x[1], "a")
+    MOI.set(optimizer, MOI.VariableName(), x[1], "a")
+    @test MOI.get(optimizer, MOI.VariableName(), x[1]) == "a"
     MOI.empty!(optimizer)
     model = MOI.Utilities.CachingOptimizer(
         MOI.Utilities.Model{Float64}(),
@@ -198,8 +198,8 @@ function test_Matrix_name()
         MOI.PositiveSemidefiniteConeTriangle(3),
     )
     MOI.set(model, MOI.VariableName(), x[1], "a")
-    MOI.Utilities.attach_optimizer(model) # Should drop errors silently in the copy
-    @test "a" == MOI.get(model, MOI.VariableName(), x[1])
+    MOI.Utilities.attach_optimizer(model)
+    @test MOI.get(model, MOI.VariableName(), x[1]) == "a"
     return
 end
 
@@ -361,8 +361,6 @@ function test_moi_test_runtests_Mosek()
         MosekOptimizerWithFallback(),
         config;
         exclude = [
-            # FIXME
-            "test_model_duplicate_VariableName",
             # Expression: status in (config.optimal_status, MOI.INVALID_MODEL)
             # Evaluated: MathOptInterface.OTHER_ERROR in (MathOptInterface.OPTIMAL, MathOptInterface.INVALID_MODEL)
             "test_conic_empty_matrix",
@@ -388,7 +386,6 @@ function test_moi_test_runtests_Bridge_Mosek()
         model,
         config;
         exclude = [
-            "test_model_duplicate_VariableName",
             # Cannot put multiple bound sets of the same type on a variable
             "test_basic_VectorAffineFunction_Circuit",
             "test_basic_VectorOfVariables_Circuit",
@@ -484,19 +481,14 @@ function test_variable_name()
     x = MOI.add_variable(model)
     set = MOI.PositiveSemidefiniteConeTriangle(2)
     y, _ = MOI.add_constrained_variables(model, set)
-    @test !MOI.supports(model, MOI.VariableName(), MOI.VariableIndex)
+    @test MOI.supports(model, MOI.VariableName(), MOI.VariableIndex)
     @test MOI.get(model, MOI.VariableIndex, "x") === nothing
     MOI.set(model, MOI.VariableName(), x, "x")
     @test MOI.get(model, MOI.VariableIndex, "x") == x
     @test MOI.get(model, MOI.VariableName(), x) == "x"
-    @test_throws(
-        MOI.UnsupportedAttribute,
-        MOI.get(model, MOI.VariableName(), y[1]),
-    )
-    @test_throws(
-        MOI.UnsupportedAttribute,
-        MOI.set(model, MOI.VariableName(), y[1], "y"),
-    )
+    @test MOI.get(model, MOI.VariableName(), y[1]) == ""
+    MOI.set(model, MOI.VariableName(), y[1], "y")
+    @test MOI.get(model, MOI.VariableName(), y[1]) == "y"
     return
 end
 
