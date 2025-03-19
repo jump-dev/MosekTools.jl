@@ -351,11 +351,8 @@ function test_moi_test_runtests_Mosek()
         Float64;
         atol = 1e-3,
         rtol = 1e-3,
-        exclude = Any[
-            MOI.ConstraintBasisStatus,
-            # TODO remove `MOI.delete` once it is implemented for ACC
-            MOI.delete,
-        ],
+        # TODO remove `MOI.delete` once it is implemented for ACC
+        exclude = Any[MOI.delete],
     )
     MOI.Test.runtests(
         MosekOptimizerWithFallback(),
@@ -376,11 +373,8 @@ function test_moi_test_runtests_Bridge_Mosek()
         Float64;
         atol = 1e-3,
         rtol = 1e-3,
-        exclude = Any[
-            MOI.ConstraintBasisStatus,
-            # TODO remove `MOI.delete` once it is implemented for ACC
-            MOI.delete,
-        ],
+        # TODO remove `MOI.delete` once it is implemented for ACC
+        exclude = Any[MOI.delete],
     )
     MOI.Test.runtests(
         model,
@@ -414,11 +408,8 @@ function test_moi_test_runtests_Bridge_Cache_Mosek()
         Float64;
         atol = 1e-3,
         rtol = 1e-3,
-        exclude = Any[
-            MOI.ConstraintBasisStatus,
-            # TODO remove `MOI.delete` once it is implemented for ACC
-            MOI.delete,
-        ],
+        # TODO remove `MOI.delete` once it is implemented for ACC
+        exclude = Any[MOI.delete],
     )
     # Evaluated: MathOptInterface.OTHER_ERROR in (MathOptInterface.OPTIMAL, MathOptInterface.INVALID_MODEL)
     MOI.Test.runtests(model, config; exclude = ["test_conic_empty_matrix"])
@@ -439,12 +430,8 @@ function test_more_SDP_tests_by_forced_bridging()
         Float64;
         atol = 1e-3,
         rtol = 1e-3,
-        exclude = Any[
-            MOI.ConstraintName,
-            MOI.ConstraintBasisStatus,
-            # TODO remove `MOI.delete` once it is implemented for ACC
-            MOI.delete,
-        ],
+        # TODO remove `MOI.delete` once it is implemented for ACC
+        exclude = Any[MOI.delete],
     )
     MOI.Test.runtests(model, config; include = ["conic_SecondOrderCone"])
     return

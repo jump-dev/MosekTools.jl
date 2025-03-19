@@ -347,6 +347,21 @@ function MOI.get(
     return MOI.get(m, attr, mosek_index(m, vi))
 end
 
+#### ConstraintBasisStatus
+
+function MOI.get(
+    m::Optimizer,
+    attr::MOI.ConstraintBasisStatus,
+    ci::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}},
+)
+    MOI.check_result_index_bounds(m, attr)
+    cid = ref2id(ci)
+    subi = getindex(m.c_block, cid)
+    # FIXME(odow): MOI assumes that thhe first solution is basic. But often
+    # Mosek's first solution is an interior point, and the second is basic.
+    return m.solutions[attr.result_index].cstatus[subi]
+end
+
 #### Constraint solution values
 
 function MOI.get(
