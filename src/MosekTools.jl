@@ -86,6 +86,11 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     dpars::Dict{String,Float64}
     # String parameters, i.e. parameters starting with `MSK_SPAR_`
     spars::Dict{String,AbstractString}
+
+    # Mosek stores the primal start in the solution vector. We don't want to
+    # overwrite it, so keep a separate copy.
+    variable_primal_start::Dict{MOI.VariableIndex,Float64}
+
     has_variable_names::Bool
 
     # Mappings for MOI.ConstraintName
@@ -161,6 +166,7 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
             Dict{String,Int32}(), # ipars
             Dict{String,Float64}(), # dpars
             Dict{String,AbstractString}(), # spars
+            Dict{MOI.VariableIndex,Float64}(),   # variable_primal_start
             false, # has_variable_names
             Dict{MOI.ConstraintIndex,String}(),  # con_to_name
             nothing,                             # name_to_con
@@ -501,6 +507,7 @@ function MOI.empty!(model::Optimizer)
     if !model.be_quiet
         Mosek.putstreamfunc(model.task, Mosek.MSK_STREAM_LOG, m -> print(m))
     end
+    empty!(model.variable_primal_start)
     model.has_variable_names = false
     empty!(model.con_to_name)
     model.name_to_con = nothing
