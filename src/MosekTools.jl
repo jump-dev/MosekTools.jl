@@ -91,7 +91,13 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     # overwrite it, so keep a separate copy.
     variable_primal_start::Dict{MOI.VariableIndex,Float64}
 
-    has_variable_names::Bool
+    # Mappings for VariableName
+    variable_to_name::Dict{MOI.VariableIndex,String}
+    # name_to_variable is built lazily
+    name_to_variable::Union{
+        Nothing,
+        Dict{String,Union{MOI.VariableIndex,Nothing}},
+    }
 
     # Mappings for MOI.ConstraintName
     con_to_name::Dict{MOI.ConstraintIndex,String}
@@ -167,7 +173,8 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
             Dict{String,Float64}(), # dpars
             Dict{String,AbstractString}(), # spars
             Dict{MOI.VariableIndex,Float64}(),   # variable_primal_start
-            false, # has_variable_names
+            Dict{MOI.VariableIndex,String}(),    # variable_to_name
+            nothing,                             # name_to_variable
             Dict{MOI.ConstraintIndex,String}(),  # con_to_name
             nothing,                             # name_to_con
             UInt8[], # x_constraints
