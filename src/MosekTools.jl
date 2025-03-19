@@ -87,10 +87,11 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     # String parameters, i.e. parameters starting with `MSK_SPAR_`
     spars::Dict{String,AbstractString}
     has_variable_names::Bool
-    constrnames::Dict{String,Vector{MOI.ConstraintIndex}}
-    # Mosek only support names for `MOI.ScalarAffineFunction` so we need a
-    # fallback for `SingleVariable` and `VectorOfVariables`.
+
+    # Mappings for MOI.ConstraintName
     con_to_name::Dict{MOI.ConstraintIndex,String}
+    # name_to_con is built lazily
+    name_to_con::Union{Nothing,Dict{String,Union{MOI.ConstraintIndex,Nothing}}}
 
     # For each MOI index of variables, gives the flags of constraints present
     # The SingleVariable constraints added cannot just be inferred from Mosek.getvartype
@@ -161,8 +162,8 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
             Dict{String,Float64}(), # dpars
             Dict{String,AbstractString}(), # spars
             false, # has_variable_names
-            Dict{String,Vector{MOI.ConstraintIndex}}(), # constrnames
-            Dict{MOI.ConstraintIndex,String}(), # con_to_name
+            Dict{MOI.ConstraintIndex,String}(),  # con_to_name
+            nothing,                             # name_to_con
             UInt8[], # x_constraints
             Dict{Int,UnitRange{Int}}(),
             LinkedInts(),# x_block
@@ -501,8 +502,8 @@ function MOI.empty!(model::Optimizer)
         Mosek.putstreamfunc(model.task, Mosek.MSK_STREAM_LOG, m -> print(m))
     end
     model.has_variable_names = false
-    empty!(model.constrnames)
     empty!(model.con_to_name)
+    model.name_to_con = nothing
     empty!(model.F_rows)
     empty!(model.x_constraints)
     model.x_block = LinkedInts()
