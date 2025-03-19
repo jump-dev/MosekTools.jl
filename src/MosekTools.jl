@@ -461,12 +461,12 @@ function MOI.optimize!(m::Optimizer)
             sol.solsta == Mosek.MSK_SOL_STA_INTEGER_OPTIMAL ||
             sol.solsta == Mosek.MSK_SOL_STA_OPTIMAL
         if sol.whichsol == Mosek.MSK_SOL_ITG
-            return (3, solsta_priority)
+            return (solsta_priority, 3)
         elseif sol.whichsol == Mosek.MSK_SOL_BAS
-            return (2, solsta_priority)
+            return (solsta_priority, 2)
         else
             @assert sol.whichsol == Mosek.MSK_SOL_ITR
-            return (1, solsta_priority)
+            return (solsta_priority, 1)
         end
     end
     # Sort solutions largest priority to smallest
