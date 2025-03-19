@@ -353,18 +353,29 @@ end
 
 #### ConstraintBasisStatus
 
+function _adjust_nonbasic(status, ::Type{S}) where {S}
+    if status == MOI.NONBASIC_AT_LOWER
+        return MOI.NONBASIC
+    elseif status == MOI.NONBASIC_AT_UPPER
+        return MOI.NONBASIC
+    end
+    return status
+end
+
+_adjust_nonbasic(status, ::Type{MOI.Interval{Float64}}) = status
+
 function MOI.get(
     m::Optimizer,
     attr::MOI.ConstraintBasisStatus,
-    ci::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}},
-)
+    ci::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},S},
+) where {S}
     MOI.check_result_index_bounds(m, attr)
     cid = ref2id(ci)
     subi = getindex(m.c_block, cid)
     # FIXME(odow): MOI assumes that thhe first solution is basic. But often
     # Mosek's first solution is an interior point, and the second is basic.
     status = m.solutions[attr.result_index].cstatus[subi]
-    return _basis_status_code(status, attr)
+    return _adjust_nonbasic(_basis_status_code(status, attr), S)
 end
 
 #### Constraint solution values
