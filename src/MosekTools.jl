@@ -515,7 +515,8 @@ function MOI.empty!(model::Optimizer)
         Mosek.putstreamfunc(model.task, Mosek.MSK_STREAM_LOG, m -> print(m))
     end
     empty!(model.variable_primal_start)
-    model.has_variable_names = false
+    empty!(model.variable_to_name)
+    model.name_to_variable = nothing
     empty!(model.con_to_name)
     model.name_to_con = nothing
     empty!(model.F_rows)
