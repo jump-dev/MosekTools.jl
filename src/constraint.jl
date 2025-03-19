@@ -1318,9 +1318,9 @@ function MOI.get(m::Optimizer, ::MOI.ConstraintName, ci::MOI.ConstraintIndex)
     return get(m.con_to_name, ci, "")
 end
 
-function _rebuild_name_to_constraint_index(model::Optimizer)
-    model.name_to_con = Dict{String,Union{Nothing,MOI.ConstraintIndex}}()
-    for (con, name) in model.con_to_name
+function _rebuild_name_to_constraint_index(m::Optimizer)
+    m.name_to_con = Dict{String,Union{Nothing,MOI.ConstraintIndex}}()
+    for (con, name) in m.con_to_name
         if isempty(name)
             continue
         end
