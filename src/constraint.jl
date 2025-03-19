@@ -1337,7 +1337,7 @@ function MOI.get(
     m::Optimizer,
     ::Type{CI},
     name::String,
-) where {C<:MOI.ConstraintIndex}
+) where {CI<:MOI.ConstraintIndex}
     if m.name_to_con === nothing
         _rebuild_name_to_constraint_index(m)
     end
