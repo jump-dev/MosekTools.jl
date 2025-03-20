@@ -40,20 +40,6 @@ function allocateconstraints(m::Optimizer, N::Int)
     return id
 end
 
-function getconboundlist(t::Mosek.Task, subj::Vector{Int32})
-    n = length(subj)
-    bk = Vector{Mosek.Boundkey}(undef, n)
-    bl = Vector{Float64}(undef, n)
-    bu = Vector{Float64}(undef, n)
-    for i in 1:n
-        bki, bli, bui = Mosek.getconbound(t, subj[i])
-        bk[i] = bki
-        bl[i] = bli
-        bu[i] = bui
-    end
-    return bk, bl, bu
-end
-
 # `putbaraij` and `putbarcj` need the whole matrix as a sum of sparse mat at once
 function split_scalar_matrix(
     m::Optimizer,
@@ -128,40 +114,6 @@ function set_row(
         (j, ids, coefs) -> Mosek.putbaraij(m.task, row, j, ids, coefs),
     )
     return set_row(m.task, row, ColumnIndices(cols), values)
-end
-
-function set_coefficients(
-    task::Mosek.MSKtask,
-    rows::Vector{Int32},
-    cols::ColumnIndices,
-    values::Vector{Float64},
-)
-    return Mosek.putaijlist(task, rows, cols.values, values)
-end
-
-function set_coefficients(
-    task::Mosek.MSKtask,
-    rows::Vector{Int32},
-    col::ColumnIndex,
-    values::Vector{Float64},
-)
-    n = length(rows)
-    @assert n == length(values)
-    return set_coefficient(
-        task,
-        rows,
-        ColumnIndices(fill(col.value, n)),
-        values,
-    )
-end
-
-function set_coefficients(
-    m::Optimizer,
-    rows::Vector{Int32},
-    vi::MOI.VariableIndex,
-    values::Vector{Float64},
-)
-    return set_coefficient(m.task, rows, mosek_index(m, vi), values)
 end
 
 function set_coefficient(
@@ -306,20 +258,6 @@ end
 ## Variable Constraints #######################################################
 ####################### lx ≤ x ≤ u ############################################
 #######################      x ∈ K ############################################
-
-function getvarboundlist(t::Mosek.Task, subj::Vector{Int32})
-    n = length(subj)
-    bk = Vector{Mosek.Boundkey}(undef, n)
-    bl = Vector{Float64}(undef, n)
-    bu = Vector{Float64}(undef, n)
-    for i in 1:n
-        bki, bli, bui = Mosek.getvarbound(t, subj[i])
-        bk[i] = bki
-        bl[i] = bli
-        bu[i] = bui
-    end
-    return bk, bl, bu
-end
 
 function delete_variable_constraint(
     m::Optimizer,
@@ -526,24 +464,11 @@ function appendconedomain(
     return Mosek.appendsvecpsdconedomain(t, n)
 end
 
-# Two `VariableIndex`-in-`S` cannot be set to the same variable if the two
-# constraints:
-#
-# * both set a lower bound, or
-# * both set an upper bound
-#
-# The `incompatible_mask` are computed according to these rules.
 flag(::Type{MOI.EqualTo{Float64}}) = 0x1
-incompatible_mask(::Type{MOI.EqualTo{Float64}}) = 0x2f
 flag(::Type{MOI.GreaterThan{Float64}}) = 0x2
-incompatible_mask(::Type{MOI.GreaterThan{Float64}}) = 0x2b
 flag(::Type{MOI.LessThan{Float64}}) = 0x4
-incompatible_mask(::Type{MOI.LessThan{Float64}}) = 0x2d
 flag(::Type{MOI.Interval{Float64}}) = 0x8
-incompatible_mask(::Type{MOI.Interval{Float64}}) = 0x2f
 flag(::Type{MOI.Integer}) = 0x10
-# MOI.Integer does not conflict with any othher supported variable set
-incompatible_mask(::Type{MOI.Integer}) = 0x00
 #flag(::Type{<:VectorCone}) = 0x40 # FIXME unused
 incompatible_mask(::Type{<:VectorCone}) = 0x40
 
@@ -986,10 +911,9 @@ function type_cone(ct)
         return MOI.DualPowerCone{Float64}
     elseif ct == Mosek.MSK_CT_QUAD
         return MOI.SecondOrderCone
-    elseif ct == Mosek.MSK_CT_RQUAD
-        return MOI.RotatedSecondOrderCone
     else
-        error("Unrecognized Mosek cone type `$ct`.")
+        @assert ct == Mosek.MSK_CT_RQUAD
+        return MOI.RotatedSecondOrderCone
     end
 end
 
