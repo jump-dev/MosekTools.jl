@@ -58,12 +58,12 @@ function LinkedInts(capacity = 128)
 end
 
 allocatedlist(s::LinkedInts) = findall(s.block .> 0)
+
 function allocated(s::LinkedInts, id::Int)
     return id > 0 && id <= length(s.block) && s.block[id] > 0
 end
-blocksize(s::LinkedInts, id::Int) = s.size[id]
+
 Base.length(s::LinkedInts) = length(s.next)
-numblocks(s::LinkedInts) = length(s.block)
 
 function Base.show(f::IO, s::LinkedInts)
     print(f, "LinkedInts(\n")
@@ -82,12 +82,13 @@ function Base.show(f::IO, s::LinkedInts)
         push!(freelst, p)
         p = s.prev[p]
     end
-    print(f, "  Free: $freelst\n")
+    println(f, "  Free: $freelst")
     println(f, "  free_ptr = $(s.free_ptr)")
     println(f, "  root     = $(s.root)")
     println(f, "  next     = $(s.next)")
     println(f, "  prev     = $(s.prev)")
-    return print(f, ")")
+    print(f, ")")
+    return
 end
 
 """
@@ -143,10 +144,6 @@ function allocate_block(s::LinkedInts, N::Int, id::Integer)
         s.next[s.root] = ptrb
     end
     s.root = ptre
-    #if ! checkconsistency(s)
-    #    println("List = ",s)
-    #    assert(false)
-    #end
     return id
 end
 
@@ -211,15 +208,6 @@ function deleteblock(s::LinkedInts, id::Int)
     return
 end
 
-# TODO merge getoneindex and getindex
-function getoneindex(s::LinkedInts, id::Int)
-    N = s.size[id]
-    if N < 1
-        error("No values at id")
-    end
-    return s.block[i]
-end
-
 """
     getindex(s::LinkedInts, id::Int)
 
@@ -247,91 +235,4 @@ function getindexes(s::LinkedInts, id::Int)
         p = s.next[p]
     end
     return r
-end
-
-function getindexes(s::LinkedInts, id::Int, target::Vector{Int}, offset::Int)
-    N = s.size[id]
-    p = s.block[id]
-    for i in 1:N
-        @assert s.back[p] == id
-        target[i+offset-1] = p
-        p = s.next[p]
-    end
-    return N
-end
-
-function getindexes(s::LinkedInts, ids::Vector{Int})
-    N = sum(map(id -> s.size[id], ids))
-    r = Vector{Int}(undef, N)
-    offset = 1
-    for id in ids
-        offset += getindexes(s, id, r, offset)
-    end
-    return r
-end
-
-"""
-Get a list if the currently free elements.
-"""
-function getfreeindexes(s::LinkedInts)
-    N = s.free_cap
-    r = Array{Int}(undef, N)
-    ptr = s.free_ptr
-    for i in 1:N
-        @assert iszero(s.back[ptr])
-        r[N-i+1] = ptr
-        ptr = s.prev[ptr]
-    end
-    return r
-end
-
-"""
-Get a list if the currently used elements.
-"""
-function getusedindexes(s::LinkedInts)
-    N = length(s.next) - s.free_cap
-    r = Array{Int}(undef, N)
-    ptr = s.root
-    for i in 1:N
-        @assert !iszero(s.back[ptr])
-        r[N-i+1] = ptr
-        ptr = s.prev[ptr]
-    end
-    return r
-end
-
-"""
-Check consistency of the internal structures.
-"""
-function checkconsistency(s::LinkedInts)::Bool
-    if length(s.prev) != length(s.next)
-        return false
-    end
-    N = length(s.prev)
-    if !(
-        all(i -> s.prev[i] == 0 || s.next[s.prev[i]] == i, 1:N) &&
-        all(i -> s.next[i] == 0 || s.prev[s.next[i]] == i, 1:N)
-    )
-        @assert(false)
-    end
-    mark = fill(false, length(s.prev))
-    p = s.free_ptr
-    while p != 0
-        @assert iszero(s.back[ptr])
-        mark[p] = true
-        p = s.prev[p]
-    end
-    p = s.root
-    while p != 0
-        @assert(!mark[p])
-        @assert !iszero(s.back[ptr])
-        mark[p] = true
-        p = s.prev[p]
-    end
-    if !all(mark)
-        println(s)
-        println(mark)
-        @assert(all(mark))
-    end
-    return true
 end
