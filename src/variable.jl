@@ -246,7 +246,7 @@ function delete_vector_of_variables_constraint(
     i = first(vis).value
     id = m.variable_to_vector_constraint_id[i]
     if id > 0
-        S = type_cone(Mosek.getconeinfo(m.task, id)[1])
+        S = _type_cone(Mosek.getconeinfo(m.task, id)[1])
         ci = MOI.ConstraintIndex{MOI.VectorOfVariables,S}(i)
         if MOI.is_valid(m, ci) &&
            vis == MOI.get(m, MOI.ConstraintFunction(), ci).variables

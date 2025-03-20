@@ -58,7 +58,7 @@ struct MatrixIndex
     column::Int32
     function MatrixIndex(matrix::Integer, row::Integer, column::Integer)
         # Since it is in the lower-triangular part:
-        @assert column ≤ row
+        @assert column <= row
         return new(matrix, row, column)
     end
 end
