@@ -347,40 +347,21 @@ function test_modify_psd()
 end
 
 function test_moi_test_runtests_Mosek()
-    config = MOI.Test.Config(
-        Float64;
-        atol = 1e-3,
-        rtol = 1e-3,
-        # TODO remove `MOI.delete` once it is implemented for ACC
-        exclude = Any[MOI.delete],
-    )
     MOI.Test.runtests(
         MosekOptimizerWithFallback(),
-        config;
-        exclude = [
-            # Expression: status in (config.optimal_status, MOI.INVALID_MODEL)
-            # Evaluated: MathOptInterface.OTHER_ERROR in (MathOptInterface.OPTIMAL, MathOptInterface.INVALID_MODEL)
-            "test_conic_empty_matrix",
-        ],
+        MOI.Test.Config(; atol = 1e-3, rtol = 1e-3);
+        # Evaluated: MOI.OTHER_ERROR in (MOI.OPTIMAL, MOI.INVALID_MODEL)
+        exclude = ["test_conic_empty_matrix"],
     )
     return
 end
 
 function test_moi_test_runtests_Bridge_Mosek()
-    model =
-        MOI.Bridges.full_bridge_optimizer(MosekOptimizerWithFallback(), Float64)
-    config = MOI.Test.Config(
-        Float64;
-        atol = 1e-3,
-        rtol = 1e-3,
-        # TODO remove `MOI.delete` once it is implemented for ACC
-        exclude = Any[MOI.delete],
-    )
     MOI.Test.runtests(
-        model,
-        config;
+        MOI.instantiate(MosekOptimizerWithFallback; with_bridge_type = Float64),
+        MOI.Test.Config(; atol = 1e-3, rtol = 1e-3);
         exclude = [
-            # Evaluated: MathOptInterface.OTHER_ERROR in (MathOptInterface.OPTIMAL, MathOptInterface.INVALID_MODEL)
+            # Evaluated: MOI.OTHER_ERROR in (MOI.OPTIMAL, MOI.INVALID_MODEL)
             "test_conic_empty_matrix",
             # Needs a cache to query the ConstraintFunction, and MOI doesn't
             # catch the error and skip for some reason.
@@ -391,22 +372,16 @@ function test_moi_test_runtests_Bridge_Mosek()
 end
 
 function test_moi_test_runtests_Bridge_Cache_Mosek()
-    model = MOI.Bridges.full_bridge_optimizer(
-        MOI.Utilities.CachingOptimizer(
-            MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}()),
-            MosekOptimizerWithFallback(),
+    MOI.Test.runtests(
+        MOI.instantiate(
+            MosekOptimizerWithFallback;
+            with_bridge_type = Float64,
+            with_cache_type = Float64,
         ),
-        Float64,
+        MOI.Test.Config(; atol = 1e-3, rtol = 1e-3);
+        # Evaluated: MOI.OTHER_ERROR in (MOI.OPTIMAL, MOI.INVALID_MODEL)
+        exclude = ["test_conic_empty_matrix"],
     )
-    config = MOI.Test.Config(
-        Float64;
-        atol = 1e-3,
-        rtol = 1e-3,
-        # TODO remove `MOI.delete` once it is implemented for ACC
-        exclude = Any[MOI.delete],
-    )
-    # Evaluated: MathOptInterface.OTHER_ERROR in (MathOptInterface.OPTIMAL, MathOptInterface.INVALID_MODEL)
-    MOI.Test.runtests(model, config; exclude = ["test_conic_empty_matrix"])
     return
 end
 
