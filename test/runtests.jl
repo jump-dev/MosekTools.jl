@@ -590,6 +590,26 @@ function test_BoundAlreadySet()
     return
 end
 
+function test_show_linked_ints()
+    s = MosekTools.LinkedInts()
+    x = MosekTools.newblock(s, 3)
+    y = MosekTools.newblock(s, 2)
+    MosekTools.deleteblock(s, x)
+    @test sprint(show, s) == """
+    LinkedInts(
+      Number of blocks: 2
+      Number of elements: 5
+      Blocks:
+        #2: [4, 5]
+      Free: [3, 2, 1]
+      free_ptr = 3
+      root     = 5
+      next     = [2, 3, 0, 5, 0]
+      prev     = [0, 1, 2, 0, 4]
+    )"""
+    return
+end
+
 end  # module
 
 TestMosekTools.runtests()
