@@ -660,6 +660,55 @@ cone_type(::Type{MOI.DualPowerCone{Float64}}) = Mosek.MSK_CT_DPOW
 cone_type(::Type{MOI.SecondOrderCone}) = Mosek.MSK_CT_QUAD
 cone_type(::Type{MOI.RotatedSecondOrderCone}) = Mosek.MSK_CT_RQUAD
 
+function _check_bound_compat(
+    m::Optimizer,
+    x::MOI.VariableIndex,
+    set::MOI.LessThan{Float64},
+)
+    if has_flag(m, x, MOI.EqualTo{Float64})
+        throw(MOI.UpperBoundAlreadySet{MOI.EqualTo{Float64},typeof(set)}(x))
+    elseif has_flag(m, x, MOI.Interval{Float64})
+        throw(MOI.UpperBoundAlreadySet{MOI.Interval{Float64},typeof(set)}(x))
+    elseif has_flag(m, x, MOI.LessThan{Float64})
+        throw(MOI.UpperBoundAlreadySet{MOI.LessThan{Float64},typeof(set)}(x))
+    end
+    return
+end
+
+function _check_bound_compat(
+    m::Optimizer,
+    x::MOI.VariableIndex,
+    set::MOI.GreaterThan{Float64},
+)
+    if has_flag(m, x, MOI.EqualTo{Float64})
+        throw(MOI.LowerBoundAlreadySet{MOI.EqualTo{Float64},typeof(set)}(x))
+    elseif has_flag(m, x, MOI.Interval{Float64})
+        throw(MOI.LowerBoundAlreadySet{MOI.Interval{Float64},typeof(set)}(x))
+    elseif has_flag(m, x, MOI.GreaterThan{Float64})
+        throw(MOI.LowerBoundAlreadySet{MOI.GreaterThan{Float64},typeof(set)}(x))
+    end
+    return
+end
+
+function _check_bound_compat(
+    m::Optimizer,
+    x::MOI.VariableIndex,
+    set::Union{MOI.EqualTo,MOI.Interval},
+)
+    if has_flag(m, x, MOI.EqualTo{Float64})
+        throw(MOI.LowerBoundAlreadySet{MOI.EqualTo{Float64},typeof(set)}(x))
+    elseif has_flag(m, x, MOI.Interval{Float64})
+        throw(MOI.LowerBoundAlreadySet{MOI.Interval{Float64},typeof(set)}(x))
+    elseif has_flag(m, x, MOI.LessThan{Float64})
+        throw(MOI.UpperBoundAlreadySet{MOI.LessThan{Float64},typeof(set)}(x))
+    elseif has_flag(m, x, MOI.GreaterThan{Float64})
+        throw(MOI.LowerBoundAlreadySet{MOI.GreaterThan{Float64},typeof(set)}(x))
+    end
+    return
+end
+
+_check_bound_compat(::Optimizer, ::MOI.VariableIndex, ::MOI.Integer) = nothing
+
 function MOI.add_constraint(
     m::Optimizer,
     xs::MOI.VariableIndex,
@@ -669,9 +718,7 @@ function MOI.add_constraint(
     if !(msk_idx isa ColumnIndex)
         error("Cannot add $D constraint on a matrix variable")
     end
-    if !iszero(incompatible_mask(D) & m.x_constraints[xs.value])
-        error("Cannot put multiple bound sets of the same type on a variable")
-    end
+    _check_bound_compat(m, xs, dom)
     set_flag(m, xs, D)
     add_variable_constraint(m, msk_idx, dom)
     return MOI.ConstraintIndex{MOI.VariableIndex,D}(xs.value)
