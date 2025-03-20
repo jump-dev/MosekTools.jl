@@ -657,11 +657,7 @@ function test_simplex_iterations()
         MOI.RawOptimizerAttribute("MSK_IPAR_PRESOLVE_USE"),
         Mosek.MSK_PRESOLVE_MODE_OFF,
     )
-    MOI.set(
-        model,
-        MOI.RawOptimizerAttribute("MSK_DPAR_MIO_MAX_TIME"),
-        0.0,
-    )
+    MOI.set(model, MOI.RawOptimizerAttribute("MSK_DPAR_MIO_MAX_TIME"), 0.0)
     _solve_knapsack_model(model, 100)
     @test MOI.get(model, MOI.TerminationStatus()) == MOI.TIME_LIMIT
     @test MOI.get(model, MOI.RawStatusString()) == "Mosek.MSK_RES_TRM_MAX_TIME"
