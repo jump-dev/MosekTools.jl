@@ -24,15 +24,14 @@ function MOI.get(
         msg = "Cannot get objective if it contains the contribution of the entry of a PSD variable."
         throw(MOI.GetAttributeNotAllowed(attr, msg))
     end
-    cis = MOI.get(m, MOI.ListOfVariableIndices())
-    cols = columns(m, cis).values
-    coeffs = Mosek.getclist(m.task, cols)
-    constant = Mosek.getcfix(m.task)
-    @assert length(coeffs) == length(cis)
-    terms = MOI.ScalarAffineTerm{Float64}[
-        MOI.ScalarAffineTerm(coeffs[i], cis[i]) for i in 1:length(cis)
-    ]
-    return MOI.ScalarAffineFunction(terms, constant)
+    # List of scalar variables only. Exclude matrix variables and those deleted.
+    xs = [MOI.VariableIndex(i) for (i, x) in enumerate(m.x_sd) if x.matrix == 0]
+    coeffs = Mosek.getclist(m.task, columns(m, xs).values)
+    @assert length(coeffs) == length(xs)
+    return MOI.ScalarAffineFunction{Float64}(
+        MOI.ScalarAffineTerm{Float64}.(coeffs, xs),
+        Mosek.getcfix(m.task),
+    )
 end
 
 function MOI.supports(

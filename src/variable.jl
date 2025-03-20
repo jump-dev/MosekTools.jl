@@ -287,7 +287,9 @@ end
 MOI.get(m::Optimizer, ::MOI.NumberOfVariables) = sum(m.x_block.size)
 
 function MOI.get(m::Optimizer, ::MOI.ListOfVariableIndices)
-    return MOI.VariableIndex.(findall(isone, m.x_block.size))
+    return MOI.VariableIndex[
+        MOI.VariableIndex(i) for (i, x) in enumerate(m.x_sd) if x.matrix >= 0
+    ]
 end
 
 function MOI.get(m::Optimizer, ::MOI.ListOfVariableAttributesSet)
