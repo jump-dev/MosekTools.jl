@@ -560,6 +560,52 @@ function test_issue_134()
     return
 end
 
+function test_add_constrained_variables()
+    model = Mosek.Optimizer()
+    # Add a scalar
+    x = MOI.add_variable(model)
+    @test MOI.get(model, MOI.ListOfVariableIndices()) == [x]
+    @test MOI.is_valid(model, x)
+    @test MOI.get(model, MOI.NumberOfVariables()) == 1
+    # Add a PSD matrix
+    set = MOI.PositiveSemidefiniteConeTriangle(2)
+    X, _ = MOI.add_constrained_variables(model, set)
+    @test MOI.get(model, MOI.ListOfVariableIndices()) == [x; X]
+    @test all(MOI.is_valid.(model, [x; X]))
+    @test MOI.get(model, MOI.NumberOfVariables()) == 4
+    # Add and delete a scalar
+    y = MOI.add_variable(model)
+    @test MOI.get(model, MOI.ListOfVariableIndices()) == [x; X; y]
+    @test all(MOI.is_valid.(model, [x; X; y]))
+    @test MOI.get(model, MOI.NumberOfVariables()) == 5
+    MOI.delete(model, y)
+    @test !MOI.is_valid(model, y)
+    @test MOI.get(model, MOI.ListOfVariableIndices()) == [x; X]
+    @test all(MOI.is_valid.(model, [x; X]))
+    @test MOI.get(model, MOI.NumberOfVariables()) == 4
+    # Add and delete another scalar
+    z = MOI.add_variable(model)
+    @test MOI.get(model, MOI.ListOfVariableIndices()) == [x; X; z]
+    @test all(MOI.is_valid.(model, [x; X]))
+    @test MOI.is_valid(model, z)
+    @test MOI.get(model, MOI.NumberOfVariables()) == 5
+    MOI.delete(model, z)
+    @test !MOI.is_valid(model, y)
+    @test !MOI.is_valid(model, z)
+    @test MOI.get(model, MOI.ListOfVariableIndices()) == [x; X]
+    @test all(MOI.is_valid.(model, [x; X]))
+    @test MOI.get(model, MOI.NumberOfVariables()) == 4
+    MOI.delete(model, x)
+    @test !MOI.is_valid(model, x)
+    @test !MOI.is_valid(model, y)
+    @test !MOI.is_valid(model, z)
+    @test MOI.get(model, MOI.ListOfVariableIndices()) == X
+    @test all(MOI.is_valid.(model, X))
+    @test MOI.get(model, MOI.NumberOfVariables()) == 3
+    @test_throws(MOI.DeleteNotAllowed, MOI.delete(model, X[1]))
+    return
+end
+
 end  # module
 
 TestMosekTools.runtests()

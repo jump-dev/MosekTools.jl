@@ -794,8 +794,8 @@ end
 
 function MOI.add_constrained_variables(
     m::Optimizer,
-    dom::MOI.PositiveSemidefiniteConeTriangle,
-)
+    dom::S,
+) where {S<:MOI.PositiveSemidefiniteConeTriangle}
     N = MOI.side_dimension(dom)
     if N < 1
         error(
@@ -803,18 +803,11 @@ function MOI.add_constrained_variables(
             "smaller than the minimum dimension 1.",
         )
     end
-    Mosek.appendbarvars(m.task, [Int32(N)])
+    Mosek.appendbarvars(m.task, Int32[N])
     push!(m.sd_dim, N)
     id = length(m.sd_dim)
-    vis =
-        [new_variable_index(m, MatrixIndex(id, i, j)) for i in 1:N for j in 1:i]
-    con_idx = MOI.ConstraintIndex{
-        MOI.VectorOfVariables,
-        MOI.PositiveSemidefiniteConeTriangle,
-    }(
-        id,
-    )
-    return vis, con_idx
+    x = [new_variable_index(m, MatrixIndex(id, i, j)) for i in 1:N for j in 1:i]
+    return x, MOI.ConstraintIndex{MOI.VectorOfVariables,S}(id)
 end
 
 ## Get ########################################################################
