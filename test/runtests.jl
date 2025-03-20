@@ -590,6 +590,84 @@ function test_BoundAlreadySet()
     return
 end
 
+function test_raw_solver()
+    model = Mosek.Optimizer()
+    @test MOI.get(model, MOI.RawSolver()) == model.task
+    return
+end
+
+function _solve_knapsack_model(model, n; integer::Bool = true)
+    x = MOI.add_variables(model, n)
+    if integer
+        MOI.add_constraint.(model, x, MOI.Integer())
+    end
+    MOI.add_constraint.(model, x, MOI.Interval(0.0, 3.0))
+    MOI.add_constraint(model, sum(rand(n) .* x), MOI.LessThan(0.2 * n))
+    MOI.set(model, MOI.ObjectiveSense(), MOI.MAX_SENSE)
+    g = MOI.ScalarAffineFunction(MOI.ScalarAffineTerm.(rand(n), x), 0.0)
+    MOI.set(model, MOI.ObjectiveFunction{typeof(g)}(), g)
+    MOI.optimize!(model)
+    return
+end
+
+function test_simplex_iterations()
+    model = MosekOptimizerWithFallback()
+    @test MOI.get(model, MOI.SimplexIterations()) == 0
+    _solve_knapsack_model(model, 100)
+    @test MOI.get(model, MOI.SimplexIterations()) > 0
+    return
+end
+
+function test_barrier_iterations()
+    model = MosekOptimizerWithFallback()
+    MOI.set(
+        model,
+        MOI.RawOptimizerAttribute("MSK_IPAR_PRESOLVE_USE"),
+        Mosek.MSK_PRESOLVE_MODE_OFF,
+    )
+    @test MOI.get(model, MOI.BarrierIterations()) == 0
+    _solve_knapsack_model(model, 100; integer = false)
+    @test MOI.get(model, MOI.BarrierIterations()) > 0
+    return
+end
+
+function test_node_count()
+    model = MosekOptimizerWithFallback()
+    @test MOI.get(model, MOI.NodeCount()) == 0
+    _solve_knapsack_model(model, 100)
+    @test MOI.get(model, MOI.NodeCount()) > 0
+    return
+end
+
+function test_variable_primal_start()
+    model = MosekOptimizerWithFallback()
+    set = MOI.PositiveSemidefiniteConeTriangle(2)
+    x, _ = MOI.add_constrained_variables(model, set)
+    MOI.set.(model, MOI.VariablePrimalStart(), x, [1.0, 0.0, 1.0])
+    @test MOI.get.(model, MOI.VariablePrimalStart(), x) == [1.0, 0.0, 1.0]
+    return
+end
+
+function test_simplex_iterations()
+    model = MosekOptimizerWithFallback()
+    MOI.set(model, MOI.Silent(), false)
+    @test MOI.get(model, MOI.RawStatusString()) == "MOI.OPTIMIZE_NOT_CALLED"
+    MOI.set(
+        model,
+        MOI.RawOptimizerAttribute("MSK_IPAR_PRESOLVE_USE"),
+        Mosek.MSK_PRESOLVE_MODE_OFF,
+    )
+    MOI.set(
+        model,
+        MOI.RawOptimizerAttribute("MSK_DPAR_MIO_MAX_TIME"),
+        0.0,
+    )
+    _solve_knapsack_model(model, 100)
+    @test MOI.get(model, MOI.TerminationStatus()) == MOI.TIME_LIMIT
+    @test MOI.get(model, MOI.RawStatusString()) == "Mosek.MSK_RES_TRM_MAX_TIME"
+    return
+end
+
 end  # module
 
 TestMosekTools.runtests()

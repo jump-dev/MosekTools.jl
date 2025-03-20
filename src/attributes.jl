@@ -623,8 +623,6 @@ function MOI.get(
     end
 end
 
-solsize(::Optimizer, ::MOI.ConstraintIndex{<:MOI.AbstractScalarFunction}) = 1
-
 function solsize(m::Optimizer, ci::MOI.ConstraintIndex{MOI.VectorOfVariables})
     return Mosek.getconeinfo(m.task, cone_id(m, ci))[3]
 end
@@ -668,6 +666,7 @@ function MOI.get(
 end
 
 #### Status codes
+
 function MOI.get(m::Optimizer, attr::MOI.RawStatusString)
     if m.trm === nothing
         return "MOI.OPTIMIZE_NOT_CALLED"
@@ -678,9 +677,29 @@ function MOI.get(m::Optimizer, attr::MOI.RawStatusString)
     end
 end
 
+# Mosek.jl defines `MosekEnum <: Integer` but it does not define
+# `hash(::MosekEnum)`. This means creating a dictionary fails. Instead of fixing
+# in Mosek.jl, or pirating a Base.hash(::Mosek.MosekEnum, ::UInt64) method here,
+# we just use the `.value::Int32` field as the key.
+const _TERMINATION_STATUS_MAP = Dict(
+    Mosek.MSK_RES_TRM_MAX_ITERATIONS.value => MOI.ITERATION_LIMIT,
+    Mosek.MSK_RES_TRM_MAX_TIME.value => MOI.TIME_LIMIT,
+    Mosek.MSK_RES_TRM_OBJECTIVE_RANGE.value => MOI.OBJECTIVE_LIMIT,
+    Mosek.MSK_RES_TRM_STALL.value => MOI.SLOW_PROGRESS,
+    Mosek.MSK_RES_TRM_USER_CALLBACK.value => MOI.INTERRUPTED,
+    Mosek.MSK_RES_TRM_MIO_NUM_RELAXS.value => MOI.OTHER_LIMIT,
+    Mosek.MSK_RES_TRM_MIO_NUM_BRANCHES.value => MOI.NODE_LIMIT,
+    Mosek.MSK_RES_TRM_NUM_MAX_NUM_INT_SOLUTIONS.value => MOI.SOLUTION_LIMIT,
+    Mosek.MSK_RES_TRM_MAX_NUM_SETBACKS.value => MOI.OTHER_LIMIT,
+    Mosek.MSK_RES_TRM_NUMERICAL_PROBLEM.value => MOI.SLOW_PROGRESS,
+    Mosek.MSK_RES_TRM_LOST_RACE.value => MOI.OTHER_ERROR,
+    Mosek.MSK_RES_TRM_INTERNAL.value => MOI.OTHER_ERROR,
+    Mosek.MSK_RES_TRM_INTERNAL_STOP.value => MOI.OTHER_ERROR,
+)
+
 function MOI.get(m::Optimizer, attr::MOI.TerminationStatus)
     if m.trm === nothing
-        MOI.OPTIMIZE_NOT_CALLED
+        return MOI.OPTIMIZE_NOT_CALLED
     elseif m.trm == Mosek.MSK_RES_OK
         # checking `any(sol -> sol.solsta == Mosek.MSK_SOL_STA_PRIM_INFEAS_CER, m.solutions)`
         # doesn't work for MIP as there is not certificate, i.e. the solutions status is
@@ -690,113 +709,76 @@ function MOI.get(m::Optimizer, attr::MOI.TerminationStatus)
             [Mosek.MSK_PRO_STA_PRIM_INFEAS, Mosek.MSK_PRO_STA_ILL_POSED],
             m.solutions,
         )
-            MOI.INFEASIBLE
+            return MOI.INFEASIBLE
         elseif any(
             sol -> sol.prosta == Mosek.MSK_PRO_STA_DUAL_INFEAS,
             m.solutions,
         )
-            MOI.DUAL_INFEASIBLE
+            return MOI.DUAL_INFEASIBLE
         elseif any(
             sol -> sol.prosta == Mosek.MSK_PRO_STA_PRIM_INFEAS_OR_UNBOUNDED,
             m.solutions,
         )
-            MOI.INFEASIBLE_OR_UNBOUNDED
+            return MOI.INFEASIBLE_OR_UNBOUNDED
         elseif any(
             sol -> sol.solsta in
             [Mosek.MSK_SOL_STA_OPTIMAL, Mosek.MSK_SOL_STA_INTEGER_OPTIMAL],
             m.solutions,
         )
-            MOI.OPTIMAL
-        else
-            MOI.OTHER_ERROR # ??
+            return MOI.OPTIMAL
         end
-    elseif m.trm == Mosek.MSK_RES_TRM_MAX_ITERATIONS
-        MOI.ITERATION_LIMIT
-    elseif m.trm == Mosek.MSK_RES_TRM_MAX_TIME
-        MOI.TIME_LIMIT
-    elseif m.trm == Mosek.MSK_RES_TRM_OBJECTIVE_RANGE
-        MOI.OBJECTIVE_LIMIT
-    elseif m.trm == Mosek.MSK_RES_TRM_MIO_NUM_RELAXS
-        MOI.OTHER_LIMIT
-    elseif m.trm == Mosek.MSK_RES_TRM_MIO_NUM_BRANCHES
-        MOI.NODE_LIMIT
-    elseif m.trm == Mosek.MSK_RES_TRM_NUM_MAX_NUM_INT_SOLUTIONS
-        MOI.SOLUTION_LIMIT
-    elseif m.trm == Mosek.MSK_RES_TRM_STALL
-        MOI.SLOW_PROGRESS
-    elseif m.trm == Mosek.MSK_RES_TRM_USER_CALLBACK
-        MOI.INTERRUPTED
-    elseif m.trm == Mosek.MSK_RES_TRM_MAX_NUM_SETBACKS
-        MOI.OTHER_LIMIT
-    elseif m.trm == Mosek.MSK_RES_TRM_NUMERICAL_PROBLEM
-        MOI.SLOW_PROGRESS
-    elseif m.trm == Mosek.MSK_RES_TRM_INTERNAL
-        MOI.OTHER_ERROR
-    elseif m.trm == Mosek.MSK_RES_TRM_INTERNAL_STOP
-        MOI.OTHER_ERROR
-    else
-        MOI.OTHER_ERROR
     end
+    return get(_TERMINATION_STATUS_MAP, m.trm.value, MOI.OTHER_ERROR)
 end
+
+# Mosek.jl defines `MosekEnum <: Integer` but it does not define
+# `hash(::MosekEnum)`. This means creating a dictionary fails. Instead of fixing
+# in Mosek.jl, or pirating a Base.hash(::Mosek.MosekEnum, ::UInt64) method here,
+# we just use the `.value::Int32` field as the key.
+const _PRIMAL_STATUS_MAP = Dict(
+    Mosek.MSK_SOL_STA_UNKNOWN.value => MOI.UNKNOWN_RESULT_STATUS,
+    Mosek.MSK_SOL_STA_OPTIMAL.value => MOI.FEASIBLE_POINT,
+    Mosek.MSK_SOL_STA_PRIM_FEAS.value => MOI.FEASIBLE_POINT,
+    Mosek.MSK_SOL_STA_DUAL_FEAS.value => MOI.UNKNOWN_RESULT_STATUS,
+    Mosek.MSK_SOL_STA_PRIM_AND_DUAL_FEAS.value => MOI.FEASIBLE_POINT,
+    Mosek.MSK_SOL_STA_PRIM_INFEAS_CER.value => MOI.NO_SOLUTION,
+    Mosek.MSK_SOL_STA_DUAL_INFEAS_CER.value => MOI.INFEASIBILITY_CERTIFICATE,
+    Mosek.MSK_SOL_STA_PRIM_ILLPOSED_CER.value => MOI.NO_SOLUTION,
+    Mosek.MSK_SOL_STA_DUAL_ILLPOSED_CER.value => MOI.REDUCTION_CERTIFICATE,
+    Mosek.MSK_SOL_STA_INTEGER_OPTIMAL.value => MOI.FEASIBLE_POINT,
+)
 
 function MOI.get(m::Optimizer, attr::MOI.PrimalStatus)
-    if attr.result_index > MOI.get(m, MOI.ResultCount())
+    if !(1 <= attr.result_index <= MOI.get(m, MOI.ResultCount()))
         return MOI.NO_SOLUTION
     end
     solsta = m.solutions[attr.result_index].solsta
-    if solsta == Mosek.MSK_SOL_STA_UNKNOWN
-        MOI.UNKNOWN_RESULT_STATUS
-    elseif solsta == Mosek.MSK_SOL_STA_OPTIMAL
-        MOI.FEASIBLE_POINT
-    elseif solsta == Mosek.MSK_SOL_STA_PRIM_FEAS
-        MOI.FEASIBLE_POINT
-    elseif solsta == Mosek.MSK_SOL_STA_DUAL_FEAS
-        MOI.UNKNOWN_RESULT_STATUS
-    elseif solsta == Mosek.MSK_SOL_STA_PRIM_AND_DUAL_FEAS
-        MOI.FEASIBLE_POINT
-    elseif solsta == Mosek.MSK_SOL_STA_PRIM_INFEAS_CER
-        MOI.NO_SOLUTION
-    elseif solsta == Mosek.MSK_SOL_STA_DUAL_INFEAS_CER
-        MOI.INFEASIBILITY_CERTIFICATE
-    elseif solsta == Mosek.MSK_SOL_STA_PRIM_ILLPOSED_CER
-        MOI.NO_SOLUTION
-    elseif solsta == Mosek.MSK_SOL_STA_DUAL_ILLPOSED_CER
-        MOI.REDUCTION_CERTIFICATE
-    elseif solsta == Mosek.MSK_SOL_STA_INTEGER_OPTIMAL
-        MOI.FEASIBLE_POINT
-    else
-        MOI.UNKNOWN_RESULT_STATUS
-    end
+    return get(_PRIMAL_STATUS_MAP, solsta.value, MOI.UNKNOWN_RESULT_STATUS)
 end
 
+# Mosek.jl defines `MosekEnum <: Integer` but it does not define
+# `hash(::MosekEnum)`. This means creating a dictionary fails. Instead of fixing
+# in Mosek.jl, or pirating a Base.hash(::Mosek.MosekEnum, ::UInt64) method here,
+# we just use the `.value::Int32` field as the key.
+const _DUAL_STATUS_MAP = Dict(
+    Mosek.MSK_SOL_STA_UNKNOWN.value => MOI.UNKNOWN_RESULT_STATUS,
+    Mosek.MSK_SOL_STA_OPTIMAL.value => MOI.FEASIBLE_POINT,
+    Mosek.MSK_SOL_STA_PRIM_FEAS.value => MOI.UNKNOWN_RESULT_STATUS,
+    Mosek.MSK_SOL_STA_DUAL_FEAS.value => MOI.FEASIBLE_POINT,
+    Mosek.MSK_SOL_STA_PRIM_AND_DUAL_FEAS.value => MOI.FEASIBLE_POINT,
+    Mosek.MSK_SOL_STA_PRIM_INFEAS_CER.value => MOI.INFEASIBILITY_CERTIFICATE,
+    Mosek.MSK_SOL_STA_DUAL_INFEAS_CER.value => MOI.NO_SOLUTION,
+    Mosek.MSK_SOL_STA_PRIM_ILLPOSED_CER.value => MOI.REDUCTION_CERTIFICATE,
+    Mosek.MSK_SOL_STA_DUAL_ILLPOSED_CER.value => MOI.NO_SOLUTION,
+    Mosek.MSK_SOL_STA_INTEGER_OPTIMAL.value => MOI.NO_SOLUTION,
+)
+
 function MOI.get(m::Optimizer, attr::MOI.DualStatus)
-    if attr.result_index > MOI.get(m, MOI.ResultCount())
+    if !(1 <= attr.result_index <= MOI.get(m, MOI.ResultCount()))
         return MOI.NO_SOLUTION
     end
     solsta = m.solutions[attr.result_index].solsta
-    if solsta == Mosek.MSK_SOL_STA_UNKNOWN
-        MOI.UNKNOWN_RESULT_STATUS
-    elseif solsta == Mosek.MSK_SOL_STA_OPTIMAL
-        MOI.FEASIBLE_POINT
-    elseif solsta == Mosek.MSK_SOL_STA_PRIM_FEAS
-        MOI.UNKNOWN_RESULT_STATUS
-    elseif solsta == Mosek.MSK_SOL_STA_DUAL_FEAS
-        MOI.FEASIBLE_POINT
-    elseif solsta == Mosek.MSK_SOL_STA_PRIM_AND_DUAL_FEAS
-        MOI.FEASIBLE_POINT
-    elseif solsta == Mosek.MSK_SOL_STA_PRIM_INFEAS_CER
-        MOI.INFEASIBILITY_CERTIFICATE
-    elseif solsta == Mosek.MSK_SOL_STA_DUAL_INFEAS_CER
-        MOI.NO_SOLUTION
-    elseif solsta == Mosek.MSK_SOL_STA_PRIM_ILLPOSED_CER
-        MOI.REDUCTION_CERTIFICATE
-    elseif solsta == Mosek.MSK_SOL_STA_DUAL_ILLPOSED_CER
-        MOI.NO_SOLUTION
-    elseif solsta == Mosek.MSK_SOL_STA_INTEGER_OPTIMAL
-        MOI.NO_SOLUTION
-    else
-        MOI.UNKNOWN_RESULT_STATUS
-    end
+    return get(_DUAL_STATUS_MAP, solsta.value, MOI.UNKNOWN_RESULT_STATUS)
 end
 
 function MOI.Utilities.substitute_variables(
