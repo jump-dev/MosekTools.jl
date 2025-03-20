@@ -236,7 +236,7 @@ end
 ###############################################################################
 
 function MOI.is_valid(model::Optimizer, vi::MOI.VariableIndex)
-    return allocated(model.x_block, ref2id(vi))
+    return get(model.x_block.size, vi.value, 0) == 1
 end
 
 function delete_vector_of_variables_constraint(
@@ -287,8 +287,7 @@ end
 MOI.get(m::Optimizer, ::MOI.NumberOfVariables) = sum(m.x_block.size)
 
 function MOI.get(m::Optimizer, ::MOI.ListOfVariableIndices)
-    ids = allocatedlist(m.x_block)
-    return MOI.VariableIndex[MOI.VariableIndex(vid) for vid in ids]
+    return MOI.VariableIndex.(findall(isone, m.x_block.size))
 end
 
 function MOI.get(m::Optimizer, ::MOI.ListOfVariableAttributesSet)
