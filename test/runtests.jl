@@ -575,6 +575,21 @@ function test_add_constrained_variables()
     return
 end
 
+function test_BoundAlreadySet()
+    for (set, ErrType) in (
+        MOI.LessThan(0.0) => MOI.UpperBoundAlreadySet,
+        MOI.GreaterThan(0.0) => MOI.LowerBoundAlreadySet,
+        MOI.EqualTo(0.0) => MOI.LowerBoundAlreadySet,
+        MOI.Interval(0.0, 1.0) => MOI.LowerBoundAlreadySet,
+    )
+        model = Mosek.Optimizer()
+        x, _ = MOI.add_constrained_variable(model, set)
+        S = typeof(set)
+        @test_throws ErrType{S,S}(x) MOI.add_constraint(model, x, set)
+    end
+    return
+end
+
 end  # module
 
 TestMosekTools.runtests()
