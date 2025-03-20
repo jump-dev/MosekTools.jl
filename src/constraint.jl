@@ -526,11 +526,12 @@ function appendconedomain(
     return Mosek.appendsvecpsdconedomain(t, n)
 end
 
-# Two `SingleVariable`-in-`S` cannot be set to the same variable if
-# the two constraints
+# Two `VariableIndex`-in-`S` cannot be set to the same variable if the two
+# constraints:
+#
 # * both set a lower bound, or
-# * both set an upper bound, or
-# * both set it to integer.
+# * both set an upper bound
+#
 # The `incompatible_mask` are computed according to these rules.
 flag(::Type{MOI.EqualTo{Float64}}) = 0x1
 incompatible_mask(::Type{MOI.EqualTo{Float64}}) = 0x2f
@@ -541,7 +542,8 @@ incompatible_mask(::Type{MOI.LessThan{Float64}}) = 0x2d
 flag(::Type{MOI.Interval{Float64}}) = 0x8
 incompatible_mask(::Type{MOI.Interval{Float64}}) = 0x2f
 flag(::Type{MOI.Integer}) = 0x10
-incompatible_mask(::Type{MOI.Integer}) = 0x30
+# MOI.Integer does not conflict with any othher supported variable set
+incompatible_mask(::Type{MOI.Integer}) = 0x00
 #flag(::Type{<:VectorCone}) = 0x40 # FIXME unused
 incompatible_mask(::Type{<:VectorCone}) = 0x40
 

@@ -380,11 +380,6 @@ function test_moi_test_runtests_Bridge_Mosek()
         model,
         config;
         exclude = [
-            # Cannot put multiple bound sets of the same type on a variable
-            "test_basic_VectorAffineFunction_Circuit",
-            "test_basic_VectorOfVariables_Circuit",
-            "test_basic_VectorQuadraticFunction_Circuit",
-            "test_cpsat_Circuit",
             # Evaluated: MathOptInterface.OTHER_ERROR in (MathOptInterface.OPTIMAL, MathOptInterface.INVALID_MODEL)
             "test_conic_empty_matrix",
             # Needs a cache to query the ConstraintFunction, and MOI doesn't
