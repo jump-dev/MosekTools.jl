@@ -34,11 +34,6 @@ function init_columns(task::Mosek.MSKtask, cols::ColumnIndices)
     N = length(cols.values)
     bnd = zeros(Float64, N)
     Mosek.putvarboundlist(task, cols.values, fill(Mosek.MSK_BK_FR, N), bnd, bnd)
-    if DEBUG
-        for col in cols.values
-            Mosek.putvarname(task, col, "x$col")
-        end
-    end
     return
 end
 
@@ -76,12 +71,6 @@ function clear_columns(task::Mosek.MSKtask, cols::ColumnIndices)
     #         added to reuse this column.
     bnd = zeros(Float64, N)
     Mosek.putvarboundlist(task, cols.values, fill(Mosek.MSK_BK_FX, N), bnd, bnd)
-    if DEBUG
-        for col in cols.values
-            # Rename deleted column to help debugging
-            Mosek.putvarname(task, col, "deleted$col")
-        end
-    end
     return
 end
 

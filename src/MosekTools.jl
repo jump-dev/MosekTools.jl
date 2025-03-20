@@ -17,8 +17,6 @@ Mosek.Optimizer(; kwargs...) = MosekTools.Optimizer(; kwargs...)
 
 include("LinkedInts.jl")
 
-const DEBUG = false
-
 struct MosekSolution
     whichsol::Mosek.Soltype
     solsta::Mosek.Solsta
