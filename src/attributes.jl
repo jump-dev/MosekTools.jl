@@ -41,20 +41,19 @@ function MOI.get(m::Optimizer, attr::MOI.DualObjectiveValue)
     return Mosek.getdualobj(m.task, m.solutions[attr.result_index].whichsol)
 end
 
-function MOI.get(m::Optimizer, attr::MOI.ObjectiveBound)
-    if !Mosek.solutiondef(m.task, Mosek.MSK_SOL_ITG)
-        msg = "A `MSK_SOL_ITG` solution is not defined"
-        return throw(MOI.GetAttributeNotAllowed(attr, msg))
+function MOI.get(m::Optimizer, ::MOI.ObjectiveBound)
+    if Mosek.getintinf(m.task, Mosek.MSK_IINF_MIO_OBJ_BOUND_DEFINED) > 0
+        return Mosek.getdouinf(m.task, Mosek.MSK_DINF_MIO_OBJ_BOUND)
+    elseif MOI.get(m, MOI.DualStatus(1)) == MOI.FEASIBLE_POINT
+        return MOI.get(m, MOI.DualObjectiveValue(1))
     end
-    return Mosek.getdouinf(m.task, Mosek.MSK_DINF_MIO_OBJ_BOUND)
+    return NaN
 end
 
-function MOI.get(m::Optimizer, attr::MOI.RelativeGap)
-    if !Mosek.solutiondef(m.task, Mosek.MSK_SOL_ITG)
-        msg = "A `MSK_SOL_ITG` solution is not defined"
-        return throw(MOI.GetAttributeNotAllowed(attr, msg))
-    end
-    return Mosek.getdouinf(m.task, Mosek.MSK_DINF_MIO_OBJ_REL_GAP)
+function MOI.get(m::Optimizer, ::MOI.RelativeGap)
+    val = MOI.get(m, MOI.ObjectiveValue(1))
+    bound = MOI.get(m, MOI.ObjectiveBound())
+    return abs(val - bound) / max(1e-10, abs(val))
 end
 
 function MOI.get(m::Optimizer, ::MOI.SolveTimeSec)
