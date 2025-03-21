@@ -41,7 +41,7 @@ function MOI.get(m::Optimizer, attr::MOI.DualObjectiveValue)
     return Mosek.getdualobj(m.task, m.solutions[attr.result_index].whichsol)
 end
 
-function MOI.get(m::Optimizer, ::MOI.ObjectiveBound)
+function MOI.get(m::Optimizer, attr::MOI.ObjectiveBound)
     if !Mosek.solutiondef(m.task, Mosek.MSK_SOL_ITG)
         msg = "A `MSK_SOL_ITG` solution is not defined"
         return throw(MOI.GetAttributeNotAllowed(attr, msg))
