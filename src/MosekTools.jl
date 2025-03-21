@@ -109,27 +109,21 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
 
     F_rows::Dict{Int,UnitRange{Int}} # TODO can it be obtained from Mosek ?
 
-    """
-        The total length of `x_block` matches the number of variables in
-    the underlying task, and the number of blocks corresponds to the
-    number variables allocated in the Model.
-    """
+    # The total length of `x_block` matches the number of variables in
+    # the underlying task, and the number of blocks corresponds to the
+    # number variables allocated in the Model.
     x_block::LinkedInts
 
-    """
-    One entry per scalar variable in the task indicating in which semidefinite
-    block it is and at which index.
-    MOI index -> MatrixIndex
-    """
+    # One entry per scalar variable in the task indicating in which semidefinite
+    # block it is and at which index.
+    # MOI index -> MatrixIndex
     x_sd::Vector{MatrixIndex}
 
     sd_dim::Vector{Int}
 
     ###########################
-    """
-    One scalar entry per constraint in the underlying task. One block
-    per constraint allocated in the Model.
-    """
+    # One scalar entry per constraint in the underlying task. One block
+    # per constraint allocated in the Model.
     c_block::LinkedInts
 
     # i -> 0: Not in a VectorOfVariables constraint
@@ -142,52 +136,48 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     solutions::Vector{MosekSolution}
 
     ###########################
-    """
-    Indicating whether the objective sense is MOI.FEASIBILITY_SENSE. It is
-    encoded as a MOI.MIN_SENSE with a zero objective internally but this allows
-    MOI.get(::Optimizer, ::ObjectiveSense) to still return the right value
-    """
+    # Indicating whether the objective sense is MOI.FEASIBILITY_SENSE. It is
+    # encoded as a MOI.MIN_SENSE with a zero objective internally but this allows
+    # MOI.get(::Optimizer, ::ObjectiveSense) to still return the right value
     feasibility::Bool
-    """
-    Indicates whether there is an objective set.
-    If `has_objective` is `false` then Mosek has a zero objective internally.
-    This affects `MOI.ListOfModelAttributesSet`.
-    """
+
+    # Indicates whether there is an objective set.
+    # If `has_objective` is `false` then Mosek has a zero objective internally.
+    # This affects `MOI.ListOfModelAttributesSet`.
     has_objective::Bool
-    """
-    Indicates whether there was any PSD variables used when setting the objective.
-    When resetting it, I don't know how to remove the contributions from these
-    variables so we need to keep this boolean to throw in that case.
-    """
+
+    # Indicates whether there was any PSD variables used when setting the objective.
+    # When resetting it, I don't know how to remove the contributions from these
+    # variables so we need to keep this boolean to throw in that case.
     has_psd_in_objective::Bool
 
     fallback::Union{String,Nothing}
 
     function Optimizer(; kwargs...)
         optimizer = new(
-            Mosek.maketask(), # task
-            false, # be_quiet
-            Dict{String,Int32}(), # ipars
-            Dict{String,Float64}(), # dpars
-            Dict{String,AbstractString}(), # spars
+            Mosek.maketask(),                    # task
+            false,                               # be_quiet
+            Dict{String,Int32}(),                # ipars
+            Dict{String,Float64}(),              # dpars
+            Dict{String,AbstractString}(),       # spars
             Dict{MOI.VariableIndex,Float64}(),   # variable_primal_start
             Dict{MOI.VariableIndex,String}(),    # variable_to_name
             nothing,                             # name_to_variable
             Dict{MOI.ConstraintIndex,String}(),  # con_to_name
             nothing,                             # name_to_con
-            UInt8[], # x_constraints
-            Dict{Int,UnitRange{Int}}(),
-            LinkedInts(),# x_block
-            MatrixIndex[], # x_sd
-            Int[], # sd_dim
-            LinkedInts(), # c_block
-            Int32[], # variable_to_vector_constraint_id
-            nothing,# trm
-            MosekSolution[],
-            true, # feasibility_sense
-            false, # has_objective
-            false, # has_psd_in_objective
-            nothing,
+            UInt8[],                             # x_constraints
+            Dict{Int,UnitRange{Int}}(),          # F_rows
+            LinkedInts(),                        # x_block
+            MatrixIndex[],                       # x_sd
+            Int[],                               # sd_dim
+            LinkedInts(),                        # c_block
+            Int32[],                             # variable_to_vector_constraint_id
+            nothing,                             # trm
+            MosekSolution[],                     # solutions
+            true,                                # feasibility_sense
+            false,                               # has_objective
+            false,                               # has_psd_in_objective
+            nothing,                             # fallback
         )
         Mosek.appendrzerodomain(optimizer.task, 0)
         Mosek.putstreamfunc(optimizer.task, Mosek.MSK_STREAM_LOG, print)
@@ -292,7 +282,8 @@ function MOI.set(m::Optimizer, p::MOI.RawOptimizerAttribute, value)
     elseif value isa AbstractString
         MOI.set(m, StringParameter("MSK_SPAR_$(p.name)"), value)
     else
-        error("Value $value for parameter $(p.name) has unrecognized type")
+        msg = "Value $value for parameter $(p.name) has unrecognized type"
+        throw(MOI.UnsupportedAttribute(p, msg))
     end
     return
 end
@@ -308,11 +299,9 @@ function MOI.get(m::Optimizer, p::MOI.RawOptimizerAttribute)
         return MOI.get(m, DoubleParameter(p.name))
     elseif startswith(p.name, "MSK_SPAR_")
         return MOI.get(m, StringParameter(p.name))
-    else
-        error(
-            "The parameter $(p.name) should start by `MSK_IPAR_`, `MSK_DPAR_` or `MSK_SPAR_`.",
-        )
     end
+    msg = "The parameter $(p.name) should start by `MSK_IPAR_`, `MSK_DPAR_` or `MSK_SPAR_`."
+    return throw(MOI.UnsupportedAttribute(p, msg))
 end
 
 # MOI.Silent
@@ -359,12 +348,6 @@ function MOI.get(model::Optimizer, ::MOI.TimeLimitSec)
     return value
 end
 
-function matrix_solution(m::Optimizer, sol)
-    return Vector{Float64}[
-        Mosek.getbarxj(m.task, sol, j) for j in 1:length(m.sd_dim)
-    ]
-end
-
 function MOI.optimize!(m::Optimizer)
     # See https://github.com/jump-dev/MosekTools.jl/issues/70
     Mosek.putintparam(
@@ -387,7 +370,9 @@ function MOI.optimize!(m::Optimizer)
                 Mosek.getprosta(m.task, Mosek.MSK_SOL_ITR),    # prosta
                 Mosek.getskx(m.task, Mosek.MSK_SOL_ITR),       # xxstatus
                 Mosek.getxx(m.task, Mosek.MSK_SOL_ITR),        # xx
-                matrix_solution(m, Mosek.MSK_SOL_ITR),         # barxk
+                map(1:length(m.sd_dim)) do j                   # barxk
+                    return Mosek.getbarxj(m.task, Mosek.MSK_SOL_ITR, j)
+                end,
                 Mosek.getslx(m.task, Mosek.MSK_SOL_ITR),       # slx
                 Mosek.getsux(m.task, Mosek.MSK_SOL_ITR),       # sux
                 Mosek.getsnx(m.task, Mosek.MSK_SOL_ITR),       # snx
