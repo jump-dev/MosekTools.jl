@@ -42,21 +42,19 @@ function MOI.get(m::Optimizer, attr::MOI.DualObjectiveValue)
 end
 
 function MOI.get(m::Optimizer, ::MOI.ObjectiveBound)
-    if Mosek.solutiondef(m.task, Mosek.MSK_SOL_ITG)
-        return Mosek.getdouinf(m.task, Mosek.MSK_DINF_MIO_OBJ_BOUND)
-    elseif Mosek.solutiondef(m.task, Mosek.MSK_SOL_ITR)
-        return Mosek.getprimalobj(m.task, Mosek.MSK_SOL_ITR)
-    elseif Mosek.solutiondef(m.task, Mosek.MSK_SOL_BAS)
-        return Mosek.getprimalobj(m.task, Mosek.MSK_SOL_BAS)
+    if !Mosek.solutiondef(m.task, Mosek.MSK_SOL_ITG)
+        msg = "A `MSK_SOL_ITG` solution is not defined"
+        return throw(MOI.GetAttributeNotAllowed(attr, msg))
     end
-    return 0.0  # TODO(odow): NaN?
+    return Mosek.getdouinf(m.task, Mosek.MSK_DINF_MIO_OBJ_BOUND)
 end
 
-function MOI.get(m::Optimizer, ::MOI.RelativeGap)
-    if Mosek.solutiondef(m.task, Mosek.MSK_SOL_ITG)
-        return Mosek.getdouinf(m.task, Mosek.MSK_DINF_MIO_OBJ_REL_GAP)
+function MOI.get(m::Optimizer, attr::MOI.RelativeGap)
+    if !Mosek.solutiondef(m.task, Mosek.MSK_SOL_ITG)
+        msg = "A `MSK_SOL_ITG` solution is not defined"
+        return throw(MOI.GetAttributeNotAllowed(attr, msg))
     end
-    return 0.0  # TODO(odow): NaN?
+    return Mosek.getdouinf(m.task, Mosek.MSK_DINF_MIO_OBJ_REL_GAP)
 end
 
 function MOI.get(m::Optimizer, ::MOI.SolveTimeSec)
