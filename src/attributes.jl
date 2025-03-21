@@ -370,8 +370,7 @@ function MOI.get(
     ci::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},S},
 ) where {S}
     MOI.check_result_index_bounds(m, attr)
-    cid = ref2id(ci)
-    subi = getindex(m.c_block, cid)
+    subi = getindex(m.c_block, ci.value)
     status = m.solutions[attr.result_index].cstatus[subi]
     return _adjust_nonbasic(_basis_status_code(status, attr), S)
 end
@@ -427,8 +426,7 @@ function MOI.get(
     ci::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D},
 ) where {D}
     MOI.check_result_index_bounds(m, attr)
-    cid = ref2id(ci)
-    subi = getindex(m.c_block, cid)
+    subi = getindex(m.c_block, ci.value)
     return m.solutions[attr.result_index].xc[subi]
 end
 
@@ -579,8 +577,7 @@ function MOI.get!(
     ci::MOI.ConstraintIndex{MOI.VectorOfVariables,D},
 ) where {D}
     MOI.check_result_index_bounds(m, attr)
-    xcid = ref2id(ci)
-    @assert xcid > 0
+    @assert ci.value > 0
     cols = columns(m, ci)
     idx = reorder(1:length(output), D, true)
     if Mosek.getobjsense(m.task) == Mosek.MSK_OBJECTIVE_SENSE_MINIMIZE
@@ -614,8 +611,7 @@ function MOI.get(
     ci::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D},
 ) where {D}
     MOI.check_result_index_bounds(m, attr)
-    cid = ref2id(ci)
-    subi = getindex(m.c_block, cid)
+    subi = getindex(m.c_block, ci.value)
     if Mosek.getobjsense(m.task) == Mosek.MSK_OBJECTIVE_SENSE_MINIMIZE
         return m.solutions[attr.result_index].y[subi]
     else
@@ -651,7 +647,6 @@ function MOI.get(
     ci::MOI.ConstraintIndex{<:MOI.AbstractVectorFunction},
 )
     MOI.check_result_index_bounds(m, attr)
-    cid = ref2id(ci)
     output = Vector{Float64}(undef, solsize(m, ci))
     MOI.get!(output, m, attr, ci)
     return output
