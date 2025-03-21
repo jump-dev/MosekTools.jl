@@ -655,9 +655,8 @@ function test_variable_primal_start()
     return
 end
 
-function test_simplex_iterations()
+function test_raw_status_string()
     model = MosekOptimizerWithFallback()
-    MOI.set(model, MOI.Silent(), false)
     @test MOI.get(model, MOI.RawStatusString()) == "MOI.OPTIMIZE_NOT_CALLED"
     MOI.set(
         model,

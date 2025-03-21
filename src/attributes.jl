@@ -75,20 +75,14 @@ end
 #### Solver/Solution information
 
 function MOI.get(m::Optimizer, ::MOI.SimplexIterations)::Int64
-    miosimiter = Mosek.getlintinf(m.task, Mosek.MSK_LIINF_MIO_SIMPLEX_ITER)
-    if miosimiter > 0
-        return miosimiter
-    end
-    return Mosek.getintinf(m.task, Mosek.MSK_IINF_SIM_PRIMAL_ITER) +
+    return Mosek.getlintinf(m.task, Mosek.MSK_LIINF_MIO_SIMPLEX_ITER) +
+           Mosek.getintinf(m.task, Mosek.MSK_IINF_SIM_PRIMAL_ITER) +
            Mosek.getintinf(m.task, Mosek.MSK_IINF_SIM_DUAL_ITER)
 end
 
 function MOI.get(m::Optimizer, ::MOI.BarrierIterations)::Int64
-    miosimiter = Mosek.getlintinf(m.task, Mosek.MSK_LIINF_MIO_INTPNT_ITER)
-    if miosimiter > 0
-        return miosimiter
-    end
-    return Mosek.getintinf(m.task, Mosek.MSK_IINF_INTPNT_ITER)
+    return Mosek.getlintinf(m.task, Mosek.MSK_LIINF_MIO_INTPNT_ITER) +
+           Mosek.getintinf(m.task, Mosek.MSK_IINF_INTPNT_ITER)
 end
 
 function MOI.get(m::Optimizer, ::MOI.NodeCount)::Int64
