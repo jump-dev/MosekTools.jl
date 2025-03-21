@@ -14,21 +14,18 @@ function MOI.get(m::Optimizer, attr::MOI.DualObjectiveValue)
 end
 
 function MOI.get(m::Optimizer, ::MOI.ObjectiveBound)
-    if Mosek.solutiondef(m.task, Mosek.MSK_SOL_ITG)
+    if Mosek.getintinf(m.task, Mosek.MSK_IINF_MIO_OBJ_BOUND_DEFINED) > 0
         return Mosek.getdouinf(m.task, Mosek.MSK_DINF_MIO_OBJ_BOUND)
-    elseif Mosek.solutiondef(m.task, Mosek.MSK_SOL_ITR)
-        return Mosek.getprimalobj(m.task, Mosek.MSK_SOL_ITR)
-    elseif Mosek.solutiondef(m.task, Mosek.MSK_SOL_BAS)
-        return Mosek.getprimalobj(m.task, Mosek.MSK_SOL_BAS)
+    elseif MOI.get(m, MOI.DualStatus(1)) == MOI.FEASIBLE_POINT
+        return MOI.get(m, MOI.DualObjectiveValue(1))
     end
-    return 0.0  # TODO(odow): NaN?
+    return NaN
 end
 
 function MOI.get(m::Optimizer, ::MOI.RelativeGap)
-    if Mosek.solutiondef(m.task, Mosek.MSK_SOL_ITG)
-        return Mosek.getdouinf(m.task, Mosek.MSK_DINF_MIO_OBJ_REL_GAP)
-    end
-    return 0.0  # TODO(odow): NaN?
+    val = MOI.get(m, MOI.ObjectiveValue(1))
+    bound = MOI.get(m, MOI.ObjectiveBound())
+    return abs(val - bound) / max(1e-10, abs(val))
 end
 
 function MOI.get(m::Optimizer, ::MOI.SolveTimeSec)
