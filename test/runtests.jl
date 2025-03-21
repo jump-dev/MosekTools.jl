@@ -700,10 +700,7 @@ function test_unsupported_raw_optimizer_attribute()
         MOI.UnsupportedAttribute{typeof(attr)},
         MOI.set(model, attr, :ABC),
     )
-    @test_throws(
-        MOI.UnsupportedAttribute{typeof(attr)},
-        MOI.get(model, attr),
-    )
+    @test_throws MOI.UnsupportedAttribute{typeof(attr)} MOI.get(model, attr)
     return
 end
 
