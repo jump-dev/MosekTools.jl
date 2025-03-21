@@ -3,34 +3,6 @@
 # Use of this source code is governed by an MIT-style license that can be found
 # in the LICENSE.md file or at https://opensource.org/licenses/MIT.
 
-###############################################################################
-# TASK ########################################################################
-###### The `task` field should not be accessed outside this section. ##########
-
-###############################################################################
-## INDEXING ###################################################################
-###############################################################################
-
-function variable_primal(m::Optimizer, N, col::ColumnIndex)
-    return m.solutions[N].xx[col.value]
-end
-
-function variable_primal(m::Optimizer, N, mat::MatrixIndex)
-    d = m.sd_dim[mat.matrix]
-    r = d - mat.column + 1
-    #   #entries full Δ       #entries right Δ      #entries above in lower Δ
-    k = div((d + 1) * d, 2) - div((r + 1) * r, 2) + (mat.row - mat.column + 1)
-    return m.solutions[N].barxj[mat.matrix][k]
-end
-
-function variable_primal(m::Optimizer, N, vi::MOI.VariableIndex)
-    return variable_primal(m, N, mosek_index(m, vi))
-end
-
-###############################################################################
-# MOI #########################################################################
-###############################################################################
-
 function MOI.get(m::Optimizer, attr::MOI.ObjectiveValue)
     MOI.check_result_index_bounds(m, attr)
     return Mosek.getprimalobj(m.task, m.solutions[attr.result_index].whichsol)
@@ -63,7 +35,6 @@ function MOI.get(m::Optimizer, ::MOI.SolveTimeSec)
     return Mosek.getdouinf(m.task, Mosek.MSK_DINF_OPTIMIZER_TIME)
 end
 
-# NOTE: The MOSEK interface currently only supports Min and Max
 function MOI.get(model::Optimizer, ::MOI.ObjectiveSense)
     if model.feasibility
         return MOI.FEASIBILITY_SENSE
@@ -262,27 +233,23 @@ function MOI.get(m::Optimizer, ::MOI.VariablePrimalStart, v::MOI.VariableIndex)
     return get(m.variable_primal_start, v, nothing)
 end
 
-# function MOI.set(m::Optimizer,attr::MOI.ConstraintDualStart, vs::Vector{MOI.ConstraintIndex}, vals::Vector{Float64})
-#     subj = columns(vs)
-
-#     for sol in [ Mosek.MSK_SOL_BAS, Mosek.MSK_SOL_ITG ]
-#         if Mosek.solutiondef(m.task,sol)
-#             xx = Mosek.getxx(m.task,sol)
-#             xx[subj] = vals
-#             Mosek.putxx(m.task,sol,xx)
-#         else
-#             xx = zeros(Float64,getnumvar(m.task))
-#             xx[subj] = vals
-#             Mosek.putxx(m.task,sol,xx)
-#         end
-#     end
-# end
-
 #### Variable solution values
+
+function _get_variable_primal(m::Optimizer, result_index, col::ColumnIndex)
+    return m.solutions[result_index].xx[col.value]
+end
+
+function _get_variable_primal(m::Optimizer, result_index, mat::MatrixIndex)
+    d = m.sd_dim[mat.matrix]
+    r = d - mat.column + 1
+    #   #entries full Δ       #entries right Δ      #entries above in lower Δ
+    k = div((d + 1) * d, 2) - div((r + 1) * r, 2) + (mat.row - mat.column + 1)
+    return m.solutions[result_index].barxj[mat.matrix][k]
+end
 
 function MOI.get(m::Optimizer, attr::MOI.VariablePrimal, vi::MOI.VariableIndex)
     MOI.check_result_index_bounds(m, attr)
-    return variable_primal(m, attr.result_index, vi)
+    return _get_variable_primal(m, attr.result_index, mosek_index(m, vi))
 end
 
 function MOI.get!(
@@ -398,7 +365,7 @@ function MOI.get!(
     },
 )
     MOI.check_result_index_bounds(m, attr)
-    whichsol = getsolcode(m, attr.result_index)
+    whichsol = m.solutions[attr.result_index].whichsol
     return output[1:length(output)] = reorder(
         Mosek.getbarxj(m.task, whichsol, ci.value),
         MOI.PositiveSemidefiniteConeTriangle,
@@ -462,14 +429,8 @@ function MOI.get(
     MOI.check_result_index_bounds(m, attr)
     col = column(m, _variable(ci))
     dual = _variable_constraint_dual(m.solutions[attr.result_index], col, S)
-    if Mosek.getobjsense(m.task) == Mosek.MSK_OBJECTIVE_SENSE_MINIMIZE
-        return dual
-    else
-        return -dual
-    end
+    return _dual_scale(m) * dual
 end
-
-getsolcode(m::Optimizer, N) = m.solutions[N].whichsol
 
 # The dual or primal of an SDP variable block is returned in lower triangular
 # form but the constraint is in upper triangular form.
@@ -543,6 +504,14 @@ const NoReorder = Union{
 
 reorder(x, ::Union{NoReorder,Type{<:NoReorder}}, ::Bool) = x
 
+function _dual_scale(m::Optimizer)
+    if Mosek.getobjsense(m.task) == Mosek.MSK_OBJECTIVE_SENSE_MINIMIZE
+        return 1.0
+    else
+        return -1.0
+    end
+end
+
 # Semidefinite domain for a variable
 function MOI.get!(
     output::Vector{Float64},
@@ -554,18 +523,14 @@ function MOI.get!(
     },
 )
     MOI.check_result_index_bounds(m, attr)
-    whichsol = getsolcode(m, attr.result_index)
+    whichsol = m.solutions[attr.result_index].whichsol
     # It is in fact a real constraint and cid is the id of an ordinary constraint
     dual = reorder(
         Mosek.getbarsj(m.task, whichsol, ci.value),
         MOI.PositiveSemidefiniteConeTriangle,
         false,
     )
-    if Mosek.getobjsense(m.task) == Mosek.MSK_OBJECTIVE_SENSE_MINIMIZE
-        output[1:length(output)] .= dual
-    else
-        output[1:length(output)] .= -dual
-    end
+    output[1:length(output)] .= _dual_scale(m) .* dual
     return
 end
 
@@ -580,11 +545,8 @@ function MOI.get!(
     @assert ci.value > 0
     cols = columns(m, ci)
     idx = reorder(1:length(output), D, true)
-    if Mosek.getobjsense(m.task) == Mosek.MSK_OBJECTIVE_SENSE_MINIMIZE
-        output[idx] = m.solutions[attr.result_index].snx[cols.values]
-    else
-        output[idx] = -m.solutions[attr.result_index].snx[cols.values]
-    end
+    output[idx] =
+        _dual_scale(m) * m.solutions[attr.result_index].snx[cols.values]
     return
 end
 
@@ -597,11 +559,7 @@ function MOI.get!(
     MOI.check_result_index_bounds(m, attr)
     r = rows(m, ci)
     idx = reorder(1:length(output), D, true)
-    if Mosek.getobjsense(m.task) == Mosek.MSK_OBJECTIVE_SENSE_MINIMIZE
-        output[idx] = m.solutions[attr.result_index].doty[r]
-    else
-        output[idx] = -m.solutions[attr.result_index].doty[r]
-    end
+    output[idx] = _dual_scale(m) * m.solutions[attr.result_index].doty[r]
     return
 end
 
@@ -612,11 +570,7 @@ function MOI.get(
 ) where {D}
     MOI.check_result_index_bounds(m, attr)
     subi = getindex(m.c_block, ci.value)
-    if Mosek.getobjsense(m.task) == Mosek.MSK_OBJECTIVE_SENSE_MINIMIZE
-        return m.solutions[attr.result_index].y[subi]
-    else
-        return -m.solutions[attr.result_index].y[subi]
-    end
+    return _dual_scale(m) * m.solutions[attr.result_index].y[subi]
 end
 
 function solsize(m::Optimizer, ci::MOI.ConstraintIndex{MOI.VectorOfVariables})
