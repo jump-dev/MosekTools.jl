@@ -10,76 +10,6 @@
 # are deleted.
 
 ###############################################################################
-# TASK ########################################################################
-###### The `task` field should not be accessed outside this section. ##########
-
-num_columns(task::Mosek.MSKtask) = Mosek.getnumvar(task)
-
-num_columns(m::Optimizer) = num_columns(m.task)
-
-add_column(task::Mosek.MSKtask) = Mosek.appendvars(task, 1)
-
-add_column(m::Optimizer) = add_column(m.task)
-
-"""
-    function init_columns(task::Mosek.MSKtask, cols::ColumnIndices)
-
-Set the bound to free, i.e. `MSK_BK_FR`, in the internal Mosek task for the
-columns cols.
-
-See [`clear_columns`](@ref) which is kind of the reverse operation.
-"""
-function init_columns(task::Mosek.MSKtask, cols::ColumnIndices)
-    # Set each column to a free variable
-    N = length(cols.values)
-    bnd = zeros(Float64, N)
-    Mosek.putvarboundlist(task, cols.values, fill(Mosek.MSK_BK_FR, N), bnd, bnd)
-    return
-end
-
-function init_columns(m::Optimizer, vis::Vector{MOI.VariableIndex})
-    return init_columns(m.task, columns(m, vis))
-end
-
-## Name #######################################################################
-###############################################################################
-
-"""
-    function clear_columns(task::Mosek.MSKtask, cols::Vector{Int32})
-
-Delete all coefficients for columns of indices `cols`. Note that the column
-is not actually deleted since it will be reused by a new variable when one
-is added.
-
-See [`init_columns`](@ref) which is kind of the reverse operation.
-"""
-function clear_columns(task::Mosek.MSKtask, cols::ColumnIndices)
-    N = length(cols.values)
-    # Objective: Clear any non-zeros in `c` vector
-    Mosek.putclist(task, cols.values, zeros(Int64, N))
-    # Constraints: Clear any non-zeros in columns of `A` matrix
-    Mosek.putacollist(
-        task,
-        cols.values,
-        zeros(Int64, N),
-        zeros(Int64, N),
-        Int32[],
-        Float64[],
-    )
-    # Bounds: Fix the variable to zero to make it have very low footprint for
-    #         mosek in case `MOI.optimize!` is called before a new variable is
-    #         added to reuse this column.
-    bnd = zeros(Float64, N)
-    Mosek.putvarboundlist(task, cols.values, fill(Mosek.MSK_BK_FX, N), bnd, bnd)
-    return
-end
-
-function clear_columns(m::Optimizer, vis::Vector{MOI.VariableIndex})
-    clear_columns(m.task, columns(m, vis))
-    return
-end
-
-###############################################################################
 ## INDEXING ###################################################################
 ###############################################################################
 
@@ -121,33 +51,12 @@ function index_of_column(m::Optimizer, col::Int32)
     return MOI.VariableIndex(id)
 end
 
-"""
-    function allocate_variable(m::Optimizer)
-
-Allocate one variable. If there is a free column (because one variable was
-deleted), we use it and don't create any new column, i.e. don't call
-`appendvars`. Otherwise, we create new column.
-
-See [`clear_variable`](@ref) which is kind of the reverse operation.
-"""
-function allocate_variable(m::Optimizer, vi::MOI.VariableIndex)
-    numvar = num_columns(m)
-    alloced = ensurefree(m.x_block, 1)
-    if !iszero(alloced)
-        @assert isone(alloced)
-        @assert length(m.x_block) == num_columns(m) + 1
-        add_column(m)
-        @assert length(m.x_block) == num_columns(m)
-    end
-    return allocate_block(m.x_block, 1, vi.value)
-end
-
 ## Delete #####################################################################
 ######### Delete variables by clearing the column. The column is reused when ##
 ######### new variables is added. While there exists a function in the Mosek ##
 ######### API to delete a column, it is costly and is best avoided.          ##
 
-function throw_if_cannot_delete(m::Optimizer, vi::MOI.VariableIndex)
+function _throw_if_cannot_delete(m::Optimizer, vi::MOI.VariableIndex)
     if !allocated(m.x_block, vi.value)
         # The matrix variables are created but not allocated so
         # if it can either be a scalar variable that was deleted
@@ -185,19 +94,6 @@ function throw_if_cannot_delete(m::Optimizer, vi::MOI.VariableIndex)
     return
 end
 
-"""
-    clear_variable(m::Optimizer, vi::MOI.VariableIndex)
-
-Delete the `vi` variable (without actually doing any change to the internal
-Mosek solver) to free the corresponding column for reuse by another variable.
-
-See [`allocate_variable`](@ref) which is kind of the reverse operation.
-"""
-function clear_variable(m::Optimizer, vi::MOI.VariableIndex)
-    deleteblock(m.x_block, vi.value)
-    return
-end
-
 ###############################################################################
 # MOI #########################################################################
 ###############################################################################
@@ -215,8 +111,19 @@ end
 
 function MOI.add_variable(m::Optimizer)
     vi = new_variable_index(m, MatrixIndex(0, 0, 0))
-    allocate_variable(m, vi)
-    init_columns(m, [vi])
+    # Allocate one variable. If there is a free column (because one variable was
+    # deleted), we use it and don't create any new column, i.e. don't call
+    # `appendvars`. Otherwise, we create new column.
+    numvar = Mosek.getnumvar(m.task)
+    alloced = ensurefree(m.x_block, 1)
+    if !iszero(alloced)
+        @assert isone(alloced)
+        @assert length(m.x_block) == Mosek.getnumvar(m.task) + 1
+        Mosek.appendvars(m.task, 1)
+        @assert length(m.x_block) == Mosek.getnumvar(m.task)
+    end
+    allocate_block(m.x_block, 1, vi.value)
+    Mosek.putvarbound(m.task, column(m, vi).value, Mosek.MSK_BK_FR, 0.0, 0.0)
     return vi
 end
 
@@ -227,28 +134,29 @@ function MOI.is_valid(model::Optimizer, vi::MOI.VariableIndex)
     return get(model.x_block.size, vi.value, 0) == 1
 end
 
-function delete_vector_of_variables_constraint(
+function _delete_vector_of_variables_constraint(
     m::Optimizer,
     vis::Vector{MOI.VariableIndex},
 )
     i = first(vis).value
     id = m.variable_to_vector_constraint_id[i]
-    if id > 0
-        S = _type_cone(Mosek.getconeinfo(m.task, id)[1])
-        ci = MOI.ConstraintIndex{MOI.VectorOfVariables,S}(i)
-        if MOI.is_valid(m, ci) &&
-           vis == MOI.get(m, MOI.ConstraintFunction(), ci).variables
-            MOI.delete(m, ci)
-        end
+    if id <= 0
+        return
+    end
+    S = _type_cone(Mosek.getconeinfo(m.task, id)[1])
+    ci = MOI.ConstraintIndex{MOI.VectorOfVariables,S}(i)
+    if MOI.is_valid(m, ci) &&
+        vis == MOI.get(m, MOI.ConstraintFunction(), ci).variables
+        MOI.delete(m, ci)
     end
     return
 end
 
 function MOI.delete(m::Optimizer, vis::Vector{MOI.VariableIndex})
     for vi in vis
-        throw_if_cannot_delete(m, vi)
+        _throw_if_cannot_delete(m, vi)
     end
-    delete_vector_of_variables_constraint(m, vis)
+    _delete_vector_of_variables_constraint(m, vis)
     for vi in vis
         MOI.delete(m, vi)
     end
@@ -256,13 +164,21 @@ function MOI.delete(m::Optimizer, vis::Vector{MOI.VariableIndex})
 end
 
 function MOI.delete(m::Optimizer, vi::MOI.VariableIndex)
-    throw_if_cannot_delete(m, vi)
-    delete_vector_of_variables_constraint(m, [vi])
+    _throw_if_cannot_delete(m, vi)
+    _delete_vector_of_variables_constraint(m, [vi])
     if !iszero(m.variable_to_vector_constraint_id[vi.value])
         MOI.Utilities.throw_delete_variable_in_vov(vi)
     end
-    clear_columns(m, [vi])
-    clear_variable(m, vi)
+    col = column(m, vi)
+    # Objective: Clear any non-zero in `c` vector
+    Mosek.putcj(m.task, col.value, 0.0)
+    # Constraints: Clear any non-zeros in columns of `A` matrix
+    Mosek.putacol(m.task, col.value, Int32[], Float64[])
+    # Bounds: Fix the variable to zero to make it have very low footprint for
+    #         mosek in case `MOI.optimize!` is called before a new variable is
+    #         added to reuse this column.
+    Mosek.putvarbound(m.task, col.value, Mosek.MSK_BK_FX, 0.0, 0.0)
+    deleteblock(m.x_block, vi.value)
     m.x_sd[vi.value] = MatrixIndex(-1, 0, 0)
     delete!(m.variable_to_name, vi)
     m.name_to_variable = nothing
