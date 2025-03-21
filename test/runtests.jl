@@ -756,7 +756,7 @@ end
 function test_basis_status_code()
     attr = MOI.VariableBasisStatus()
     @test_throws(
-        MOI.GetAttributeNotAllowed{attr},
+        MOI.GetAttributeNotAllowed{typeof(attr)},
         MosekTools._basis_status_code(Mosek.MSK_SK_UNK, attr),
     )
     return
