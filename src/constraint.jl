@@ -389,9 +389,6 @@ function add_cone(m::Optimizer, cols::ColumnIndices, set)
         cols.values,
     )
     id = Mosek.getnumcone(m.task)
-    if DEBUG
-        Mosek.putconename(m.task, id, "$id")
-    end
     return id
 end
 
