@@ -3,12 +3,8 @@
 # Use of this source code is governed by an MIT-style license that can be found
 # in the LICENSE.md file or at https://opensource.org/licenses/MIT.
 
-###############################################################################
-# TASK ########################################################################
-###### The `task` field should not be accessed outside this section. ##########
-
 ## Affine Constraints #########################################################
-##################### lc ≤ Ax ≤ uc ############################################
+##################### lc <= Ax <= uc ############################################
 const VectorCone = Union{
     MOI.SecondOrderCone,
     MOI.RotatedSecondOrderCone,
@@ -94,55 +90,15 @@ function split_scalar_matrix(
     return cols, values
 end
 
-function set_row(
-    task::Mosek.MSKtask,
-    row::Int32,
-    cols::ColumnIndices,
-    values::Vector{Float64},
-)
-    return Mosek.putarow(task, row, cols.values, values)
-end
-
-function set_row(
-    m::Optimizer,
-    row::Int32,
-    terms::Vector{MOI.ScalarAffineTerm{Float64}},
-)
-    cols, values = split_scalar_matrix(
-        m,
-        terms,
-        (j, ids, coefs) -> Mosek.putbaraij(m.task, row, j, ids, coefs),
-    )
-    return set_row(m.task, row, ColumnIndices(cols), values)
-end
-
-function set_coefficient(
-    task::Mosek.MSKtask,
-    row::Int32,
-    col::ColumnIndex,
-    value::Float64,
-)
-    return Mosek.putaij(task, row, col.value, value)
-end
-
-function set_coefficient(
-    m::Optimizer,
-    row::Int32,
-    vi::MOI.VariableIndex,
-    value::Float64,
-)
-    return set_coefficient(m.task, row, mosek_index(m, vi), value)
-end
-
-bound_key(::Type{MOI.GreaterThan{Float64}}) = Mosek.MSK_BK_LO
-bound_key(::Type{MOI.LessThan{Float64}}) = Mosek.MSK_BK_UP
-bound_key(::Type{MOI.EqualTo{Float64}}) = Mosek.MSK_BK_FX
-bound_key(::Type{MOI.Interval{Float64}}) = Mosek.MSK_BK_RA
+_bound_key(::Type{MOI.GreaterThan{Float64}}) = Mosek.MSK_BK_LO
+_bound_key(::Type{MOI.LessThan{Float64}}) = Mosek.MSK_BK_UP
+_bound_key(::Type{MOI.EqualTo{Float64}}) = Mosek.MSK_BK_FX
+_bound_key(::Type{MOI.Interval{Float64}}) = Mosek.MSK_BK_RA
 
 function _bounds(dom::MOI.Interval)
     bl = dom.lower
     bu = dom.upper
-    bk = bound_key(typeof(dom))
+    bk = _bound_key(typeof(dom))
     if bl < 0 && isinf(bl)
         if bu > 0 && isinf(bu)
             bk = Mosek.MSK_BK_FR
@@ -155,41 +111,45 @@ function _bounds(dom::MOI.Interval)
     return bk, bl, bu
 end
 
-function add_bound(m::Optimizer, row::Int32, dom::MOI.GreaterThan{Float64})
-    return Mosek.putconbound(
+function _putconbound(m::Optimizer, row::Int32, dom::MOI.GreaterThan{Float64})
+    Mosek.putconbound(
         m.task,
         row,
-        bound_key(typeof(dom)),
+        _bound_key(typeof(dom)),
         dom.lower,
         dom.lower,
     )
+    return
 end
 
-function add_bound(m::Optimizer, row::Int32, dom::MOI.LessThan{Float64})
-    return Mosek.putconbound(
+function _putconbound(m::Optimizer, row::Int32, dom::MOI.LessThan{Float64})
+    Mosek.putconbound(
         m.task,
         row,
-        bound_key(typeof(dom)),
+        _bound_key(typeof(dom)),
         dom.upper,
         dom.upper,
     )
+    return
 end
 
-function add_bound(m::Optimizer, row::Int32, dom::MOI.EqualTo{Float64})
-    return Mosek.putconbound(
+function _putconbound(m::Optimizer, row::Int32, dom::MOI.EqualTo{Float64})
+    Mosek.putconbound(
         m.task,
         row,
-        bound_key(typeof(dom)),
+        _bound_key(typeof(dom)),
         dom.value,
         dom.value,
     )
+    return
 end
 
-function add_bound(m::Optimizer, row::Int32, dom::MOI.Interval{Float64})
-    return Mosek.putconbound(m.task, row, _bounds(dom)...)
+function _putconbound(m::Optimizer, row::Int32, dom::MOI.Interval{Float64})
+    Mosek.putconbound(m.task, row, _bounds(dom)...)
+    return
 end
 
-function bounds_to_set(::Type{S}, bk, bl, bu) where {S}
+function _bounds_to_set(::Type{S}, bk, bl, bu) where {S}
     if S == MOI.GreaterThan{Float64}
         return S(bl)
     elseif S == MOI.LessThan{Float64}
@@ -203,14 +163,14 @@ function bounds_to_set(::Type{S}, bk, bl, bu) where {S}
     end
 end
 
-function get_bound(
+function _get_bound(
     m::Optimizer,
     ci::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},S},
 ) where {S}
-    return bounds_to_set(S, Mosek.getconbound(m.task, row(m, ci))...)
+    return _bounds_to_set(S, Mosek.getconbound(m.task, row(m, ci))...)
 end
 
-function get_bound(
+function _get_bound(
     m::Optimizer,
     ci::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},S},
 ) where {S<:VectorConeDomain}
@@ -256,26 +216,28 @@ function get_bound(
 end
 
 ## Variable Constraints #######################################################
-####################### lx ≤ x ≤ u ############################################
+####################### lx <= x <= u ############################################
 #######################      x ∈ K ############################################
 
-function delete_variable_constraint(
+function _delete_variable_constraint(
     m::Optimizer,
     col::ColumnIndex,
     ::Type{<:Union{MOI.Interval,MOI.EqualTo}},
 )
-    return Mosek.putvarbound(m.task, col.value, Mosek.MSK_BK_FR, 0.0, 0.0)
+    Mosek.putvarbound(m.task, col.value, Mosek.MSK_BK_FR, 0.0, 0.0)
+    return
 end
 
-function delete_variable_constraint(
+function _delete_variable_constraint(
     m::Optimizer,
     col::ColumnIndex,
     ::Type{MOI.Integer},
 )
-    return Mosek.putvartype(m.task, col.value, Mosek.MSK_VAR_TYPE_CONT)
+    Mosek.putvartype(m.task, col.value, Mosek.MSK_VAR_TYPE_CONT)
+    return
 end
 
-function delete_variable_constraint(
+function _delete_variable_constraint(
     m::Optimizer,
     col::ColumnIndex,
     ::Type{MOI.LessThan{Float64}},
@@ -287,10 +249,11 @@ function delete_variable_constraint(
         @assert bk == Mosek.MSK_BK_RA
         bk = Mosek.MSK_BK_LO
     end
-    return Mosek.putvarbound(m.task, col.value, bk, lo, 0.0)
+    Mosek.putvarbound(m.task, col.value, bk, lo, 0.0)
+    return
 end
 
-function delete_variable_constraint(
+function _delete_variable_constraint(
     m::Optimizer,
     col::ColumnIndex,
     ::Type{MOI.GreaterThan{Float64}},
@@ -302,36 +265,34 @@ function delete_variable_constraint(
         @assert bk == Mosek.MSK_BK_RA
         bk = Mosek.MSK_BK_UP
     end
-    return Mosek.putvarbound(m.task, col.value, bk, 0.0, up)
+    Mosek.putvarbound(m.task, col.value, bk, 0.0, up)
+    return
 end
 
-function add_variable_constraint(
+function _add_variable_constraint(
     m::Optimizer,
     col::ColumnIndex,
     dom::MOI.Interval,
 )
-    return Mosek.putvarbound(m.task, col.value, _bounds(dom)...)
+    Mosek.putvarbound(m.task, col.value, _bounds(dom)...)
+    return
 end
 
-function add_variable_constraint(
+function _add_variable_constraint(
     m::Optimizer,
     col::ColumnIndex,
     dom::MOI.EqualTo,
 )
-    return Mosek.putvarbound(
-        m.task,
-        col.value,
-        Mosek.MSK_BK_FX,
-        dom.value,
-        dom.value,
-    )
+    Mosek.putvarbound(m.task, col.value, Mosek.MSK_BK_FX, dom.value, dom.value)
+    return
 end
 
-function add_variable_constraint(m::Optimizer, col::ColumnIndex, ::MOI.Integer)
-    return Mosek.putvartype(m.task, col.value, Mosek.MSK_VAR_TYPE_INT)
+function _add_variable_constraint(m::Optimizer, col::ColumnIndex, ::MOI.Integer)
+    Mosek.putvartype(m.task, col.value, Mosek.MSK_VAR_TYPE_INT)
+    return
 end
 
-function add_variable_constraint(
+function _add_variable_constraint(
     m::Optimizer,
     col::ColumnIndex,
     dom::MOI.LessThan,
@@ -343,10 +304,11 @@ function add_variable_constraint(
         @assert bk == Mosek.MSK_BK_LO
         bk = Mosek.MSK_BK_RA
     end
-    return Mosek.putvarbound(m.task, col.value, bk, lo, dom.upper)
+    Mosek.putvarbound(m.task, col.value, bk, lo, dom.upper)
+    return
 end
 
-function add_variable_constraint(
+function _add_variable_constraint(
     m::Optimizer,
     col::ColumnIndex,
     dom::MOI.GreaterThan,
@@ -358,7 +320,8 @@ function add_variable_constraint(
         @assert bk == Mosek.MSK_BK_UP
         bk = Mosek.MSK_BK_RA
     end
-    return Mosek.putvarbound(m.task, col.value, bk, dom.lower, up)
+    Mosek.putvarbound(m.task, col.value, bk, dom.lower, up)
+    return
 end
 
 function get_variable_constraint(
@@ -366,7 +329,7 @@ function get_variable_constraint(
     col::ColumnIndex,
     ci::MOI.ConstraintIndex{MOI.VariableIndex,S},
 ) where {S}
-    return bounds_to_set(S, Mosek.getvarbound(m.task, col.value)...)
+    return _bounds_to_set(S, Mosek.getvarbound(m.task, col.value)...)
 end
 
 function get_variable_constraint(
@@ -535,33 +498,35 @@ function MOI.supports_add_constrained_variables(
 end
 
 ## Affine Constraints #########################################################
-##################### lc ≤ Ax ≤ uc ############################################
+##################### lc <= Ax <= uc ############################################
 
 function MOI.add_constraint(
     m::Optimizer,
-    axb::MOI.ScalarAffineFunction{Float64},
-    dom::D,
-) where {D<:MOI.AbstractScalarSet}
-    if !iszero(axb.constant)
+    f::MOI.ScalarAffineFunction{Float64},
+    set::S,
+) where {S<:MOI.AbstractScalarSet}
+    if !iszero(f.constant)
         throw(
-            MOI.ScalarFunctionConstantNotZero{Float64,typeof(axb),D}(
-                axb.constant,
-            ),
+            MOI.ScalarFunctionConstantNotZero{Float64,typeof(f),S}(f.constant),
         )
     end
     # Duplicate indices not supported
-    axb = MOI.Utilities.canonical(axb)
-    N = 1
-    conid = allocateconstraints(m, N)
-    ci = MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D}(conid)
+    f = MOI.Utilities.canonical(f)
+    conid = allocateconstraints(m, 1)
+    ci = MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},S}(conid)
     r = row(m, ci)
-    set_row(m, r, axb.terms)
-    add_bound(m, r, dom)
+    cols, values = split_scalar_matrix(
+        m,
+        f.terms,
+        (j, ids, coefs) -> Mosek.putbaraij(m.task, r, j, ids, coefs),
+    )
+    Mosek.putarow(m.task, r, ColumnIndices(cols).values, values)
+    _putconbound(m, r, set)
     return ci
 end
 
 ## Variable Constraints #######################################################
-####################### lx ≤ x ≤ u ############################################
+####################### lx <= x <= u ############################################
 #######################      x ∈ K ############################################
 
 # We allow following. Each variable can have
@@ -642,7 +607,7 @@ function MOI.add_constraint(
     end
     _check_bound_compat(m, xs, dom)
     set_flag(m, xs, D)
-    add_variable_constraint(m, msk_idx, dom)
+    _add_variable_constraint(m, msk_idx, dom)
     return MOI.ConstraintIndex{MOI.VariableIndex,D}(xs.value)
 end
 
@@ -740,17 +705,8 @@ function MOI.add_constraint(
                 rbarcof,
             )
         end
-        MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},D}(acci)
+        return MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},D}(acci)
     end
-    # cols = ColumnIndices(reorder(columns(m, xs.variables).values, D))
-    # id = add_cone(m, cols, dom)
-    # idx = first(xs.variables).value
-    # for vi in xs.variables
-    #     m.variable_to_vector_constraint_id[vi.value] = -idx
-    # end
-    # m.variable_to_vector_constraint_id[idx] = id
-    # ci = MOI.ConstraintIndex{MOI.VectorOfVariables, D}(idx)
-    # return ci
 end
 
 function cone_id(
@@ -800,10 +756,10 @@ end
 function MOI.get(
     m::Optimizer,
     ::MOI.ConstraintSet,
-    ci::MOI.ConstraintIndex{MOI.VariableIndex,S},
-) where {S<:MOI.Integer}
+    ci::MOI.ConstraintIndex{MOI.VariableIndex,MOI.Integer},
+)
     MOI.throw_if_not_valid(m, ci)
-    return S()
+    return MOI.Integer()
 end
 
 function MOI.get(
@@ -822,7 +778,7 @@ function MOI.set(
     ci::MOI.ConstraintIndex{MOI.VariableIndex},
     ::MOI.VariableIndex,
 )
-    throw(MOI.SettingVariableIndexNotAllowed())
+    return throw(MOI.SettingVariableIndexNotAllowed())
 end
 
 function MOI.get(
@@ -852,7 +808,7 @@ function MOI.get(
     ci::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}},
 )
     MOI.throw_if_not_valid(m, ci)
-    return get_bound(m, ci)
+    return _get_bound(m, ci)
 end
 
 function MOI.get(
@@ -861,7 +817,7 @@ function MOI.get(
     ci::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64}},
 )
     MOI.throw_if_not_valid(m, ci)
-    return get_bound(m, ci)
+    return _get_bound(m, ci)
 end
 
 function MOI.get(
@@ -897,7 +853,7 @@ function MOI.get(
     return MOI.VectorAffineFunction(terms, -reorder(constants, S, false))
 end
 
-function type_cone(ct)
+function _type_cone(ct)
     if ct == Mosek.MSK_CT_PEXP
         return MOI.ExponentialCone
     elseif ct == Mosek.MSK_CT_DEXP
@@ -939,48 +895,19 @@ function MOI.get(
 )
     MOI.throw_if_not_valid(m, ci)
     ct, conepar, nummem = Mosek.getconeinfo(m.task, cone_id(m, ci))
-    return cone(type_cone(ct), conepar, nummem)
+    return cone(_type_cone(ct), conepar, nummem)
 end
 
 ## Modify #####################################################################
 ###############################################################################
 
-### SET
-function chgbound(
-    bl::Float64,
-    bu::Float64,
-    k::Float64,
-    dom::MOI.LessThan{Float64},
-)
-    return bl, dom.upper - k
-end
+_change_bound(bl, bu, dom::MOI.LessThan{Float64}) = bl, dom.upper
 
-function chgbound(
-    bl::Float64,
-    bu::Float64,
-    k::Float64,
-    dom::MOI.GreaterThan{Float64},
-)
-    return dom.lower - k, bu
-end
+_change_bound(bl, bu, dom::MOI.GreaterThan{Float64}) = dom.lower, bu
 
-function chgbound(
-    bl::Float64,
-    bu::Float64,
-    k::Float64,
-    dom::MOI.EqualTo{Float64},
-)
-    return dom.value - k, dom.value - k
-end
+_change_bound(bl, bu, dom::MOI.EqualTo{Float64}) = dom.value, dom.value
 
-function chgbound(
-    bl::Float64,
-    bu::Float64,
-    k::Float64,
-    dom::MOI.Interval{Float64},
-)
-    return dom.lower - k, dom.upper - k
-end
+_change_bound(bl, bu, dom::MOI.Interval{Float64}) = dom.lower, dom.upper
 
 function MOI.set(
     m::Optimizer,
@@ -990,8 +917,9 @@ function MOI.set(
 ) where {D<:ScalarLinearDomain}
     col = column(m, _variable(ci))
     bk, bl, bu = Mosek.getvarbound(m.task, col.value)
-    bl, bu = chgbound(bl, bu, 0.0, dom)
-    return Mosek.putvarbound(m.task, col.value, bk, bl, bu)
+    bl, bu = _change_bound(bl, bu, dom)
+    Mosek.putvarbound(m.task, col.value, bk, bl, bu)
+    return
 end
 
 function MOI.set(
@@ -1003,8 +931,9 @@ function MOI.set(
     cid = ref2id(cref)
     i = getindex(m.c_block, cid) # since we are in a scalar domain
     bk, bl, bu = Mosek.getconbound(m.task, i)
-    bl, bu = chgbound(bl, bu, 0.0, dom)
-    return Mosek.putconbound(m.task, i, bk, bl, bu)
+    bl, bu = _change_bound(bl, bu, dom)
+    Mosek.putconbound(m.task, i, bk, bl, bu)
+    return
 end
 
 ### MODIFY
@@ -1024,6 +953,7 @@ function MOI.modify(
             ),
         )
     end
+    return
 end
 
 # Is there a way to do this in Mosek API ? I haven't check so here is an error for now:
@@ -1037,18 +967,12 @@ function MOI.modify(
     if is_matrix(m, func.variable)
         throw(MOI.ModifyConstraintNotAllowed(c, func, _MODIFY_PSD_VAR_ERROR))
     end
-    return set_coefficient(m, row(m, c), func.variable, func.new_coefficient)
+    col = mosek_index(m, func.variable)::ColumnIndex
+    Mosek.putaij(m.task, row(m, c), col.value, func.new_coefficient)
+    return
 end
 
 ### TRANSFORM
-function MOI.transform(
-    m::Optimizer,
-    cref::MOI.ConstraintIndex{F,D},
-    newdom::D,
-) where {F<:MOI.AbstractFunction,D<:MOI.AbstractSet}
-    MOI.modify(m, cref, newdom)
-    return cref
-end
 
 function MOI.transform(
     m::Optimizer,
@@ -1058,58 +982,42 @@ function MOI.transform(
     F = MOI.ScalarAffineFunction{Float64}
     cid = ref2id(cref)
     r = row(m, cref)
-    add_bound(m, r, newdom)
+    _putconbound(m, r, newdom)
     return MOI.ConstraintIndex{F,D2}(cid)
 end
 
 ## Delete #####################################################################
 ###############################################################################
 
+_domain(::Type{MOI.SecondOrderCone}) = Mosek.MSK_DOMAIN_QUADRATIC_CONE
+
+_domain(::Type{MOI.RotatedSecondOrderCone}) = Mosek.MSK_DOMAIN_RQUADRATIC_CONE
+
+_domain(::Type{MOI.ExponentialCone}) = Mosek.MSK_DOMAIN_PRIMAL_EXP_CONE
+
+_domain(::Type{MOI.DualExponentialCone}) = Mosek.MSK_DOMAIN_DUAL_EXP_CONE
+
+_domain(::Type{MOI.PowerCone{Float64}}) = Mosek.MSK_DOMAIN_PRIMAL_POWER_CONE
+
+_domain(::Type{MOI.DualPowerCone{Float64}}) = Mosek.MSK_DOMAIN_DUAL_POWER_CONE
+
+function _domain(::Type{MOI.Scaled{MOI.PositiveSemidefiniteConeTriangle}})
+    return Mosek.MSK_DOMAIN_SVEC_PSD_CONE
+end
+
 function MOI.is_valid(
     model::Optimizer,
     ci::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},S},
 ) where {S<:VectorConeDomain}
     numacc = Mosek.getnumacc(model.task)
-    if ci.value < 1 || ci.value > numacc
-        false
-    else
-        domidx = Mosek.getaccdomain(model.task, ci.value)
-        if domidx == 1
-            false
-        else
-            dt = Mosek.getdomaintype(model.task, domidx)
-            (
-                (
-                    dt == Mosek.MSK_DOMAIN_QUADRATIC_CONE &&
-                    S == MOI.SecondOrderCone
-                ) ||
-                (
-                    dt == Mosek.MSK_DOMAIN_RQUADRATIC_CONE &&
-                    S == MOI.RotatedSecondOrderCone
-                ) ||
-                (
-                    dt == Mosek.MSK_DOMAIN_PRIMAL_EXP_CONE &&
-                    S == MOI.ExponentialCone
-                ) ||
-                (
-                    dt == Mosek.MSK_DOMAIN_DUAL_EXP_CONE &&
-                    S == MOI.DualExponentialCone
-                ) ||
-                (
-                    dt == Mosek.MSK_DOMAIN_PRIMAL_POWER_CONE &&
-                    S == MOI.PowerCone{Float64}
-                ) ||
-                (
-                    dt == Mosek.MSK_DOMAIN_DUAL_POWER_CONE &&
-                    S == MOI.DualPowerCone{Float64}
-                ) ||
-                (
-                    dt == Mosek.MSK_DOMAIN_SVEC_PSD_CONE &&
-                    S == MOI.Scaled{MOI.PositiveSemidefiniteConeTriangle}
-                )
-            )
-        end
+    if !(1 <= ci.value <= numacc)
+        return false
     end
+    domidx = Mosek.getaccdomain(model.task, ci.value)
+    if domidx == 1
+        return false
+    end
+    return Mosek.getdomaintype(model.task, domidx) == _domain(S)
 end
 
 # Commenting out as it doesn't work (gives a MethodError)
@@ -1138,7 +1046,7 @@ function MOI.is_valid(
     ci::MOI.ConstraintIndex{<:MOI.ScalarAffineFunction{Float64},S},
 ) where {S<:ScalarLinearDomain}
     return allocated(model.c_block, ci.value) &&
-           Mosek.getconbound(model.task, row(model, ci))[1] == bound_key(S)
+           Mosek.getconbound(model.task, row(model, ci))[1] == _bound_key(S)
 end
 
 function MOI.delete(
@@ -1155,7 +1063,8 @@ function MOI.delete(
     Mosek.putarowlist(m.task, subi_i32, ptr, ptr, Int32[], Float64[])
     b = fill(0.0, n)
     Mosek.putconboundlist(m.task, subi_i32, fill(Mosek.MSK_BK_FX, n), b, b)
-    return deleteblock(m.c_block, cref.value)
+    deleteblock(m.c_block, cref.value)
+    return
 end
 
 function MOI.is_valid(
@@ -1173,7 +1082,7 @@ function MOI.delete(
     MOI.throw_if_not_valid(m, ci)
     vi = _variable(ci)
     unset_flag(m, vi, S)
-    delete_variable_constraint(m, column(m, vi), S)
+    _delete_variable_constraint(m, column(m, vi), S)
     return
 end
 
@@ -1185,7 +1094,7 @@ function MOI.is_valid(
         return false
     end
     id = cone_id(model, ci)
-    return 1 ≤ id ≤ Mosek.getnumcone(model.task) &&
+    return 1 <= id <= Mosek.getnumcone(model.task) &&
            Mosek.getconeinfo(model.task, id)[1] == cone_type(S)
 end
 
@@ -1199,11 +1108,12 @@ function MOI.delete(
     end
     Mosek.removecones(model.task, [id])
     # The conic constraints with id higher than `id` are renumbered.
-    return map!(
+    map!(
         i -> i > id ? i - 1 : i,
         model.variable_to_vector_constraint_id,
         model.variable_to_vector_constraint_id,
     )
+    return
 end
 
 function MOI.is_valid(
@@ -1214,7 +1124,7 @@ function MOI.is_valid(
     },
 )
     # TODO add supports for deletion
-    return 1 ≤ ci.value ≤ length(model.sd_dim)
+    return 1 <= ci.value <= length(model.sd_dim)
 end
 
 ## List #######################################################################
