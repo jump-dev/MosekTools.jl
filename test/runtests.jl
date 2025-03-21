@@ -113,20 +113,14 @@ function test_Integer_Parameter()
 end
 
 function test_String_Parameter()
-    optimizer = MosekOptimizerWithFallback()
-    MOI.set(
-        optimizer,
-        MOI.RawOptimizerAttribute("PARAM_WRITE_FILE_NAME"),
-        "foo.txt",
-    )
-    # Needs https://github.com/JuliaOpt/Mosek.jl/pull/174
-    #@test MOI.get(optimizer, MOI.RawOptimizerAttribute("MSK_SPAR_PARAM_WRITE_FILE_NAME")) == "foo.txt"
-    MOI.set(
-        optimizer,
-        MOI.RawOptimizerAttribute("MSK_SPAR_PARAM_WRITE_FILE_NAME"),
-        "bar.txt",
-    )
-    #@test MOI.get(optimizer, MOI.RawOptimizerAttribute("MSK_SPAR_PARAM_WRITE_FILE_NAME")) == "bar.txt"
+    model = Mosek.Optimizer()
+    attr = "PARAM_WRITE_FILE_NAME"
+    MOI.set(model, MOI.RawOptimizerAttribute(attr), "foo.txt")
+    @test MOI.get(model, MOI.RawOptimizerAttribute("MSK_SPAR_$attr")) ==
+          "foo.txt"
+    MOI.set(model, MOI.RawOptimizerAttribute("MSK_SPAR_$attr"), "bar.txt")
+    @test MOI.get(model, MOI.RawOptimizerAttribute("MSK_SPAR_$attr")) ==
+          "bar.txt"
     return
 end
 
@@ -681,6 +675,59 @@ function test_show_linked_ints()
       next     = [2, 3, 0, 5, 0]
       prev     = [0, 1, 2, 0, 4]
     )"""
+    return
+end
+
+function test_get_fallback()
+    model = MosekOptimizerWithFallback()
+    @test MOI.get(model, MOI.RawOptimizerAttribute("fallback")) ==
+          "mosek://solve.mosek.com:30080"
+    return
+end
+
+function test_kwarg_optimizer()
+    @test_logs (:warn,) Mosek.Optimizer(; MSK_DPAR_MIO_MAX_TIME = 0.0)
+    model = Mosek.Optimizer(; MSK_DPAR_MIO_MAX_TIME = 1.0)
+    attr = MOI.RawOptimizerAttribute("MSK_DPAR_MIO_MAX_TIME")
+    @test MOI.get(model, attr) == 1.0
+    return
+end
+
+function test_unsupported_raw_optimizer_attribute()
+    model = Mosek.Optimizer()
+    attr = MOI.RawOptimizerAttribute("BAD_PARAM")
+    @test_throws(
+        MOI.UnsupportedAttribute{typeof(attr)},
+        MOI.set(model, attr, :ABC),
+    )
+    @test_throws(
+        MOI.UnsupportedAttribute{typeof(attr)},
+        MOI.get(model, attr),
+    )
+    return
+end
+
+function test_parameters_after_empty()
+    model = Mosek.Optimizer()
+    spar = MOI.RawOptimizerAttribute("MSK_SPAR_PARAM_WRITE_FILE_NAME")
+    MOI.set(model, spar, "foo.txt")
+    dpar = MOI.RawOptimizerAttribute("MSK_DPAR_INTPNT_CO_TOL_DFEAS")
+    MOI.set(model, dpar, 1e-7)
+    ipar = MOI.RawOptimizerAttribute("MSK_IPAR_INTPNT_MAX_ITERATIONS")
+    MOI.set(model, ipar, 100)
+    MOI.empty!(model)
+    @test MOI.get(model, spar) == "foo.txt"
+    @test MOI.get(model, dpar) == 1e-7
+    @test MOI.get(model, ipar) == 100
+    return
+end
+
+function test_write_to_file()
+    model = Mosek.Optimizer()
+    dir = mktempdir()
+    filename = joinpath(dir, "model.mps")
+    MOI.write_to_file(model, filename)
+    @test occursin("ENDATA", read(filename, String))
     return
 end
 
