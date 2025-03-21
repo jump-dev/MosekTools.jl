@@ -28,12 +28,25 @@ if isdefined(MOI.Test, :_error_handler)
     end
 end
 
+_is_intermittent(::Any) = false
+function _is_intermittent(err::Mosek.MosekError)
+    return Mosek.Rescode(err.rcode) == Mosek.MSK_RES_ERR_SERVER_STATUS
+end
+
 function runtests()
     _MOSEK_API_COUNTER[] = 0
     for name in names(@__MODULE__; all = true)
         if startswith("$name", "test_")
             @testset "$name" begin
-                getfield(@__MODULE__, name)()
+                try
+                    getfield(@__MODULE__, name)()
+                catch err
+                    if _is_intermittent(err)  # A flakey failure. Retry once.
+                        getfield(@__MODULE__, name)()
+                    else
+                        rethrow(err)
+                    end
+                end
             end
         end
     end
