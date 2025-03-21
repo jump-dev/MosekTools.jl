@@ -928,8 +928,7 @@ function MOI.set(
     cref::MOI.ConstraintIndex{<:MOI.ScalarAffineFunction,D},
     dom::D,
 ) where {D<:ScalarLinearDomain}
-    cid = ref2id(cref)
-    i = getindex(m.c_block, cid) # since we are in a scalar domain
+    i = getindex(m.c_block, cref.value) # since we are in a scalar domain
     bk, bl, bu = Mosek.getconbound(m.task, i)
     bl, bu = _change_bound(bl, bu, dom)
     Mosek.putconbound(m.task, i, bk, bl, bu)
@@ -980,10 +979,9 @@ function MOI.transform(
     newdom::D2,
 ) where {D1<:ScalarLinearDomain,D2<:ScalarLinearDomain}
     F = MOI.ScalarAffineFunction{Float64}
-    cid = ref2id(cref)
     r = row(m, cref)
     _putconbound(m, r, newdom)
-    return MOI.ConstraintIndex{F,D2}(cid)
+    return MOI.ConstraintIndex{F,D2}(cref.value)
 end
 
 ## Delete #####################################################################

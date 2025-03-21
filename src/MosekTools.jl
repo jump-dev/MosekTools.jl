@@ -577,10 +577,6 @@ function MOI.write_to_file(m::Optimizer, filename::String)
     return
 end
 
-ref2id(vi::MOI.VariableIndex)::Int = vi.value
-
-ref2id(ci::MOI.ConstraintIndex)::Int = ci.value
-
 include("objective.jl")
 include("variable.jl")
 include("constraint.jl")

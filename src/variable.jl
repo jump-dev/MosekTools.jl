@@ -85,7 +85,7 @@ end
 
 function column(m::Optimizer, vi::MOI.VariableIndex)
     @assert iszero(m.x_sd[vi.value].matrix)
-    return ColumnIndex(getindex(m.x_block, ref2id(vi)))
+    return ColumnIndex(getindex(m.x_block, vi.value))
 end
 
 function columns(m::Optimizer, vis::Vector{MOI.VariableIndex})
@@ -148,12 +148,11 @@ end
 ######### API to delete a column, it is costly and is best avoided.          ##
 
 function throw_if_cannot_delete(m::Optimizer, vi::MOI.VariableIndex)
-    id = ref2id(vi)
-    if !allocated(m.x_block, ref2id(vi))
+    if !allocated(m.x_block, vi.value)
         # The matrix variables are created but not allocated so
         # if it can either be a scalar variable that was deleted
         # or a matrix variable
-        if m.x_sd[ref2id(vi)].matrix == -1
+        if m.x_sd[vi.value].matrix == -1
             # scalar variable that was deleted
             throw(MOI.InvalidIndex(vi))
         else
@@ -195,7 +194,7 @@ Mosek solver) to free the corresponding column for reuse by another variable.
 See [`allocate_variable`](@ref) which is kind of the reverse operation.
 """
 function clear_variable(m::Optimizer, vi::MOI.VariableIndex)
-    deleteblock(m.x_block, ref2id(vi))
+    deleteblock(m.x_block, vi.value)
     return
 end
 
