@@ -646,6 +646,19 @@ function test_node_count()
     return
 end
 
+function test_objective_bound_relative_gap()
+    model = MosekOptimizerWithFallback()
+    @test isnan(MOI.get(model, MOI.ObjectiveBound()))
+    _solve_knapsack_model(model, 100)
+    @test isapprox(
+        MOI.get(model, MOI.ObjectiveBound()),
+        MOI.get(model, MOI.ObjectiveValue());
+        rtol = 1e-6,
+    )
+    @test MOI.get(model, MOI.RelativeGap()) < 1e-6
+    return
+end
+
 function test_variable_primal_start()
     model = MosekOptimizerWithFallback()
     set = MOI.PositiveSemidefiniteConeTriangle(2)
@@ -737,6 +750,38 @@ function test_write_to_file()
     filename = joinpath(dir, "model.mps")
     MOI.write_to_file(model, filename)
     @test occursin("ENDATA", read(filename, String))
+    return
+end
+
+function test_basis_status_code()
+    attr = MOI.VariableBasisStatus()
+    @test_throws(
+        MOI.GetAttributeNotAllowed{typeof(attr)},
+        MosekTools._basis_status_code(Mosek.MSK_SK_UNK, attr),
+    )
+    return
+end
+
+function test_objective_modify_psd()
+    model = Mosek.Optimizer()
+    set = MOI.PositiveSemidefiniteConeTriangle(2)
+    x, _ = MOI.add_constrained_variables(model, set)
+    @test_throws(
+        MOI.ModifyObjectiveNotAllowed,
+        MOI.modify(
+            model,
+            MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
+            MOI.ScalarCoefficientChange(x[1], 1.0),
+        ),
+    )
+    return
+end
+
+function test_is_scalar()
+    model = Mosek.Optimizer()
+    x = MOI.add_variable(model)
+    MOI.delete(model, x)
+    @test_throws MOI.InvalidIndex MosekTools.is_scalar(model, x)
     return
 end
 
