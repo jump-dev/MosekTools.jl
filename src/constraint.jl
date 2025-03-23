@@ -574,7 +574,7 @@ function MOI.add_constraint(
     _check_bound_compat(m, x, set)
     set_flag(m, x, S)
     _add_variable_constraint(m, index, set)
-    return MOI.ConstraintIndex{MOI.VariableIndex,D}(x.value)
+    return MOI.ConstraintIndex{MOI.VariableIndex,S}(x.value)
 end
 
 _cone_type(::Type{MOI.ExponentialCone}) = Mosek.MSK_CT_PEXP
