@@ -435,26 +435,27 @@ function MOI.optimize!(m::Optimizer)
             ),
         )
     end
-    # We need to sort the solutions, so that an optimal one is first (if it
-    # exists). The priority is:
-    #  1. MSK_SOL_STA_INTEGER_OPTIMAL or MSK_SOL_STA_OPTIMAL
-    #  2. MSK_SOL_ITG, MSK_SOL_BAS, MSK_SOL_ITR
-    function solution_priority(sol)
-        solsta_priority =
-            sol.solsta == Mosek.MSK_SOL_STA_INTEGER_OPTIMAL ||
-            sol.solsta == Mosek.MSK_SOL_STA_OPTIMAL
-        if sol.whichsol == Mosek.MSK_SOL_ITG
-            return (solsta_priority, 3)
-        elseif sol.whichsol == Mosek.MSK_SOL_BAS
-            return (solsta_priority, 2)
-        else
-            @assert sol.whichsol == Mosek.MSK_SOL_ITR
-            return (solsta_priority, 1)
-        end
-    end
     # Sort solutions largest priority to smallest
-    sort!(m.solutions; by = solution_priority, rev = true)
+    sort!(m.solutions; by = _solution_priority, rev = true)
     return
+end
+
+# We need to sort the solutions, so that an optimal one is first (if it
+# exists). The priority is:
+#  1. MSK_SOL_STA_INTEGER_OPTIMAL or MSK_SOL_STA_OPTIMAL
+#  2. MSK_SOL_ITG, MSK_SOL_BAS, MSK_SOL_ITR
+function _solution_priority(sol)
+    solsta_priority =
+        sol.solsta == Mosek.MSK_SOL_STA_INTEGER_OPTIMAL ||
+        sol.solsta == Mosek.MSK_SOL_STA_OPTIMAL
+    if sol.whichsol == Mosek.MSK_SOL_ITG
+        return (solsta_priority, 3)
+    elseif sol.whichsol == Mosek.MSK_SOL_BAS
+        return (solsta_priority, 2)
+    else
+        @assert sol.whichsol == Mosek.MSK_SOL_ITR
+        return (solsta_priority, 1)
+    end
 end
 
 # MOI.Name
