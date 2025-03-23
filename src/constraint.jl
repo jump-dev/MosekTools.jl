@@ -145,7 +145,8 @@ function _putconbound(m::Optimizer, row::Int32, dom::MOI.EqualTo{Float64})
 end
 
 function _putconbound(m::Optimizer, row::Int32, dom::MOI.Interval{Float64})
-    Mosek.putconbound(m.task, row, _bounds(dom)...)
+    bk, bl, bu = _bounds(dom)
+    Mosek.putconbound(m.task, row, bk, bl, bu)
     return
 end
 
@@ -177,41 +178,30 @@ function _get_bound(
     domidx = Mosek.getaccdomain(m.task, ci.value)
     dt = Mosek.getdomaintype(m.task, domidx)
     if dt == Mosek.MSK_DOMAIN_QUADRATIC_CONE
-        MOI.SecondOrderCone(solsize(m, ci))
+        return MOI.SecondOrderCone(solsize(m, ci))
     elseif dt == Mosek.MSK_DOMAIN_RQUADRATIC_CONE
-        MOI.RotatedSecondOrderCone(solsize(m, ci))
+        return MOI.RotatedSecondOrderCone(solsize(m, ci))
     elseif dt == Mosek.MSK_DOMAIN_PRIMAL_EXP_CONE
-        MOI.ExponentialCone()
+        return MOI.ExponentialCone()
     elseif dt == Mosek.MSK_DOMAIN_DUAL_EXP_CONE
-        MOI.DualExponentialCone()
+        return MOI.DualExponentialCone()
     elseif dt == Mosek.MSK_DOMAIN_PRIMAL_POWER_CONE
-        (n, nleft) = Mosek.getpowerdomaininfo(m.task, domidx)
-        if n != 3 || nleft != 2
-            error("Incompatible power cone detected")
-        end
+        n, _ = Mosek.getpowerdomaininfo(m.task, domidx)
+        @assert n == 3
         alpha = Mosek.getpowerdomainalpha(m.task, domidx)
-        MOI.PowerCone(alpha[1])
+        return MOI.PowerCone(alpha[1])
     elseif dt == Mosek.MSK_DOMAIN_DUAL_POWER_CONE
-        (n, nleft) = Mosek.getpowerdomaininfo(m.task, domidx)
-        if n != 3 || nleft != 2
-            error("Incompatible power cone detected")
-        end
+        n, _ = Mosek.getpowerdomaininfo(m.task, domidx)
+        @assert n == 3
         alpha = Mosek.getpowerdomainalpha(m.task, domidx)
-        MOI.DualPowerCone(alpha[1])
-        # elseif dt == Mosek.MSK_DOMAIN_R
-        # elseif dt == Mosek.MSK_DOMAIN_RZERO
-        # elseif dt == Mosek.MSK_DOMAIN_RPLUS
-        # elseif dt == Mosek.MSK_DOMAIN_RMINUS
-        # elseif dt == Mosek.MSK_DOMAIN_PRIMAL_GEO_MEAN_CONE
-        # elseif dt == Mosek.MSK_DOMAIN_DUAL_GEO_MEAN_CONE
-    elseif dt == Mosek.MSK_DOMAIN_SVEC_PSD_CONE
+        return MOI.DualPowerCone(alpha[1])
+    else
+        @assert dt == Mosek.MSK_DOMAIN_SVEC_PSD_CONE
         return MOI.Scaled{MOI.PositiveSemidefiniteConeTriangle}(
             MOI.Utilities.side_dimension_for_vectorized_dimension(
                 solsize(m, ci),
             ),
         )
-    else
-        error("Incompatible cone detected")
     end
 end
 
@@ -242,14 +232,13 @@ function _delete_variable_constraint(
     col::ColumnIndex,
     ::Type{MOI.LessThan{Float64}},
 )
-    bk, lo, up = Mosek.getvarbound(m.task, col.value)
+    bk, lo, _ = Mosek.getvarbound(m.task, col.value)
     if bk == Mosek.MSK_BK_UP
-        bk = Mosek.MSK_BK_FR
+        Mosek.putvarbound(m.task, col.value, Mosek.MSK_BK_FR, lo, 0.0)
     else
         @assert bk == Mosek.MSK_BK_RA
-        bk = Mosek.MSK_BK_LO
+        Mosek.putvarbound(m.task, col.value, Mosek.MSK_BK_LO, lo, 0.0)
     end
-    Mosek.putvarbound(m.task, col.value, bk, lo, 0.0)
     return
 end
 
@@ -258,14 +247,13 @@ function _delete_variable_constraint(
     col::ColumnIndex,
     ::Type{MOI.GreaterThan{Float64}},
 )
-    bk, lo, up = Mosek.getvarbound(m.task, col.value)
+    bk, _, up = Mosek.getvarbound(m.task, col.value)
     if bk == Mosek.MSK_BK_LO
-        bk = Mosek.MSK_BK_FR
+        Mosek.putvarbound(m.task, col.value, Mosek.MSK_BK_FR, 0.0, up)
     else
         @assert bk == Mosek.MSK_BK_RA
-        bk = Mosek.MSK_BK_UP
+        Mosek.putvarbound(m.task, col.value, Mosek.MSK_BK_UP, 0.0, up)
     end
-    Mosek.putvarbound(m.task, col.value, bk, 0.0, up)
     return
 end
 
@@ -274,7 +262,8 @@ function _add_variable_constraint(
     col::ColumnIndex,
     dom::MOI.Interval,
 )
-    Mosek.putvarbound(m.task, col.value, _bounds(dom)...)
+    bk, bl, bu = _bounds(dom)
+    Mosek.putvarbound(m.task, col.value, bk, bl, bu)
     return
 end
 
@@ -338,21 +327,6 @@ function get_variable_constraint(
     ci::MOI.ConstraintIndex,
 )
     return get_variable_constraint(m, mosek_index(m, vi), ci)
-end
-
-cone_parameter(dom::MOI.PowerCone{Float64}) = dom.exponent
-cone_parameter(dom::MOI.DualPowerCone{Float64}) = dom.exponent
-cone_parameter(dom::C) where {C<:MOI.AbstractSet} = 0.0
-
-function add_cone(m::Optimizer, cols::ColumnIndices, set)
-    Mosek.appendcone(
-        m.task,
-        cone_type(typeof(set)),
-        cone_parameter(set),
-        cols.values,
-    )
-    id = Mosek.getnumcone(m.task)
-    return id
 end
 
 ###############################################################################
@@ -429,8 +403,6 @@ flag(::Type{MOI.GreaterThan{Float64}}) = 0x2
 flag(::Type{MOI.LessThan{Float64}}) = 0x4
 flag(::Type{MOI.Interval{Float64}}) = 0x8
 flag(::Type{MOI.Integer}) = 0x10
-#flag(::Type{<:VectorCone}) = 0x40 # FIXME unused
-incompatible_mask(::Type{<:VectorCone}) = 0x40
 
 function set_flag(model::Optimizer, vi::MOI.VariableIndex, S::Type)
     return model.x_constraints[vi.value] |= flag(S)
@@ -540,13 +512,6 @@ end
 # added later. Adding a `Interval` constraint defines both upper and
 # lower bounds.
 
-cone_type(::Type{MOI.ExponentialCone}) = Mosek.MSK_CT_PEXP
-cone_type(::Type{MOI.DualExponentialCone}) = Mosek.MSK_CT_DEXP
-cone_type(::Type{MOI.PowerCone{Float64}}) = Mosek.MSK_CT_PPOW
-cone_type(::Type{MOI.DualPowerCone{Float64}}) = Mosek.MSK_CT_DPOW
-cone_type(::Type{MOI.SecondOrderCone}) = Mosek.MSK_CT_QUAD
-cone_type(::Type{MOI.RotatedSecondOrderCone}) = Mosek.MSK_CT_RQUAD
-
 function _check_bound_compat(
     m::Optimizer,
     x::MOI.VariableIndex,
@@ -611,22 +576,29 @@ function MOI.add_constraint(
     return MOI.ConstraintIndex{MOI.VariableIndex,D}(xs.value)
 end
 
+_cone_type(::Type{MOI.ExponentialCone}) = Mosek.MSK_CT_PEXP
+_cone_type(::Type{MOI.DualExponentialCone}) = Mosek.MSK_CT_DEXP
+_cone_type(::Type{MOI.PowerCone{Float64}}) = Mosek.MSK_CT_PPOW
+_cone_type(::Type{MOI.DualPowerCone{Float64}}) = Mosek.MSK_CT_DPOW
+_cone_type(::Type{MOI.SecondOrderCone}) = Mosek.MSK_CT_QUAD
+_cone_type(::Type{MOI.RotatedSecondOrderCone}) = Mosek.MSK_CT_RQUAD
+
+_cone_parameter(dom::MOI.PowerCone{Float64}) = dom.exponent
+_cone_parameter(dom::MOI.DualPowerCone{Float64}) = dom.exponent
+_cone_parameter(::MOI.AbstractSet) = 0.0
+
 function MOI.add_constraint(
     m::Optimizer,
     xs::MOI.VectorOfVariables,
     dom::D,
 ) where {D<:VectorCone}
     if any(vi -> is_matrix(m, vi), xs.variables)
-        error("Cannot add $D constraint on a matrix variable")
+        msg = "Cannot add $D constraint on a matrix variable"
+        throw(MOI.AddConstraintNotAllowed{MOI.VectorOfVariables,D}(msg))
     end
     cols = ColumnIndices(reorder(columns(m, xs.variables).values, D, true))
-    if !all(
-        vi -> iszero(incompatible_mask(D) & m.x_constraints[vi.value]),
-        xs.variables,
-    )
-        error("Cannot multiple bound sets of the same type to a variable")
-    end
-    id = add_cone(m, cols, dom)
+    Mosek.appendcone(m.task, _cone_type(D), _cone_parameter(dom), cols.values)
+    id = Mosek.getnumcone(m.task)
     idx = first(xs.variables).value
     for vi in xs.variables
         m.variable_to_vector_constraint_id[vi.value] = -idx
@@ -724,12 +696,7 @@ function MOI.add_constrained_variables(
     dom::S,
 ) where {S<:MOI.PositiveSemidefiniteConeTriangle}
     N = MOI.side_dimension(dom)
-    if N < 1
-        error(
-            "Invalid dimension for semidefinite constraint, got $N which is ",
-            "smaller than the minimum dimension 1.",
-        )
-    end
+    @assert N >= 1
     Mosek.appendbarvars(m.task, Int32[N])
     push!(m.sd_dim, N)
     id = length(m.sd_dim)
@@ -1012,9 +979,6 @@ function MOI.is_valid(
         return false
     end
     domidx = Mosek.getaccdomain(model.task, ci.value)
-    if domidx == 1
-        return false
-    end
     return Mosek.getdomaintype(model.task, domidx) == _domain(S)
 end
 
@@ -1093,7 +1057,7 @@ function MOI.is_valid(
     end
     id = cone_id(model, ci)
     return 1 <= id <= Mosek.getnumcone(model.task) &&
-           Mosek.getconeinfo(model.task, id)[1] == cone_type(S)
+           Mosek.getconeinfo(model.task, id)[1] == _cone_type(S)
 end
 
 function MOI.delete(
