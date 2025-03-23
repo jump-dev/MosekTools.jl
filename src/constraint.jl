@@ -384,39 +384,45 @@ function rows(
     return m.F_rows[ci.value]
 end
 
-function appendconedomain(t::Mosek.Task, ::Int, dom::MOI.ExponentialCone)
+function _append_cone_domain(t::Mosek.Task, n::Int, ::MOI.ExponentialCone)
+    @assert n == 3
     return Mosek.appendprimalexpconedomain(t)
 end
 
-function appendconedomain(t::Mosek.Task, ::Int, dom::MOI.DualExponentialCone)
+function _append_cone_domain(t::Mosek.Task, n::Int, ::MOI.DualExponentialCone)
+    @assert n == 3
     return Mosek.appenddualexpconedomain(t)
 end
 
-function appendconedomain(t::Mosek.Task, ::Int, dom::MOI.PowerCone{Float64})
-    return Mosek.appendprimalpowerconedomain(
-        t,
-        3,
-        Float64[dom.exponent, 1.0-dom.exponent],
-    )
+function _append_cone_domain(t::Mosek.Task, n::Int, dom::MOI.PowerCone{Float64})
+    @assert n == 3
+    data = [dom.exponent, 1.0 - dom.exponent]
+    return Mosek.appendprimalpowerconedomain(t, 3, data)
 end
 
-function appendconedomain(t::Mosek.Task, ::Int, dom::MOI.DualPowerCone{Float64})
-    return Mosek.appenddualpowerconedomain(
-        t,
-        3,
-        Float64[dom.exponent, 1.0-dom.exponent],
-    )
+function _append_cone_domain(
+    t::Mosek.Task,
+    n::Int,
+    dom::MOI.DualPowerCone{Float64},
+)
+    @assert n == 3
+    info = [dom.exponent, 1.0 - dom.exponent]
+    return Mosek.appenddualpowerconedomain(t, 3, info)
 end
 
-function appendconedomain(t::Mosek.Task, n::Int, ::MOI.SecondOrderCone)
+function _append_cone_domain(t::Mosek.Task, n::Int, ::MOI.SecondOrderCone)
     return Mosek.appendquadraticconedomain(t, n)
 end
 
-function appendconedomain(t::Mosek.Task, n::Int, ::MOI.RotatedSecondOrderCone)
+function _append_cone_domain(
+    t::Mosek.Task,
+    n::Int,
+    ::MOI.RotatedSecondOrderCone,
+)
     return Mosek.appendrquadraticconedomain(t, n)
 end
 
-function appendconedomain(
+function _append_cone_domain(
     t::Mosek.Task,
     n::Int,
     ::MOI.Scaled{MOI.PositiveSemidefiniteConeTriangle},
@@ -640,73 +646,50 @@ function MOI.add_constraint(
     func::MOI.VectorAffineFunction{Float64},
     dom::D,
 ) where {D<:VectorConeDomain}
-    # if any(vi -> is_matrix(m, vi), xs.variables)
-    #     error("Cannot add $D constraint on a matrix variable")
-    # end
     axbs = MOI.Utilities.canonical(func)
-    let acci = Mosek.getnumacc(m.task) + 1,
-        afei = Mosek.getnumafe(m.task),
-        b = -reorder(axbs.constants, D, true),
-        num = length(axbs.constants),
-        nnz = length(axbs.terms),
-        domi = appendconedomain(m.task, num, dom)
-
-        m.F_rows[acci] = afei .+ eachindex(b)
-        Mosek.appendafes(m.task, num)
-        Mosek.appendaccseq(m.task, domi, afei + 1, b)
-        rsubi = Vector{Int64}()
-        sizehint!(rsubi, nnz)
-        rsubj = Vector{Int32}()
-        sizehint!(rsubj, nnz)
-        rcof = Vector{Float64}()
-        sizehint!(rcof, nnz)
-        rbarsubi = Vector{Int64}()
-        sizehint!(rbarsubi, nnz)
-        rbarsubj = Vector{Int32}()
-        sizehint!(rbarsubj, nnz)
-        rbarsubk = Vector{Int64}()
-        sizehint!(rbarsubk, nnz)
-        rbarsubl = Vector{Int64}()
-        sizehint!(rbarsubl, nnz)
-        rbarcof = Vector{Float64}()
-        sizehint!(rbarcof, nnz)
-        function add(row::Int, col::ColumnIndex, coefficient::Float64)
+    acci = Mosek.getnumacc(m.task) + 1
+    afei = Mosek.getnumafe(m.task)
+    b = -reorder(axbs.constants, D, true)
+    domi = _append_cone_domain(m.task, length(axbs.constants), dom)
+    m.F_rows[acci] = afei .+ eachindex(b)
+    Mosek.appendafes(m.task, length(axbs.constants))
+    Mosek.appendaccseq(m.task, domi, afei + 1, b)
+    rsubi, rsubj, rcof = Int64[], Int32[], Float64[]
+    rbarsubi, rbarsubj, rbarsubk, rbarsubl, rbarcof =
+        Int64[], Int32[], Int64[], Int64[], Float64[]
+    for term in axbs.terms
+        row = reorder(term.output_index, dom, true) + afei
+        index = mosek_index(m, term.scalar_term.variable)
+        if index isa ColumnIndex
             push!(rsubi, row)
-            push!(rsubj, col.value)
-            return push!(rcof, coefficient)
-        end
-        function add(row::Int, mat::MatrixIndex, coefficient::Float64)
+            push!(rsubj, index.value)
+            push!(rcof, term.scalar_term.coefficient)
+        else
+            @assert index isa MatrixIndex
             push!(rbarsubi, row)
-            push!(rbarsubj, mat.matrix)
-            push!(rbarsubk, mat.row)
-            push!(rbarsubl, mat.column)
-            return push!(
-                rbarcof,
-                mat.row == mat.column ? coefficient : coefficient / 2,
-            )
+            push!(rbarsubj, index.matrix)
+            push!(rbarsubk, index.row)
+            push!(rbarsubl, index.column)
+            scale = index.row == index.column ? 1.0 : 0.5
+            push!(rbarcof, scale * term.scalar_term.coefficient)
         end
-        for term in axbs.terms
-            add(
-                reorder(term.output_index, dom, true) + afei,
-                mosek_index(m, term.scalar_term.variable),
-                term.scalar_term.coefficient,
-            )
-        end
-        if !isempty(rsubi) # Mosek segfaults otherwise, see https://github.com/jump-dev/MosekTools.jl/actions/runs/3243196430/jobs/5317555832#step:7:132
-            Mosek.putafefentrylist(m.task, rsubi, rsubj, rcof)
-        end
-        if !isempty(rbarsubi)
-            Mosek.putafebarfblocktriplet(
-                m.task,
-                rbarsubi,
-                rbarsubj,
-                rbarsubk,
-                rbarsubl,
-                rbarcof,
-            )
-        end
-        return MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},D}(acci)
     end
+    if !isempty(rsubi)
+        # Mosek segfaults otherwise, see
+        # https://github.com/jump-dev/MosekTools.jl/actions/runs/3243196430/jobs/5317555832#step:7:132
+        Mosek.putafefentrylist(m.task, rsubi, rsubj, rcof)
+    end
+    if !isempty(rbarsubi)
+        Mosek.putafebarfblocktriplet(
+            m.task,
+            rbarsubi,
+            rbarsubj,
+            rbarsubk,
+            rbarsubl,
+            rbarcof,
+        )
+    end
+    return MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},D}(acci)
 end
 
 function cone_id(
