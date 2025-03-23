@@ -808,7 +808,8 @@ end
 
 function test_rows_invalid_index()
     model = Mosek.Optimizer()
-    ci = MOI.ConstraintIndex{MOI.VectorOfVariables,MOI.ExponentialCone}(1)
+    F = MOI.VectorAffineFunction{Float64}
+    ci = MOI.ConstraintIndex{F,MOI.ExponentialCone}(1)
     @test_throws MOI.InvalidIndex MOI.get(model, MOI.ConstraintFunction(), ci)
     return
 end
