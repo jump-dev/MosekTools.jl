@@ -936,24 +936,6 @@ function MOI.set(
 end
 
 ### MODIFY
-function MOI.modify(
-    m::Optimizer,
-    c::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},D},
-    func::MOI.ScalarConstantChange{Float64},
-) where {D<:MOI.AbstractSet}
-    if !iszero(func.new_constant)
-        throw(
-            MOI.ScalarFunctionConstantNotZero{
-                Float64,
-                MOI.ScalarAffineFunction{Float64},
-                D,
-            }(
-                func.new_constant,
-            ),
-        )
-    end
-    return
-end
 
 # Is there a way to do this in Mosek API ? I haven't check so here is an error for now:
 const _MODIFY_PSD_VAR_ERROR = "Modifying the coefficient of the variable correspond to an entry of a PSD matrix is not supported"
