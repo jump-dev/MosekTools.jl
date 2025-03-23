@@ -785,6 +785,94 @@ function test_is_scalar()
     return
 end
 
+function test_delete_variable_bounds()
+    for (s1, s2) in [
+        MOI.GreaterThan(1.0) => MOI.LessThan(2.0),
+        MOI.LessThan(2.0) => MOI.GreaterThan(1.0),
+    ]
+        model = Mosek.Optimizer()
+        x = MOI.add_variable(model)
+        c1 = MOI.add_constraint(model, x, s1)
+        c2 = MOI.add_constraint(model, x, s2)
+        @test MOI.is_valid(model, c1)
+        @test MOI.is_valid(model, c2)
+        MOI.get(model, MOI.ConstraintSet(), c1) == s1
+        MOI.get(model, MOI.ConstraintSet(), c2) == s2
+        MOI.delete(model, c1)
+        @test !MOI.is_valid(model, c1)
+        @test MOI.is_valid(model, c2)
+        MOI.get(model, MOI.ConstraintSet(), c2) == s2
+    end
+    return
+end
+
+function test_rows_invalid_index()
+    model = Mosek.Optimizer()
+    F = MOI.VectorAffineFunction{Float64}
+    ci = MOI.ConstraintIndex{F,MOI.ExponentialCone}(1)
+    @test_throws MOI.InvalidIndex MOI.get(model, MOI.ConstraintFunction(), ci)
+    return
+end
+
+function test_throw_add_constraint_not_allowed()
+    model = Mosek.Optimizer()
+    set = MOI.PositiveSemidefiniteConeTriangle(2)
+    x, _ = MOI.add_constrained_variables(model, set)
+    set = MOI.ExponentialCone()
+    @test_throws(
+        MOI.AddConstraintNotAllowed{MOI.VectorOfVariables,MOI.ExponentialCone},
+        MOI.add_constraint(model, MOI.VectorOfVariables(x), set),
+    )
+    return
+end
+
+function test_is_valid_VectorAffineFunction_VectorConeDomain()
+    model = Mosek.Optimizer()
+    x = MOI.add_variables(model, 4)
+    set = MOI.SecondOrderCone(4)
+    f = MOI.Utilities.vectorize(1.0 .* x)
+    c = MOI.add_constraint(model, f, set)
+    @test MOI.is_valid(model, c)
+    @test !MOI.is_valid(model, typeof(c)(c.value - 1))
+    @test !MOI.is_valid(model, typeof(c)(c.value + 1))
+    return
+end
+
+function test_is_valid_VectorOfVariables_VectorCone()
+    model = Mosek.Optimizer()
+    x = MOI.add_variables(model, 4)
+    set = MOI.SecondOrderCone(4)
+    c = MOI.add_constraint(model, MOI.VectorOfVariables(x), set)
+    @test MOI.is_valid(model, c)
+    @test !MOI.is_valid(model, typeof(c)(c.value - 1))
+    @test !MOI.is_valid(model, typeof(c)(c.value + 1))
+    return
+end
+
+function test_is_valid_VectorOfVariables_PositiveSemidefiniteConeTriangle()
+    model = Mosek.Optimizer()
+    set = MOI.PositiveSemidefiniteConeTriangle(2)
+    x, c = MOI.add_constrained_variables(model, set)
+    @test MOI.is_valid(model, c)
+    @test !MOI.is_valid(model, typeof(c)(c.value - 1))
+    @test !MOI.is_valid(model, typeof(c)(c.value + 1))
+    return
+end
+
+function test_ConstraintName()
+    model = Mosek.Optimizer()
+    x = MOI.add_variable(model)
+    c1 = MOI.add_constraint(model, 1.0 * x, MOI.GreaterThan(1.0))
+    c2 = MOI.add_constraint(model, 1.0 * x, MOI.GreaterThan(1.0))
+    c3 = MOI.add_constraint(model, 1.0 * x, MOI.GreaterThan(1.0))
+    MOI.set(model, MOI.ConstraintName(), c1, "")
+    MOI.set(model, MOI.ConstraintName(), c2, "")
+    MOI.set(model, MOI.ConstraintName(), c3, "c")
+    @test MOI.get(model, MOI.ConstraintIndex, "") == nothing
+    @test MOI.get(model, MOI.ConstraintIndex, "c") == c3
+    return
+end
+
 end  # module
 
 TestMosekTools.runtests()
