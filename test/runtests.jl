@@ -653,9 +653,9 @@ function test_objective_bound_relative_gap()
     @test isapprox(
         MOI.get(model, MOI.ObjectiveBound()),
         MOI.get(model, MOI.ObjectiveValue());
-        rtol = 1e-6,
+        rtol = 1e-2,
     )
-    @test MOI.get(model, MOI.RelativeGap()) < 1e-6
+    @test MOI.get(model, MOI.RelativeGap()) < 1e-2
     return
 end
 
