@@ -637,36 +637,40 @@ const _TERMINATION_STATUS_MAP = Dict(
     Mosek.MSK_RES_TRM_INTERNAL_STOP.value => MOI.OTHER_ERROR,
 )
 
+# Mosek.jl defines `MosekEnum <: Integer` but it does not define
+# `hash(::MosekEnum)`. This means creating a dictionary fails. Instead of fixing
+# in Mosek.jl, or pirating a Base.hash(::Mosek.MosekEnum, ::UInt64) method here,
+# we just use the `.value::Int32` field as the key.
+const _PROSTA_STATUS_MAP = Dict(
+    Mosek.MSK_PRO_STA_UNKNOWN.value => MOI.OTHER_ERROR,
+    Mosek.MSK_PRO_STA_PRIM_AND_DUAL_FEAS.value => MOI.LOCALLY_SOLVED,
+    Mosek.MSK_PRO_STA_PRIM_FEAS.value => MOI.LOCALLY_SOLVED,
+    # We proved only dual feasibility? What this one returns is up for debate.
+    Mosek.MSK_PRO_STA_DUAL_FEAS.value => MOI.OTHER_ERROR,
+    Mosek.MSK_PRO_STA_PRIM_INFEAS.value => MOI.INFEASIBLE,
+    Mosek.MSK_PRO_STA_DUAL_INFEAS.value => MOI.DUAL_INFEASIBLE,
+    Mosek.MSK_PRO_STA_PRIM_AND_DUAL_INFEAS.value => MOI.INFEASIBLE,
+    Mosek.MSK_PRO_STA_ILL_POSED.value => MOI.OTHER_ERROR,
+    Mosek.MSK_PRO_STA_PRIM_INFEAS_OR_UNBOUNDED.value =>
+        MOI.INFEASIBLE_OR_UNBOUNDED,
+)
+
 function MOI.get(m::Optimizer, attr::MOI.TerminationStatus)
     if m.trm === nothing
         return MOI.OPTIMIZE_NOT_CALLED
-    elseif m.trm == Mosek.MSK_RES_OK
-        # checking `any(sol -> sol.solsta == Mosek.MSK_SOL_STA_PRIM_INFEAS_CER, m.solutions)`
-        # doesn't work for MIP as there is not certificate, i.e. the solutions status is
-        # `UNKNOWN`, only the problem status is `INFEAS`.
-        if any(
-            sol -> sol.prosta in
-            [Mosek.MSK_PRO_STA_PRIM_INFEAS, Mosek.MSK_PRO_STA_ILL_POSED],
-            m.solutions,
-        )
-            return MOI.INFEASIBLE
-        elseif any(
-            sol -> sol.prosta == Mosek.MSK_PRO_STA_DUAL_INFEAS,
-            m.solutions,
-        )
-            return MOI.DUAL_INFEASIBLE
-        elseif any(
-            sol -> sol.prosta == Mosek.MSK_PRO_STA_PRIM_INFEAS_OR_UNBOUNDED,
-            m.solutions,
-        )
-            return MOI.INFEASIBLE_OR_UNBOUNDED
-        elseif any(
-            sol -> sol.solsta in
-            [Mosek.MSK_SOL_STA_OPTIMAL, Mosek.MSK_SOL_STA_INTEGER_OPTIMAL],
-            m.solutions,
-        )
+    elseif m.trm == Mosek.MSK_RES_OK && length(m.solutions) > 0
+        # The different solutions _could_ have different `.prosta`, but we just
+        # return the information of the first one. This makes the most sense
+        # because `result_index` defaults to 1, and we sort the solutions in
+        # `MOI.optimize!` to ensure that the first solution is OPTIMAL, if one
+        # exists.
+        sol = first(m.solutions)
+        if sol.solsta == Mosek.MSK_SOL_STA_OPTIMAL
+            return MOI.OPTIMAL
+        elseif sol.solsta == Mosek.MSK_SOL_STA_INTEGER_OPTIMAL
             return MOI.OPTIMAL
         end
+        return _PROSTA_STATUS_MAP[sol.prosta.value]
     end
     return get(_TERMINATION_STATUS_MAP, m.trm.value, MOI.OTHER_ERROR)
 end

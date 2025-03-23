@@ -873,6 +873,60 @@ function test_ConstraintName()
     return
 end
 
+function test_MSK_RES_ERR_MISSING_LICENSE_FILE()
+    model = Mosek.Optimizer()
+    x = MOI.add_variable(model)
+    try
+        MOI.optimize!(model)
+    catch err
+        @test err isa Mosek.MosekError
+        @test Mosek.Rescode(err.rcode) == Mosek.MSK_RES_ERR_MISSING_LICENSE_FILE
+    end
+    return
+end
+
+function test_throw_add_constraint_not_allowed_scalar()
+    model = Mosek.Optimizer()
+    set = MOI.PositiveSemidefiniteConeTriangle(2)
+    x, _ = MOI.add_constrained_variables(model, set)
+    @test_throws(
+        MOI.AddConstraintNotAllowed{MOI.VariableIndex,MOI.Integer},
+        MOI.add_constraint(model, x[1], MOI.Integer()),
+    )
+    return
+end
+
+function test_solution_priority()
+    for (whichsol, priority) in
+        (Mosek.MSK_SOL_ITG => 3, Mosek.MSK_SOL_BAS => 2, Mosek.MSK_SOL_ITR => 1)
+        for (solsta, flag) in (
+            Mosek.MSK_SOL_STA_INTEGER_OPTIMAL => true,
+            Mosek.MSK_SOL_STA_OPTIMAL => true,
+            Mosek.MSK_SOL_STA_UNKNOWN => false,
+        )
+            solution = MosekTools.MosekSolution(
+                whichsol,
+                solsta,
+                Mosek.MSK_PRO_STA_PRIM_AND_DUAL_FEAS,
+                Mosek.Stakey[],
+                Float64[],
+                Vector{Float64}[],
+                Float64[],
+                Float64[],
+                Float64[],
+                Float64[],
+                Mosek.Stakey[],
+                Float64[],
+                Float64[],
+                Float64[],
+                Float64[],
+            )
+            @test MosekTools._solution_priority(solution) == (flag, priority)
+        end
+    end
+    return
+end
+
 end  # module
 
 TestMosekTools.runtests()

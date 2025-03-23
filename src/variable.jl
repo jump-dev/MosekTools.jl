@@ -43,12 +43,9 @@ function mosek_index(m::Optimizer, vi::MOI.VariableIndex)
     return m.x_sd[vi.value]
 end
 
-function index_of_column(m::Optimizer, col::Int32)
-    id = m.x_block.back[col]
-    if iszero(id)
-        return nothing
-    end
-    return MOI.VariableIndex(id)
+function _col_to_index(m::Optimizer, col::Int32)
+    @assert !iszero(m.x_block.back[col])
+    return MOI.VariableIndex(m.x_block.back[col])
 end
 
 ## Delete #####################################################################

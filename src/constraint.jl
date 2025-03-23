@@ -563,17 +563,18 @@ _check_bound_compat(::Optimizer, ::MOI.VariableIndex, ::MOI.Integer) = nothing
 
 function MOI.add_constraint(
     m::Optimizer,
-    xs::MOI.VariableIndex,
-    dom::D,
-) where {D<:Union{ScalarLinearDomain,MOI.Integer}}
-    msk_idx = mosek_index(m, xs)
-    if !(msk_idx isa ColumnIndex)
-        error("Cannot add $D constraint on a matrix variable")
+    x::MOI.VariableIndex,
+    set::S,
+) where {S<:Union{ScalarLinearDomain,MOI.Integer}}
+    index = mosek_index(m, x)
+    if index isa MatrixIndex
+        msg = "Cannot add $S constraint on a matrix variable."
+        throw(MOI.AddConstraintNotAllowed{MOI.VariableIndex,S}(msg))
     end
-    _check_bound_compat(m, xs, dom)
-    set_flag(m, xs, D)
-    _add_variable_constraint(m, msk_idx, dom)
-    return MOI.ConstraintIndex{MOI.VariableIndex,D}(xs.value)
+    _check_bound_compat(m, x, set)
+    set_flag(m, x, S)
+    _add_variable_constraint(m, index, set)
+    return MOI.ConstraintIndex{MOI.VariableIndex,D}(x.value)
 end
 
 _cone_type(::Type{MOI.ExponentialCone}) = Mosek.MSK_CT_PEXP
@@ -763,8 +764,8 @@ function MOI.get(
     nnz, cols, vals = Mosek.getarow(m.task, row(m, ci))
     @assert nnz == length(cols) == length(vals)
     terms = MOI.ScalarAffineTerm{Float64}[
-        MOI.ScalarAffineTerm(vals[i], index_of_column(m, cols[i])) for
-        i in 1:nnz
+        MOI.ScalarAffineTerm(v, _col_to_index(m, c)) for
+        (v, c) in zip(vals, cols)
     ]
     return MOI.ScalarAffineFunction(terms, 0.0)
 end
@@ -792,10 +793,8 @@ function MOI.get(
     ::MOI.ConstraintFunction,
     ci::MOI.ConstraintIndex{MOI.VectorOfVariables,S},
 ) where {S<:VectorCone}
-    return MOI.VectorOfVariables([
-        index_of_column(m, col) for
-        col in reorder(columns(m, ci).values, S, true)
-    ])
+    cols = reorder(columns(m, ci).values, S, true)
+    return MOI.VectorOfVariables(_col_to_index.(m, cols))
 end
 
 function MOI.get(
@@ -808,15 +807,17 @@ function MOI.get(
         throw(MOI.GetAttributeNotAllowed(attr))
     end
     r = rows(m, ci)
-    (frow, fcol, fval) = Mosek.getaccftrip(m.task)
+    frow, fcol, fval = Mosek.getaccftrip(m.task)
     constants = Mosek.getaccb(m.task, ci.value)
     set = MOI.Utilities.set_with_dimension(S, length(r))
-    terms = [
-        MOI.VectorAffineTerm(
-            reorder(frow[i] - first(r) + 1, set, false),
-            MOI.ScalarAffineTerm(fval[i], index_of_column(m, fcol[i])),
-        ) for i in eachindex(frow) if frow[i] in r
-    ]
+    terms = MOI.VectorAffineTerm{Float64}[]
+    for (frowi, fcoli, fvali) in zip(frow, fcol, fval)
+        if frowi in r
+            row = reorder(frowi - first(r) + 1, set, false)
+            term = MOI.ScalarAffineTerm(fvali, _col_to_index(m, fcoli))
+            push!(terms, MOI.VectorAffineTerm(row, term))
+        end
+    end
     return MOI.VectorAffineFunction(terms, -reorder(constants, S, false))
 end
 
