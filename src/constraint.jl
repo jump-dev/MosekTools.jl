@@ -948,26 +948,34 @@ function MOI.is_valid(
     return Mosek.getdomaintype(model.task, domidx) == _domain(S)
 end
 
-# Commenting out as it doesn't work (gives a MethodError)
-
-# Deleting a constraint block means clearing non-zeros from the its
-# AFE rows and resetting the underlying ACC to an empty domain. We do
-# not reclaim the AFEs.
-# function MOI.delete(m::Optimizer,
-#                     cref::MOI.ConstraintIndex{F,D}) where {F <: MOI.VectorAffineFunction{Float64},
-#                                                            D <: VectorConeDomain}
-#     MOI.throw_if_not_valid(m, cref)
-#     Mosek.putaccname(m.task,cref.value,"")
-#     afeidxs = Mosek.getaccafeidxlist(m.task,cref.value)
-#     # clear afe non-zeros, but don't delete or reuse afe idx
-#     # FIXME gives a MethodError
-#     Mosek.putafefrowlist(afeidxs,zeros(Int32,length(afeidxs)),zeros(Int64,length(afeidxs)),Int32[],Float64[])
-#     putaccdom(m.task,
-#               cref.value,
-#               1, # the empty zero domain,
-#               Int64[],
-#               Float64[])
-# end
+# Deleting a constraint block means clearing non-zeros from the its AFE rows and
+# resetting the underlying ACC to an empty domain. We do not reclaim the AFEs.
+function MOI.delete(
+    m::Optimizer,
+    cref::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},D}
+) where {D<:VectorConeDomain}
+    MOI.throw_if_not_valid(m, cref)
+    Mosek.putaccname(m.task, cref.value, "")
+    afeidxs = Mosek.getaccafeidxlist(m.task, cref.value)
+    Mosek.putafefrowlist(
+        m.task,
+        afeidxs,
+        zeros(Int32, length(afeidxs)),
+        ones(Int64, length(afeidxs)),
+        Int32[],
+        Float64[],
+    )
+    Mosek.putacc(
+        m.task,
+        cref.value,
+        Mosek.MSK_DOMAIN_RZERO,
+        Int64[],
+        Float64[],
+    )
+    delete!(m.con_to_name, cref)
+    m.name_to_con = nothing
+    return
+end
 
 function MOI.is_valid(
     model::Optimizer,
