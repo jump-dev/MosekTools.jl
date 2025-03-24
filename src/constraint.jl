@@ -789,19 +789,19 @@ function MOI.get(
         # Cannot get function if there are matrix variables
         throw(MOI.GetAttributeNotAllowed(attr))
     end
-    r = rows(m, ci)
-    frow, fcol, fval = Mosek.getaccftrip(m.task)
-    constants = Mosek.getaccb(m.task, ci.value)
-    set = MOI.Utilities.set_with_dimension(S, length(r))
+    rows = Mosek.getaccafeidxlist(m.task, ci.value)
+    set = MOI.Utilities.set_with_dimension(S, length(rows))
     terms = MOI.VectorAffineTerm{Float64}[]
-    for (frowi, fcoli, fvali) in zip(frow, fcol, fval)
-        if frowi in r
-            row = reorder(frowi - first(r) + 1, set, false)
-            term = MOI.ScalarAffineTerm(fvali, _col_to_index(m, fcoli))
-            push!(terms, MOI.VectorAffineTerm(row, term))
+    for (i, row) in enumerate(rows)
+        numnz, varidx, val = Mosek.getafefrow(m.task, row)
+        output_index = reorder(i, set, false)
+        for (coli, vali) in zip(varidx, val)
+            term = MOI.ScalarAffineTerm(vali, _col_to_index(m, coli))
+            push!(terms, MOI.VectorAffineTerm(output_index, term))
         end
     end
-    return MOI.VectorAffineFunction(terms, -reorder(constants, S, false))
+    constants = -reorder(Mosek.getaccb(m.task, ci.value), S, false)
+    return MOI.VectorAffineFunction(terms, constants)
 end
 
 function _type_cone(ct)
@@ -952,8 +952,8 @@ end
 # resetting the underlying ACC to an empty domain. We do not reclaim the AFEs.
 function MOI.delete(
     m::Optimizer,
-    cref::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},D}
-) where {D<:VectorConeDomain}
+    cref::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},S},
+) where {S<:VectorConeDomain}
     MOI.throw_if_not_valid(m, cref)
     Mosek.putaccname(m.task, cref.value, "")
     afeidxs = Mosek.getaccafeidxlist(m.task, cref.value)
@@ -965,15 +965,10 @@ function MOI.delete(
         Int32[],
         Float64[],
     )
-    Mosek.putacc(
-        m.task,
-        cref.value,
-        Mosek.MSK_DOMAIN_RZERO,
-        Int64[],
-        Float64[],
-    )
+    Mosek.putacc(m.task, cref.value, Mosek.MSK_DOMAIN_RZERO, Int64[], Float64[])
     delete!(m.con_to_name, cref)
     m.name_to_con = nothing
+    delete!(m.F_rows, cref.value)
     return
 end
 
