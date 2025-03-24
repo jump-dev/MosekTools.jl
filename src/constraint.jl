@@ -48,8 +48,8 @@ function split_scalar_matrix(
     # matrix appear adjacent to each other so we can reuse the vector for all
     # matrices. Allocating one vector for each matrix can cause performance
     # issues; see https://github.com/jump-dev/MosekTools.jl/issues/135
-    current_matrix = -1
-    sd_row, sd_col, sd_coef = Int32[], Int32[], Float64[]
+    current_matrix = Int32(-1)
+    sd_row, sd_col, sd_coef = nothing, nothing, nothing
     for term in terms
         index = mosek_index(m, term.variable)
         if index isa ColumnIndex
@@ -59,7 +59,10 @@ function split_scalar_matrix(
         end
         @assert index isa MatrixIndex
         @assert index.matrix != -1
-        if index.matrix != current_matrix && current_matrix != -1
+        if sd_row === sd_col === sd_coef === nothing
+            sd_row, sd_col, sd_coef = Int32[], Int32[], Float64[]
+        end
+        if index.matrix != current_matrix && current_matrix != Int32(-1)
             # This marks the start of a new matrix variable. We can flush the
             # previous matrix by calling set_sd_fn and empty the associated
             # vectors
@@ -77,7 +80,7 @@ function split_scalar_matrix(
         push!(sd_coef, scale * term.coefficient)
         current_matrix = index.matrix
     end
-    if current_matrix != -1
+    if current_matrix != Int32(-1)
         dim = m.sd_dim[current_matrix]
         id = Mosek.appendsparsesymmat(m.task, dim, sd_row, sd_col, sd_coef)
         set_sd_fn(current_matrix, [id], [1.0])
