@@ -785,6 +785,7 @@ function MOI.get(
     attr::MOI.ConstraintFunction,
     ci::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},S},
 ) where {S<:VectorConeDomain}
+    MOI.throw_if_not_valid(m, ci)
     if length(m.sd_dim) > 0
         # Cannot get function if there are matrix variables
         throw(MOI.GetAttributeNotAllowed(attr))
