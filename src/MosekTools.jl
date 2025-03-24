@@ -107,8 +107,6 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     # and Mosek.getvarbound so we need to keep them here so implement `MOI.is_valid`
     x_constraints::Vector{UInt8}
 
-    F_rows::Dict{Int,UnitRange{Int}} # TODO can it be obtained from Mosek ?
-
     # The total length of `x_block` matches the number of variables in
     # the underlying task, and the number of blocks corresponds to the
     # number variables allocated in the Model.
@@ -166,7 +164,6 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
             Dict{MOI.ConstraintIndex,String}(),  # con_to_name
             nothing,                             # name_to_con
             UInt8[],                             # x_constraints
-            Dict{Int,UnitRange{Int}}(),          # F_rows
             LinkedInts(),                        # x_block
             MatrixIndex[],                       # x_sd
             Int[],                               # sd_dim
@@ -493,8 +490,7 @@ function MOI.is_empty(m::Optimizer)
     return Mosek.getnumvar(m.task) == 0 &&
            Mosek.getnumcon(m.task) == 0 &&
            Mosek.getnumcone(m.task) == 0 &&
-           Mosek.getnumbarvar(m.task) == 0 &&
-           isempty(m.F_rows)
+           Mosek.getnumbarvar(m.task) == 0
 end
 
 # MOI.empty!
@@ -519,7 +515,6 @@ function MOI.empty!(model::Optimizer)
     model.name_to_variable = nothing
     empty!(model.con_to_name)
     model.name_to_con = nothing
-    empty!(model.F_rows)
     empty!(model.x_constraints)
     model.x_block = LinkedInts()
     empty!(model.x_sd)

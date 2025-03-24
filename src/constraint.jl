@@ -348,16 +348,6 @@ function columns(m::Optimizer, ci::MOI.ConstraintIndex{MOI.VectorOfVariables})
     return ColumnIndices(Mosek.getcone(m.task, coneidx)[4])
 end
 
-function rows(
-    m::Optimizer,
-    ci::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64}},
-)
-    if !(ci.value in keys(m.F_rows))
-        throw(MOI.InvalidIndex(ci))
-    end
-    return m.F_rows[ci.value]
-end
-
 function _append_cone_domain(t::Mosek.Task, n::Int, ::MOI.ExponentialCone)
     @assert n == 3
     return Mosek.appendprimalexpconedomain(t)
@@ -624,7 +614,6 @@ function MOI.add_constraint(
     afei = Mosek.getnumafe(m.task)
     b = -reorder(axbs.constants, D, true)
     domi = _append_cone_domain(m.task, length(axbs.constants), dom)
-    m.F_rows[acci] = afei .+ eachindex(b)
     Mosek.appendafes(m.task, length(axbs.constants))
     Mosek.appendaccseq(m.task, domi, afei + 1, b)
     rsubi, rsubj, rcof = Int64[], Int32[], Float64[]
@@ -785,23 +774,24 @@ function MOI.get(
     attr::MOI.ConstraintFunction,
     ci::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},S},
 ) where {S<:VectorConeDomain}
+    MOI.throw_if_not_valid(m, ci)
     if length(m.sd_dim) > 0
         # Cannot get function if there are matrix variables
         throw(MOI.GetAttributeNotAllowed(attr))
     end
-    r = rows(m, ci)
-    frow, fcol, fval = Mosek.getaccftrip(m.task)
-    constants = Mosek.getaccb(m.task, ci.value)
-    set = MOI.Utilities.set_with_dimension(S, length(r))
+    rows = Mosek.getaccafeidxlist(m.task, ci.value)
+    set = MOI.Utilities.set_with_dimension(S, length(rows))
     terms = MOI.VectorAffineTerm{Float64}[]
-    for (frowi, fcoli, fvali) in zip(frow, fcol, fval)
-        if frowi in r
-            row = reorder(frowi - first(r) + 1, set, false)
-            term = MOI.ScalarAffineTerm(fvali, _col_to_index(m, fcoli))
-            push!(terms, MOI.VectorAffineTerm(row, term))
+    for (i, row) in enumerate(rows)
+        numnz, varidx, val = Mosek.getafefrow(m.task, row)
+        output_index = reorder(i, set, false)
+        for (coli, vali) in zip(varidx, val)
+            term = MOI.ScalarAffineTerm(vali, _col_to_index(m, coli))
+            push!(terms, MOI.VectorAffineTerm(output_index, term))
         end
     end
-    return MOI.VectorAffineFunction(terms, -reorder(constants, S, false))
+    constants = -reorder(Mosek.getaccb(m.task, ci.value), S, false)
+    return MOI.VectorAffineFunction(terms, constants)
 end
 
 function _type_cone(ct)
@@ -948,26 +938,28 @@ function MOI.is_valid(
     return Mosek.getdomaintype(model.task, domidx) == _domain(S)
 end
 
-# Commenting out as it doesn't work (gives a MethodError)
-
-# Deleting a constraint block means clearing non-zeros from the its
-# AFE rows and resetting the underlying ACC to an empty domain. We do
-# not reclaim the AFEs.
-# function MOI.delete(m::Optimizer,
-#                     cref::MOI.ConstraintIndex{F,D}) where {F <: MOI.VectorAffineFunction{Float64},
-#                                                            D <: VectorConeDomain}
-#     MOI.throw_if_not_valid(m, cref)
-#     Mosek.putaccname(m.task,cref.value,"")
-#     afeidxs = Mosek.getaccafeidxlist(m.task,cref.value)
-#     # clear afe non-zeros, but don't delete or reuse afe idx
-#     # FIXME gives a MethodError
-#     Mosek.putafefrowlist(afeidxs,zeros(Int32,length(afeidxs)),zeros(Int64,length(afeidxs)),Int32[],Float64[])
-#     putaccdom(m.task,
-#               cref.value,
-#               1, # the empty zero domain,
-#               Int64[],
-#               Float64[])
-# end
+# Deleting a constraint block means clearing non-zeros from the its AFE rows and
+# resetting the underlying ACC to an empty domain. We do not reclaim the AFEs.
+function MOI.delete(
+    m::Optimizer,
+    cref::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},S},
+) where {S<:VectorConeDomain}
+    MOI.throw_if_not_valid(m, cref)
+    Mosek.putaccname(m.task, cref.value, "")
+    afeidxs = Mosek.getaccafeidxlist(m.task, cref.value)
+    Mosek.putafefrowlist(
+        m.task,
+        afeidxs,
+        zeros(Int32, length(afeidxs)),
+        ones(Int64, length(afeidxs)),
+        Int32[],
+        Float64[],
+    )
+    Mosek.putacc(m.task, cref.value, Mosek.MSK_DOMAIN_RZERO, Int64[], Float64[])
+    delete!(m.con_to_name, cref)
+    m.name_to_con = nothing
+    return
+end
 
 function MOI.is_valid(
     model::Optimizer,
