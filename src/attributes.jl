@@ -548,9 +548,9 @@ function MOI.get!(
     ci::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},D},
 ) where {D}
     MOI.check_result_index_bounds(m, attr)
-    r = rows(m, ci)
+    afeidxs = Mosek.getaccafeidxlist(task, ci.value)
     idx = reorder(1:length(output), D, true)
-    output[idx] = _dual_scale(m) * m.solutions[attr.result_index].doty[r]
+    output[idx] = _dual_scale(m) * m.solutions[attr.result_index].doty[afeidxs]
     return
 end
 
@@ -572,7 +572,7 @@ function solsize(
     m::Optimizer,
     ci::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64}},
 )
-    return length(rows(m, ci))
+    return Mosek.getaccn(m.task, ci.value)
 end
 
 function solsize(

@@ -348,16 +348,6 @@ function columns(m::Optimizer, ci::MOI.ConstraintIndex{MOI.VectorOfVariables})
     return ColumnIndices(Mosek.getcone(m.task, coneidx)[4])
 end
 
-function rows(
-    m::Optimizer,
-    ci::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64}},
-)
-    if !(ci.value in keys(m.F_rows))
-        throw(MOI.InvalidIndex(ci))
-    end
-    return m.F_rows[ci.value]
-end
-
 function _append_cone_domain(t::Mosek.Task, n::Int, ::MOI.ExponentialCone)
     @assert n == 3
     return Mosek.appendprimalexpconedomain(t)
@@ -624,7 +614,6 @@ function MOI.add_constraint(
     afei = Mosek.getnumafe(m.task)
     b = -reorder(axbs.constants, D, true)
     domi = _append_cone_domain(m.task, length(axbs.constants), dom)
-    m.F_rows[acci] = afei .+ eachindex(b)
     Mosek.appendafes(m.task, length(axbs.constants))
     Mosek.appendaccseq(m.task, domi, afei + 1, b)
     rsubi, rsubj, rcof = Int64[], Int32[], Float64[]
@@ -969,7 +958,6 @@ function MOI.delete(
     Mosek.putacc(m.task, cref.value, Mosek.MSK_DOMAIN_RZERO, Int64[], Float64[])
     delete!(m.con_to_name, cref)
     m.name_to_con = nothing
-    delete!(m.F_rows, cref.value)
     return
 end
 
