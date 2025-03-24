@@ -36,57 +36,55 @@ function allocateconstraints(m::Optimizer, N::Int)
     return id
 end
 
-# `putbaraij` and `putbarcj` need the whole matrix as a sum of sparse mat at once
+# `putbaraij` and `putbarcj` need the whole matrix as a sum of sparse matrix at
+# once.
 function split_scalar_matrix(
+    set_sd_fn::F,
     m::Optimizer,
     terms::Vector{MOI.ScalarAffineTerm{Float64}},
-    set_sd::Function,
-)
-    cols = Int32[]
-    values = Float64[]
+) where {F<:Function}
+    cols, values = Int32[], Float64[]
     # `terms` is in canonical form so the variables belonging to the same
     # matrix appear adjacent to each other so we can reuse the vector for all
     # matrices. Allocating one vector for each matrix can cause performance
     # issues; see https://github.com/jump-dev/MosekTools.jl/issues/135
-    current_matrix = -1
-    sd_row = Int32[]
-    sd_col = Int32[]
-    sd_coef = Float64[]
-    function add(col::ColumnIndex, coefficient::Float64)
-        push!(cols, col.value)
-        return push!(values, coefficient)
-    end
-    function add_sd()
-        if current_matrix != -1
-            @assert !isempty(sd_row)
-            id = Mosek.appendsparsesymmat(
-                m.task,
-                m.sd_dim[current_matrix],
-                sd_row,
-                sd_col,
-                sd_coef,
-            )
-            set_sd(current_matrix, [id], [1.0])
+    current_matrix = Int32(-1)
+    sd_row, sd_col, sd_coef = nothing, nothing, nothing
+    for term in terms
+        index = mosek_index(m, term.variable)
+        if index isa ColumnIndex
+            push!(cols, index.value)
+            push!(values, term.coefficient)
+            continue
         end
-    end
-    function add(mat::MatrixIndex, coefficient::Float64)
-        @assert mat.matrix != -1
-        if current_matrix != mat.matrix
-            add_sd()
-            current_matrix = mat.matrix
+        @assert index isa MatrixIndex
+        @assert index.matrix != -1
+        if sd_row === sd_col === sd_coef === nothing
+            sd_row, sd_col, sd_coef = Int32[], Int32[], Float64[]
+        end
+        if index.matrix != current_matrix && current_matrix != Int32(-1)
+            # This marks the start of a new matrix variable. We can flush the
+            # previous matrix by calling set_sd_fn and empty the associated
+            # vectors
+            @assert !isempty(sd_row)
+            dim = m.sd_dim[current_matrix]
+            id = Mosek.appendsparsesymmat(m.task, dim, sd_row, sd_col, sd_coef)
+            set_sd_fn(current_matrix, [id], [1.0])
             empty!(sd_row)
             empty!(sd_col)
             empty!(sd_coef)
         end
-        coef = mat.row == mat.column ? coefficient : coefficient / 2
-        push!(sd_row, mat.row)
-        push!(sd_col, mat.column)
-        return push!(sd_coef, coef)
+        push!(sd_row, index.row)
+        push!(sd_col, index.column)
+        scale = (index.row == index.column ? 1.0 : 0.5)
+        push!(sd_coef, scale * term.coefficient)
+        current_matrix = index.matrix
     end
-    for term in terms
-        add(mosek_index(m, term.variable), term.coefficient)
+    if current_matrix != Int32(-1)
+        dim = m.sd_dim[current_matrix]
+        id = Mosek.appendsparsesymmat(m.task, dim, sd_row, sd_col, sd_coef)
+        set_sd_fn(current_matrix, [id], [1.0])
     end
-    add_sd()
     return cols, values
 end
 
@@ -483,11 +481,9 @@ function MOI.add_constraint(
     conid = allocateconstraints(m, 1)
     ci = MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},S}(conid)
     r = row(m, ci)
-    cols, values = split_scalar_matrix(
-        m,
-        f.terms,
-        (j, ids, coefs) -> Mosek.putbaraij(m.task, r, j, ids, coefs),
-    )
+    cols, values = split_scalar_matrix(m, f.terms) do j, ids, coefs
+        return Mosek.putbaraij(m.task, r, j, ids, coefs)
+    end
     Mosek.putarow(m.task, r, ColumnIndices(cols).values, values)
     _putconbound(m, r, set)
     return ci
