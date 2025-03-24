@@ -54,20 +54,18 @@ function MOI.set(
         msg = "Cannot set a different objective if a previous objective was set including the contribution of the entry of a PSD variable."
         throw(MOI.SetAttributeNotAllowed(attr, msg))
     end
-    cols, values = split_scalar_matrix(
-        m,
-        MOI.Utilities.canonical(func).terms,
-        (j, ids, coefs) -> begin
-            m.has_psd_in_objective = true
-            Mosek.putbarcj(m.task, j, ids, coefs)
-        end,
-    )
+    f = MOI.Utilities.canonical(func)
+    cols, values = split_scalar_matrix(m, f.terms) do j, ids, coefs
+        m.has_psd_in_objective = true
+        Mosek.putbarcj(m.task, j, ids, coefs)
+        return
+    end
     c = zeros(Float64, Mosek.getnumvar(m.task))
     for (col, val) in zip(cols, values)
         c[col] += val
     end
     Mosek.putclist(m.task, convert(Vector{Int32}, 1:length(c)), c)
-    Mosek.putcfix(m.task, func.constant)
+    Mosek.putcfix(m.task, f.constant)
     m.has_objective = true
     return
 end
