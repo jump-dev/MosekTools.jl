@@ -548,7 +548,7 @@ function MOI.get!(
     ci::MOI.ConstraintIndex{MOI.VectorAffineFunction{Float64},D},
 ) where {D}
     MOI.check_result_index_bounds(m, attr)
-    afeidxs = Mosek.getaccafeidxlist(task, ci.value)
+    afeidxs = Mosek.getaccafeidxlist(m.task, ci.value)
     idx = reorder(1:length(output), D, true)
     output[idx] = _dual_scale(m) * m.solutions[attr.result_index].doty[afeidxs]
     return
