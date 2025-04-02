@@ -169,6 +169,7 @@ function MOI.get(model::Optimizer, ::MOI.ListOfConstraintTypesPresent)
             MOI.ExponentialCone,
             MOI.DualExponentialCone,
             MOI.PositiveSemidefiniteConeTriangle,
+            MOI.Scaled{MOI.PositiveSemidefiniteConeTriangle},
         )
             if MOI.get(model, MOI.NumberOfConstraints{F,S}()) > 0
                 push!(list, (F, S))
