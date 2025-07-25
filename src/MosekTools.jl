@@ -345,6 +345,7 @@ function MOI.get(model::Optimizer, ::MOI.TimeLimitSec)
     return value
 end
 
+
 function MOI.optimize!(m::Optimizer)
     # See https://github.com/jump-dev/MosekTools.jl/issues/70
     Mosek.putintparam(

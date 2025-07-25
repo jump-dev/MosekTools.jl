@@ -169,6 +169,7 @@ function MOI.get(model::Optimizer, ::MOI.ListOfConstraintTypesPresent)
             MOI.ExponentialCone,
             MOI.DualExponentialCone,
             MOI.PositiveSemidefiniteConeTriangle,
+            MOI.GeometricMeanCone,
             MOI.Scaled{MOI.PositiveSemidefiniteConeTriangle},
         )
             if MOI.get(model, MOI.NumberOfConstraints{F,S}()) > 0
@@ -424,6 +425,34 @@ function MOI.get(
     return _dual_scale(m) * dual
 end
 
+function reorder(
+    i::Integer,
+    set::MOI.GeometricMeanCone,
+    moi_to_mosek::Bool,
+)
+    if moi_to_mosek
+       if i == 1
+           MOI.dimension(set)
+       else
+           i - 1
+       end
+    else
+        if i < MOI.dimension(set)
+            i + 1
+        else
+            1
+        end
+    end
+end
+
+function reorder(x::AbstractVector, ::Type{MOI.GeometricMeanCone}, moi_to_mosek::Bool)
+    if moi_to_mosek
+        [x[2:length(x)]...,x[1]]
+    else
+        [x[length(x)],x[1:length(x)-1]...]
+    end
+end
+
 # The dual or primal of an SDP variable block is returned in lower triangular
 # form but the constraint is in upper triangular form.
 function reorder(
@@ -482,6 +511,7 @@ const ExpCones = Union{MOI.ExponentialCone,MOI.DualExponentialCone}
 function reorder(i::Integer, ::ExpCones, ::Bool)
     return (3:-1:1)[i]
 end
+
 
 function reorder(x::AbstractVector, ::Union{ExpCones,Type{<:ExpCones}}, ::Bool)
     return [x[3], x[2], x[1]]

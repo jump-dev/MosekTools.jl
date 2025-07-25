@@ -925,7 +925,7 @@ _domain(::Type{MOI.PowerCone{Float64}}) = Mosek.MSK_DOMAIN_PRIMAL_POWER_CONE
 
 _domain(::Type{MOI.DualPowerCone{Float64}}) = Mosek.MSK_DOMAIN_DUAL_POWER_CONE
 
-_domain(::Type{MOI.GeometricMeanCone{Float64}}) = Mosek.MSK_DOMAIN_PRIMAL_GEO_MEAN_CONE
+_domain(::Type{MOI.GeometricMeanCone}) = Mosek.MSK_DOMAIN_PRIMAL_GEO_MEAN_CONE
 
 function _domain(::Type{MOI.Scaled{MOI.PositiveSemidefiniteConeTriangle}})
     return Mosek.MSK_DOMAIN_SVEC_PSD_CONE
