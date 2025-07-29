@@ -11,6 +11,7 @@ const VectorCone = Union{
     MOI.PowerCone,
     MOI.DualPowerCone,
     MOI.ExponentialCone,
+    MOI.GeometricMeanCone,
     MOI.DualExponentialCone,
 }
 
@@ -23,6 +24,7 @@ const VectorConeDomain = Union{
     MOI.DualPowerCone,
     MOI.ExponentialCone,
     MOI.DualExponentialCone,
+    MOI.GeometricMeanCone,
     MOI.Scaled{MOI.PositiveSemidefiniteConeTriangle},
 }
 
@@ -193,6 +195,8 @@ function _get_bound(
         @assert n == 3
         alpha = Mosek.getpowerdomainalpha(m.task, domidx)
         return MOI.DualPowerCone(alpha[1])
+    elseif dt == Mosek.MSK_DOMAIN_PRIMAL_GEO_MEAN_CONE
+        return MOI.GeometricMeanCone(solsize(m, ci))
     else
         @assert dt == Mosek.MSK_DOMAIN_SVEC_PSD_CONE
         return MOI.Scaled{MOI.PositiveSemidefiniteConeTriangle}(
@@ -382,6 +386,10 @@ function _append_cone_domain(
     ::MOI.RotatedSecondOrderCone,
 )
     return Mosek.appendrquadraticconedomain(t, n)
+end
+
+function _append_cone_domain(t::Mosek.Task, n::Int, ::MOI.GeometricMeanCone)
+    return Mosek.appendprimalgeomeanconedomain(t, n)
 end
 
 function _append_cone_domain(
@@ -575,6 +583,7 @@ _cone_type(::Type{MOI.PowerCone{Float64}}) = Mosek.MSK_CT_PPOW
 _cone_type(::Type{MOI.DualPowerCone{Float64}}) = Mosek.MSK_CT_DPOW
 _cone_type(::Type{MOI.SecondOrderCone}) = Mosek.MSK_CT_QUAD
 _cone_type(::Type{MOI.RotatedSecondOrderCone}) = Mosek.MSK_CT_RQUAD
+_cone_type(::Type{MOI.GeometricMeanCone}) = # ???
 
 _cone_parameter(dom::MOI.PowerCone{Float64}) = dom.exponent
 _cone_parameter(dom::MOI.DualPowerCone{Float64}) = dom.exponent
@@ -799,6 +808,8 @@ function _type_cone(ct)
         return MOI.PowerCone{Float64}
     elseif ct == Mosek.MSK_CT_DPOW
         return MOI.DualPowerCone{Float64}
+    elseif ct = # ???
+        return MOI.GeometricMeanCone
     elseif ct == Mosek.MSK_CT_QUAD
         return MOI.SecondOrderCone
     else
