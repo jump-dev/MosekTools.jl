@@ -125,7 +125,7 @@ function allocate_block(s::LinkedInts, N::Int, id::Integer)
     ptre = s.free_ptr
     # ptre is the last index
     ptrb = ptre
-    for i in 1:N-1
+    for i in 1:(N-1)
         s.back[ptrb] = id
         ptrb = s.prev[ptrb]
     end
