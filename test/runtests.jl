@@ -60,7 +60,7 @@ function MosekOptimizerWithFallback()
     MOI.set(
         optimizer,
         MOI.RawOptimizerAttribute("fallback"),
-        "mosek://solve.mosek.com:30080",
+        "http://solve.mosek.com:30080",
     )
     MOI.set(optimizer, MOI.Silent(), true)
     return optimizer
@@ -706,7 +706,7 @@ end
 function test_get_fallback()
     model = MosekOptimizerWithFallback()
     @test MOI.get(model, MOI.RawOptimizerAttribute("fallback")) ==
-          "mosek://solve.mosek.com:30080"
+          "http://solve.mosek.com:30080"
     return
 end
 
