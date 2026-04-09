@@ -4,6 +4,10 @@ on:
     branches: [master]
   pull_request:
     types: [opened, synchronize, reopened]
+# needed to allow julia-actions/cache to delete old caches that it has created
+permissions:
+  actions: write
+  contents: read
 jobs:
   test:
     name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ github.event_name }}
@@ -11,12 +15,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        version: ['1.6', '1']
+        version: ['1.10', '1']
         os: [ubuntu-latest]
         arch: [x64]
     steps:
-      - name: Install xmllint
-        run: sudo apt-get install -y curl
       - uses: actions/checkout@v6
       - uses: julia-actions/setup-julia@v2
         with:
@@ -30,7 +32,7 @@ jobs:
         with:
           depwarn: error
       - uses: julia-actions/julia-processcoverage@v1
-      - uses: codecov/codecov-action@v4
+      - uses: codecov/codecov-action@v6
         with:
-          file: lcov.info
+          files: lcov.info
           token: ${{ secrets.CODECOV_TOKEN }}

@@ -10,8 +10,8 @@ Mosek = "6405355b-0ac2-5fba-af84-adbd65488c0e"
 [compat]
 MathOptInterface = "1.20"
 Mosek = "10, 11"
-Test = "1.6"
-julia = "1.6"
+Test = "1"
+julia = "1.10"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
