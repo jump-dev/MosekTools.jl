@@ -10,60 +10,25 @@ using Test
 
 import MathOptInterface as MOI
 
-const _MOSEK_API_COUNTER = Ref{Int}(0)
-
 if isdefined(MOI.Test, :_error_handler)
     @eval function MOI.Test._error_handler(
         err::Mosek.MosekError,
         name::String,
         warn_unsupported::Bool,
     )
-        if Mosek.Rescode(err.rcode) == Mosek.MSK_RES_ERR_SERVER_STATUS
-            _MOSEK_API_COUNTER[] += 1
-            return  # Server returned non-ok HTTP status code
-        elseif Mosek.Rescode(err.rcode) == Mosek.MSK_RES_ERR_CONE_OVERLAP_APPEND
+        if Mosek.Rescode(err.rcode) == Mosek.MSK_RES_ERR_CONE_OVERLAP_APPEND
             return  # Mosek doesn't support this problem formulation
         end
         return rethrow(err)
     end
 end
 
-_is_intermittent(::Any) = false
-function _is_intermittent(err::Mosek.MosekError)
-    return Mosek.Rescode(err.rcode) == Mosek.MSK_RES_ERR_SERVER_STATUS
-end
-
 function runtests()
-    _MOSEK_API_COUNTER[] = 0
-    for name in names(@__MODULE__; all = true)
-        if startswith("$name", "test_")
-            @testset "$name" begin
-                try
-                    getfield(@__MODULE__, name)()
-                catch err
-                    if _is_intermittent(err)  # A flakey failure. Retry once.
-                        getfield(@__MODULE__, name)()
-                    else
-                        rethrow(err)
-                    end
-                end
-            end
-        end
+    is_test(name) = startswith("$name", "test_")
+    @testset "$name" for name in filter(is_test, names(@__MODULE__; all = true))
+        getfield(@__MODULE__, name)()
     end
-    # Test that there are less than 5 API call failures during a test run
-    @test _MOSEK_API_COUNTER[] < 5
     return
-end
-
-function MosekOptimizerWithFallback()
-    optimizer = Mosek.Optimizer()
-    MOI.set(
-        optimizer,
-        MOI.RawOptimizerAttribute("fallback"),
-        "mosek://solve.mosek.com:30080",
-    )
-    MOI.set(optimizer, MOI.Silent(), true)
-    return optimizer
 end
 
 function test_SolverName()
@@ -72,7 +37,8 @@ function test_SolverName()
 end
 
 function test_Double_Parameter()
-    optimizer = MosekOptimizerWithFallback()
+    optimizer = Mosek.Optimizer()
+    MOI.set(optimizer, MOI.Silent(), true)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("INTPNT_CO_TOL_DFEAS"), 1e-7)
     @test MOI.get(
         optimizer,
@@ -100,7 +66,8 @@ function test_Double_Parameter()
 end
 
 function test_Integer_Parameter()
-    optimizer = MosekOptimizerWithFallback()
+    optimizer = Mosek.Optimizer()
+    MOI.set(optimizer, MOI.Silent(), true)
     MOI.set(
         optimizer,
         MOI.RawOptimizerAttribute("MSK_IPAR_INTPNT_MAX_ITERATIONS"),
@@ -138,7 +105,8 @@ function test_String_Parameter()
 end
 
 function test_TimeLimitSec()
-    optimizer = MosekOptimizerWithFallback()
+    optimizer = Mosek.Optimizer()
+    MOI.set(optimizer, MOI.Silent(), true)
     @test MOI.get(
         optimizer,
         MOI.RawOptimizerAttribute("MSK_DPAR_OPTIMIZER_MAX_TIME"),
@@ -165,7 +133,8 @@ function test_supports_incremental_interface()
 end
 
 function test_Number_of_variables_and_deletion()
-    optimizer = MosekOptimizerWithFallback()
+    optimizer = Mosek.Optimizer()
+    MOI.set(optimizer, MOI.Silent(), true)
     x = MOI.add_variable(optimizer)
     @test MOI.get(optimizer, MOI.NumberOfVariables()) == 1
     y, cy = MOI.add_constrained_variables(
@@ -188,7 +157,8 @@ function test_Number_of_variables_and_deletion()
 end
 
 function test_Matrix_name()
-    optimizer = MosekOptimizerWithFallback()
+    optimizer = Mosek.Optimizer()
+    MOI.set(optimizer, MOI.Silent(), true)
     x, cx = MOI.add_constrained_variables(
         optimizer,
         MOI.PositiveSemidefiniteConeTriangle(3),
@@ -212,7 +182,8 @@ end
 
 # See https://github.com/jump-dev/MosekTools.jl/issues/95
 function test_Mapping_enums()
-    optimizer = MosekOptimizerWithFallback()
+    optimizer = Mosek.Optimizer()
+    MOI.set(optimizer, MOI.Silent(), true)
     # Force variable bridging to test attribute substitution
     bridged = MOI.Bridges.Variable.Zeros{Float64}(optimizer)
     cache = MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}())
@@ -233,7 +204,8 @@ function test_Mapping_enums()
 end
 
 function test_LMIs()
-    optimizer = MosekOptimizerWithFallback()
+    optimizer = Mosek.Optimizer()
+    MOI.set(optimizer, MOI.Silent(), true)
     @test MOI.supports_constraint(
         optimizer,
         MOI.VectorAffineFunction{Float64},
@@ -354,8 +326,10 @@ function test_modify_psd()
 end
 
 function test_moi_test_runtests_Mosek()
+    optimizer = Mosek.Optimizer()
+    MOI.set(optimizer, MOI.Silent(), true)
     MOI.Test.runtests(
-        MosekOptimizerWithFallback(),
+        optimizer,
         MOI.Test.Config(; atol = 1e-3, rtol = 1e-3);
         # Evaluated: MOI.OTHER_ERROR in (MOI.OPTIMAL, MOI.INVALID_MODEL)
         exclude = ["test_conic_empty_matrix"],
@@ -364,8 +338,10 @@ function test_moi_test_runtests_Mosek()
 end
 
 function test_moi_test_runtests_Bridge_Mosek()
+    model = MOI.instantiate(Mosek.Optimizer; with_bridge_type = Float64)
+    MOI.set(model, MOI.Silent(), true)
     MOI.Test.runtests(
-        MOI.instantiate(MosekOptimizerWithFallback; with_bridge_type = Float64),
+        model,
         MOI.Test.Config(; atol = 1e-3, rtol = 1e-3);
         exclude = [
             # Evaluated: MOI.OTHER_ERROR in (MOI.OPTIMAL, MOI.INVALID_MODEL)
@@ -379,12 +355,14 @@ function test_moi_test_runtests_Bridge_Mosek()
 end
 
 function test_moi_test_runtests_Bridge_Cache_Mosek()
+    model = MOI.instantiate(
+        Mosek.Optimizer;
+        with_bridge_type = Float64,
+        with_cache_type = Float64,
+    )
+    MOI.set(model, MOI.Silent(), true)
     MOI.Test.runtests(
-        MOI.instantiate(
-            MosekOptimizerWithFallback;
-            with_bridge_type = Float64,
-            with_cache_type = Float64,
-        ),
+        model,
         MOI.Test.Config(; atol = 1e-3, rtol = 1e-3);
         # Evaluated: MOI.OTHER_ERROR in (MOI.OPTIMAL, MOI.INVALID_MODEL)
         exclude = ["test_conic_empty_matrix"],
@@ -397,11 +375,12 @@ function test_more_SDP_tests_by_forced_bridging()
         MOI.Bridges.Constraint.RSOCtoPSD{Float64}( # Forced bridging
             MOI.Utilities.CachingOptimizer(
                 MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}()),
-                MosekOptimizerWithFallback(),
+                Mosek.Optimizer(),
             ),
         ),
         Float64,
     )
+    MOI.set(model, MOI.Silent(), true)
     config = MOI.Test.Config(
         Float64;
         atol = 1e-3,
@@ -415,7 +394,8 @@ end
 
 function test_VariableBasisStatus()
     attr = MOI.VariableBasisStatus()
-    model = MosekOptimizerWithFallback()
+    model = Mosek.Optimizer()
+    MOI.set(model, MOI.Silent(), true)
     x_low, _ = MOI.add_constrained_variable(model, MOI.GreaterThan(0.0))
     x_upr, _ = MOI.add_constrained_variable(model, MOI.LessThan(0.0))
     x_fix, _ = MOI.add_constrained_variable(model, MOI.EqualTo(0.0))
@@ -440,7 +420,8 @@ function test_VariableBasisStatus()
 end
 
 function test_variable_name()
-    model = MosekOptimizerWithFallback()
+    model = Mosek.Optimizer()
+    MOI.set(model, MOI.Silent(), true)
     x = MOI.add_variable(model)
     set = MOI.PositiveSemidefiniteConeTriangle(2)
     y, _ = MOI.add_constrained_variables(model, set)
@@ -519,7 +500,7 @@ end
 
 function test_issue_134()
     model = MOI.instantiate(
-        MosekOptimizerWithFallback;
+        Mosek.Optimizer;
         with_bridge_type = Float64,
         with_cache_type = Float64,
     )
@@ -618,7 +599,8 @@ function _solve_knapsack_model(model, n; integer::Bool = true)
 end
 
 function test_simplex_iterations()
-    model = MosekOptimizerWithFallback()
+    model = Mosek.Optimizer()
+    MOI.set(model, MOI.Silent(), true)
     @test MOI.get(model, MOI.SimplexIterations()) == 0
     _solve_knapsack_model(model, 100)
     @test MOI.get(model, MOI.SimplexIterations()) >= 0
@@ -626,7 +608,8 @@ function test_simplex_iterations()
 end
 
 function test_barrier_iterations()
-    model = MosekOptimizerWithFallback()
+    model = Mosek.Optimizer()
+    MOI.set(model, MOI.Silent(), true)
     MOI.set(
         model,
         MOI.RawOptimizerAttribute("MSK_IPAR_PRESOLVE_USE"),
@@ -639,7 +622,8 @@ function test_barrier_iterations()
 end
 
 function test_node_count()
-    model = MosekOptimizerWithFallback()
+    model = Mosek.Optimizer()
+    MOI.set(model, MOI.Silent(), true)
     @test MOI.get(model, MOI.NodeCount()) == 0
     _solve_knapsack_model(model, 100)
     @test MOI.get(model, MOI.NodeCount()) >= 0
@@ -647,7 +631,8 @@ function test_node_count()
 end
 
 function test_objective_bound_relative_gap()
-    model = MosekOptimizerWithFallback()
+    model = Mosek.Optimizer()
+    MOI.set(model, MOI.Silent(), true)
     @test isnan(MOI.get(model, MOI.ObjectiveBound()))
     _solve_knapsack_model(model, 100)
     @test isapprox(
@@ -660,7 +645,8 @@ function test_objective_bound_relative_gap()
 end
 
 function test_variable_primal_start()
-    model = MosekOptimizerWithFallback()
+    model = Mosek.Optimizer()
+    MOI.set(model, MOI.Silent(), true)
     set = MOI.PositiveSemidefiniteConeTriangle(2)
     x, _ = MOI.add_constrained_variables(model, set)
     MOI.set.(model, MOI.VariablePrimalStart(), x, [1.0, 0.0, 1.0])
@@ -669,7 +655,8 @@ function test_variable_primal_start()
 end
 
 function test_raw_status_string()
-    model = MosekOptimizerWithFallback()
+    model = Mosek.Optimizer()
+    MOI.set(model, MOI.Silent(), true)
     @test MOI.get(model, MOI.RawStatusString()) == "MOI.OPTIMIZE_NOT_CALLED"
     MOI.set(
         model,
@@ -704,7 +691,12 @@ function test_show_linked_ints()
 end
 
 function test_get_fallback()
-    model = MosekOptimizerWithFallback()
+    model = Mosek.Optimizer()
+    MOI.set(
+        model,
+        MOI.RawOptimizerAttribute("fallback"),
+        "mosek://solve.mosek.com:30080",
+    )
     @test MOI.get(model, MOI.RawOptimizerAttribute("fallback")) ==
           "mosek://solve.mosek.com:30080"
     return
