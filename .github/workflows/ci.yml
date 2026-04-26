@@ -29,7 +29,9 @@ jobs:
       - shell: bash
         run: |
           mkdir ~/mosek
-          echo "${{ secrets.MOSEK_LICENSE }}" > ~/mosek/mosek.lic
+          echo "${MOSEK_LICENSE}" > ~/mosek/mosek.lic
+        with:
+          MOSEK_LICENSE: ${{ secrets.MOSEK_LICENSE }}
       - uses: julia-actions/julia-runtest@v1
         with:
           depwarn: error
