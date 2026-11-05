@@ -107,6 +107,9 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     # and Mosek.getvarbound so we need to keep them here so implement `MOI.is_valid`
     x_constraints::Vector{UInt8}
 
+    # Explicit bounds before intersecting them with a ZeroOne constraint.
+    binary_bounds::Dict{Int32,Tuple{Mosek.Boundkey,Float64,Float64}}
+
     # The total length of `x_block` matches the number of variables in
     # the underlying task, and the number of blocks corresponds to the
     # number variables allocated in the Model.
@@ -164,6 +167,7 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
             Dict{MOI.ConstraintIndex,String}(),  # con_to_name
             nothing,                             # name_to_con
             UInt8[],                             # x_constraints
+            Dict{Int32,Tuple{Mosek.Boundkey,Float64,Float64}}(), # binary_bounds
             LinkedInts(),                        # x_block
             MatrixIndex[],                       # x_sd
             Int[],                               # sd_dim
@@ -516,6 +520,7 @@ function MOI.empty!(model::Optimizer)
     empty!(model.con_to_name)
     model.name_to_con = nothing
     empty!(model.x_constraints)
+    empty!(model.binary_bounds)
     model.x_block = LinkedInts()
     empty!(model.x_sd)
     empty!(model.sd_dim)

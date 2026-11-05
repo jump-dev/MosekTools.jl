@@ -111,7 +111,10 @@ end
 function MOI.get(
     model::Optimizer,
     ::MOI.ListOfConstraintIndices{F,S},
-) where {F<:MOI.VariableIndex,S<:Union{ScalarLinearDomain,MOI.Integer}}
+) where {
+    F<:MOI.VariableIndex,
+    S<:Union{ScalarLinearDomain,MOI.Integer,MOI.ZeroOne},
+}
     ret = MOI.ConstraintIndex{F,S}.(allocatedlist(model.x_block))
     filter!(Base.Fix1(MOI.is_valid, model), ret)
     return ret
@@ -154,6 +157,7 @@ function MOI.get(model::Optimizer, ::MOI.ListOfConstraintTypesPresent)
             MOI.EqualTo{Float64},
             MOI.Interval{Float64},
             MOI.Integer,
+            MOI.ZeroOne,
         )
             if MOI.get(model, MOI.NumberOfConstraints{F,S}()) > 0
                 push!(list, (F, S))

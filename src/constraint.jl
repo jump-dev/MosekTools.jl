@@ -210,12 +210,51 @@ end
 ####################### lx <= x <= u ############################################
 #######################      x ∈ K ############################################
 
+function _get_variable_bound(m::Optimizer, col::ColumnIndex)
+    if haskey(m.binary_bounds, col.value)
+        return m.binary_bounds[col.value]
+    end
+    return Mosek.getvarbound(m.task, col.value)
+end
+
+function _put_variable_bound(m::Optimizer, col::ColumnIndex, bk, bl, bu)
+    if haskey(m.binary_bounds, col.value)
+        m.binary_bounds[col.value] = (bk, bl, bu)
+        bl = bk in (Mosek.MSK_BK_FR, Mosek.MSK_BK_UP) ? 0.0 : max(0.0, bl)
+        bu = bk in (Mosek.MSK_BK_FR, Mosek.MSK_BK_LO) ? 1.0 : min(1.0, bu)
+        bk = Mosek.MSK_BK_RA
+    end
+    Mosek.putvarbound(m.task, col.value, bk, bl, bu)
+    return
+end
+
+function _add_variable_constraint(m::Optimizer, col::ColumnIndex, ::MOI.ZeroOne)
+    if !haskey(m.binary_bounds, col.value)
+        m.binary_bounds[col.value] = Mosek.getvarbound(m.task, col.value)
+    end
+    _put_variable_bound(m, col, m.binary_bounds[col.value]...)
+    Mosek.putvartype(m.task, col.value, Mosek.MSK_VAR_TYPE_INT)
+    return
+end
+
+function _delete_variable_constraint(
+    m::Optimizer,
+    col::ColumnIndex,
+    ::Type{MOI.ZeroOne},
+)
+    Mosek.putvarbound(m.task, col.value, pop!(m.binary_bounds, col.value)...)
+    if !has_flag(m, _col_to_index(m, col.value), MOI.Integer)
+        Mosek.putvartype(m.task, col.value, Mosek.MSK_VAR_TYPE_CONT)
+    end
+    return
+end
+
 function _delete_variable_constraint(
     m::Optimizer,
     col::ColumnIndex,
     ::Type{<:Union{MOI.Interval,MOI.EqualTo}},
 )
-    Mosek.putvarbound(m.task, col.value, Mosek.MSK_BK_FR, 0.0, 0.0)
+    _put_variable_bound(m, col, Mosek.MSK_BK_FR, 0.0, 0.0)
     return
 end
 
@@ -224,7 +263,9 @@ function _delete_variable_constraint(
     col::ColumnIndex,
     ::Type{MOI.Integer},
 )
-    Mosek.putvartype(m.task, col.value, Mosek.MSK_VAR_TYPE_CONT)
+    if !has_flag(m, _col_to_index(m, col.value), MOI.ZeroOne)
+        Mosek.putvartype(m.task, col.value, Mosek.MSK_VAR_TYPE_CONT)
+    end
     return
 end
 
@@ -233,12 +274,12 @@ function _delete_variable_constraint(
     col::ColumnIndex,
     ::Type{MOI.LessThan{Float64}},
 )
-    bk, lo, _ = Mosek.getvarbound(m.task, col.value)
+    bk, lo, _ = _get_variable_bound(m, col)
     if bk == Mosek.MSK_BK_UP
-        Mosek.putvarbound(m.task, col.value, Mosek.MSK_BK_FR, lo, 0.0)
+        _put_variable_bound(m, col, Mosek.MSK_BK_FR, lo, 0.0)
     else
         @assert bk == Mosek.MSK_BK_RA
-        Mosek.putvarbound(m.task, col.value, Mosek.MSK_BK_LO, lo, 0.0)
+        _put_variable_bound(m, col, Mosek.MSK_BK_LO, lo, 0.0)
     end
     return
 end
@@ -248,12 +289,12 @@ function _delete_variable_constraint(
     col::ColumnIndex,
     ::Type{MOI.GreaterThan{Float64}},
 )
-    bk, _, up = Mosek.getvarbound(m.task, col.value)
+    bk, _, up = _get_variable_bound(m, col)
     if bk == Mosek.MSK_BK_LO
-        Mosek.putvarbound(m.task, col.value, Mosek.MSK_BK_FR, 0.0, up)
+        _put_variable_bound(m, col, Mosek.MSK_BK_FR, 0.0, up)
     else
         @assert bk == Mosek.MSK_BK_RA
-        Mosek.putvarbound(m.task, col.value, Mosek.MSK_BK_UP, 0.0, up)
+        _put_variable_bound(m, col, Mosek.MSK_BK_UP, 0.0, up)
     end
     return
 end
@@ -264,7 +305,7 @@ function _add_variable_constraint(
     dom::MOI.Interval,
 )
     bk, bl, bu = _bounds(dom)
-    Mosek.putvarbound(m.task, col.value, bk, bl, bu)
+    _put_variable_bound(m, col, bk, bl, bu)
     return
 end
 
@@ -273,7 +314,7 @@ function _add_variable_constraint(
     col::ColumnIndex,
     dom::MOI.EqualTo,
 )
-    Mosek.putvarbound(m.task, col.value, Mosek.MSK_BK_FX, dom.value, dom.value)
+    _put_variable_bound(m, col, Mosek.MSK_BK_FX, dom.value, dom.value)
     return
 end
 
@@ -287,14 +328,14 @@ function _add_variable_constraint(
     col::ColumnIndex,
     dom::MOI.LessThan,
 )
-    bk, lo, up = Mosek.getvarbound(m.task, col.value)
+    bk, lo, up = _get_variable_bound(m, col)
     if bk == Mosek.MSK_BK_FR
         bk = Mosek.MSK_BK_UP
     else
         @assert bk == Mosek.MSK_BK_LO
         bk = Mosek.MSK_BK_RA
     end
-    Mosek.putvarbound(m.task, col.value, bk, lo, dom.upper)
+    _put_variable_bound(m, col, bk, lo, dom.upper)
     return
 end
 
@@ -303,14 +344,14 @@ function _add_variable_constraint(
     col::ColumnIndex,
     dom::MOI.GreaterThan,
 )
-    bk, lo, up = Mosek.getvarbound(m.task, col.value)
+    bk, lo, up = _get_variable_bound(m, col)
     if bk == Mosek.MSK_BK_FR
         bk = Mosek.MSK_BK_LO
     else
         @assert bk == Mosek.MSK_BK_UP
         bk = Mosek.MSK_BK_RA
     end
-    Mosek.putvarbound(m.task, col.value, bk, dom.lower, up)
+    _put_variable_bound(m, col, bk, dom.lower, up)
     return
 end
 
@@ -319,7 +360,7 @@ function get_variable_constraint(
     col::ColumnIndex,
     ci::MOI.ConstraintIndex{MOI.VariableIndex,S},
 ) where {S}
-    return _bounds_to_set(S, Mosek.getvarbound(m.task, col.value)...)
+    return _bounds_to_set(S, _get_variable_bound(m, col)...)
 end
 
 function get_variable_constraint(
@@ -404,6 +445,7 @@ flag(::Type{MOI.GreaterThan{Float64}}) = 0x2
 flag(::Type{MOI.LessThan{Float64}}) = 0x4
 flag(::Type{MOI.Interval{Float64}}) = 0x8
 flag(::Type{MOI.Integer}) = 0x10
+flag(::Type{MOI.ZeroOne}) = 0x20
 
 function set_flag(model::Optimizer, vi::MOI.VariableIndex, S::Type)
     return model.x_constraints[vi.value] |= flag(S)
@@ -450,7 +492,7 @@ end
 function MOI.supports_constraint(
     ::Optimizer,
     ::Type{MOI.VariableIndex},
-    ::Type{MOI.Integer},
+    ::Type{<:Union{MOI.Integer,MOI.ZeroOne}},
 )
     return true
 end
@@ -558,13 +600,19 @@ function _check_bound_compat(
     return
 end
 
-_check_bound_compat(::Optimizer, ::MOI.VariableIndex, ::MOI.Integer) = nothing
+function _check_bound_compat(
+    ::Optimizer,
+    ::MOI.VariableIndex,
+    ::Union{MOI.Integer,MOI.ZeroOne},
+)
+    return
+end
 
 function MOI.add_constraint(
     m::Optimizer,
     x::MOI.VariableIndex,
     set::S,
-) where {S<:Union{ScalarLinearDomain,MOI.Integer}}
+) where {S<:Union{ScalarLinearDomain,MOI.Integer,MOI.ZeroOne}}
     index = mosek_index(m, x)
     if index isa MatrixIndex
         msg = "Cannot add $S constraint on a matrix variable."
@@ -699,10 +747,10 @@ end
 function MOI.get(
     m::Optimizer,
     ::MOI.ConstraintSet,
-    ci::MOI.ConstraintIndex{MOI.VariableIndex,MOI.Integer},
-)
+    ci::MOI.ConstraintIndex{MOI.VariableIndex,S},
+) where {S<:Union{MOI.Integer,MOI.ZeroOne}}
     MOI.throw_if_not_valid(m, ci)
-    return MOI.Integer()
+    return S()
 end
 
 function MOI.get(
@@ -860,9 +908,9 @@ function MOI.set(
     dom::D,
 ) where {D<:ScalarLinearDomain}
     col = column(m, _variable(ci))
-    bk, bl, bu = Mosek.getvarbound(m.task, col.value)
+    bk, bl, bu = _get_variable_bound(m, col)
     bl, bu = _change_bound(bl, bu, dom)
-    Mosek.putvarbound(m.task, col.value, bk, bl, bu)
+    _put_variable_bound(m, col, bk, bl, bu)
     return
 end
 
@@ -995,7 +1043,7 @@ end
 function MOI.is_valid(
     model::Optimizer,
     ci::MOI.ConstraintIndex{MOI.VariableIndex,S},
-) where {S<:Union{ScalarLinearDomain,MOI.Integer}}
+) where {S<:Union{ScalarLinearDomain,MOI.Integer,MOI.ZeroOne}}
     return allocated(model.x_block, ci.value) &&
            has_flag(model, _variable(ci), S)
 end
@@ -1003,7 +1051,7 @@ end
 function MOI.delete(
     m::Optimizer,
     ci::MOI.ConstraintIndex{MOI.VariableIndex,S},
-) where {S<:Union{ScalarLinearDomain,MOI.Integer}}
+) where {S<:Union{ScalarLinearDomain,MOI.Integer,MOI.ZeroOne}}
     MOI.throw_if_not_valid(m, ci)
     vi = _variable(ci)
     unset_flag(m, vi, S)

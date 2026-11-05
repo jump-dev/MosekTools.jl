@@ -79,6 +79,7 @@ function _throw_if_cannot_delete(m::Optimizer, vi::MOI.VariableIndex)
             MOI.EqualTo{Float64},
             MOI.Interval{Float64},
             MOI.Integer,
+            MOI.ZeroOne,
         ]
             if has_flag(m, vi, S)
                 MOI.delete(
