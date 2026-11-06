@@ -255,8 +255,9 @@ end
 Set optimizer parameters. Set MOSEK solver parameters, or one of the
 additional parametes:
 
-- "QUIET" (true|false), to enable or disable solver log output
+- "QUIET" (true|false), to enable or disable solver log output to terminal
 - "fallback" (string), to set a solver server to use if no local license file was found,
+- "logfile" (string), write log output to a file
 """
 function MOI.set(m::Optimizer, p::MOI.RawOptimizerAttribute, value)
     if p.name == "QUIET"
@@ -267,6 +268,16 @@ function MOI.set(m::Optimizer, p::MOI.RawOptimizerAttribute, value)
             else
                 Mosek.putstreamfunc(m.task, Mosek.MSK_STREAM_LOG, print)
             end
+        end
+    elseif p.name == "logfile"
+        if value === nothing
+            if m.be_quiet
+                Mosek.putstreamfunc(m.task, Mosek.MSK_STREAM_LOG, m -> nothing)
+            else
+                Mosek.putstreamfunc(m.task, Mosek.MSK_STREAM_LOG, print)
+            end
+        else
+            Mosek.linkfiletostream(m.task, Mosek.MSK_STREAM_LOG, value, 0)
         end
     elseif p.name == "fallback"
         m.fallback = value
